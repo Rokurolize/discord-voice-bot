@@ -326,6 +326,31 @@ class MessageProcessor:
         logger.info(f"Created TTS message from {message.author.display_name}: '{processed_content[:50]}...'")
         return processed_content
 
+    async def process_message(self, message: Any) -> dict[str, Any] | None:
+        """Process Discord message for TTS with chunking support.
+
+        Args:
+            message: Discord message object
+
+        Returns:
+            Dictionary with processed message data, or None if shouldn't be processed
+
+        """
+        tts_text = await self.create_tts_message(message)
+        if not tts_text:
+            return None
+
+        # Chunk the message
+        chunks = self.chunk_message(tts_text)
+
+        return {
+            "text": tts_text,
+            "user_id": message.author.id,
+            "username": message.author.display_name,
+            "chunks": chunks,
+            "group_id": f"msg_{message.id}",
+        }
+
 
 # Global message processor instance
 message_processor = MessageProcessor()

@@ -38,9 +38,7 @@ SPEAKER_MAPPING = {
 }
 
 
-def get_compatible_speaker(
-    speaker_id: int, from_engine: str, to_engine: str, engine_configs: dict[str, dict[str, Any]]
-) -> int | None:
+def get_compatible_speaker(speaker_id: int, from_engine: str, to_engine: str, engine_configs: dict[str, dict[str, Any]]) -> int | None:
     """Get compatible speaker ID for different engine.
 
     Args:

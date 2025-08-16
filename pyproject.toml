@@ -62,10 +62,10 @@ warn_unused_ignores = false
 
 [tool.poe.tasks]
 test = "pytest tests -vv"
-_black_check = "black --check src scripts tests"
-_ruff_check = "ruff check src scripts tests"
-_black_format = "black src scripts tests"
-_ruff_format = "ruff check --fix src scripts tests"
+_black_check = "black --check src tests"
+_ruff_check = "ruff check src tests"
+_black_format = "black src tests"
+_ruff_format = "ruff check --fix src tests"
 lint = ["_black_check", "_ruff_check"]
 format = ["_ruff_format", "_black_format"]
 _mypy = "mypy src"
@@ -199,7 +199,6 @@ max-complexity = 20
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["D103"]
-"scripts/**" = ["D103"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -92,7 +92,7 @@ class UserSettings:
         """Initialize default user settings if not already set."""
         # Migrate existing settings to new format with engine info
         self._migrate_settings()
-        
+
         # No hardcoded user-specific defaults anymore
         # All user settings are managed via:
         # 1. Discord commands: !tts voice <speaker>
@@ -134,7 +134,7 @@ class UserSettings:
         """
         # Reload settings from file to get latest changes
         self._load_settings()
-        
+
         user_settings = self.settings.get(str(user_id))
         if not user_settings:
             return None

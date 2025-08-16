@@ -170,24 +170,16 @@ class DiscordVoiceTTSBot(commands.Bot):
         await self.process_commands(message)
 
         # Skip if not in target channel or shouldn't process
-        tts_text = await message_processor.create_tts_message(message)
-        if not tts_text:
+        processed_message = await message_processor.process_message(message)
+        if not processed_message:
             logger.debug(f"Message {message.id} from {message.author.name} was filtered out")
             return
 
         # Add to TTS queue
         if self.voice_handler:
-            success = await self.voice_handler.add_to_queue(
-                tts_text,
-                message.author.display_name,
-                priority=0,
-                user_id=message.author.id,
-            )
-            if success:
-                current_count = self.stats.get("messages_processed", 0)
-                if isinstance(current_count, int):
-                    self.stats["messages_processed"] = current_count + 1
-                logger.debug(f"Queued TTS message from {message.author.display_name}")
+            await self.voice_handler.add_to_queue(processed_message)
+            self.stats["messages_processed"] = (self.stats.get("messages_processed", 0) or 0) + 1
+            logger.debug(f"Queued TTS message from {message.author.display_name}")
         else:
             logger.warning("Voice handler not initialized, cannot queue TTS message")
 
@@ -198,8 +190,12 @@ class DiscordVoiceTTSBot(commands.Bot):
         after: discord.VoiceState,
     ) -> None:
         """Handle voice state update events."""
-        if self.voice_handler:
-            await self.voice_handler.handle_voice_state_update(member, before, after)
+        # Auto-reconnect if bot was disconnected
+        if member == self.user and before.channel and not after.channel:
+            logger.warning("Bot was disconnected from voice channel")
+            if self.voice_handler:
+                await asyncio.sleep(1)
+                await self.voice_handler.connect_to_channel(config.target_voice_channel_id)
 
     async def _on_disconnect(self) -> None:
         """Handle bot disconnect."""
@@ -223,9 +219,11 @@ class DiscordVoiceTTSBot(commands.Bot):
                 logger.warning("TTS engine health check failed")
 
             # Check voice connection
-            if self.voice_handler and not self.voice_handler.is_connected:
-                logger.warning("Voice connection lost, attempting reconnect")
-                await self.voice_handler.ensure_connected()
+            if self.voice_handler:
+                status = self.voice_handler.get_status()
+                if not status["connected"]:
+                    logger.warning("Voice connection lost, attempting reconnect")
+                    await self.voice_handler.connect_to_channel(config.target_voice_channel_id)
 
             # Log stats periodically
             if config.debug:
@@ -304,7 +302,7 @@ class DiscordVoiceTTSBot(commands.Bot):
             await ctx.send("❌ Voice handler not initialized")
             return
 
-        cleared_count = self.voice_handler.clear_queue()
+        cleared_count = await self.voice_handler.clear_all()
         await ctx.send(f"🗑️ Cleared {cleared_count} items from TTS queue")
 
     async def _speakers_command(self, ctx: commands.Context) -> None:
@@ -338,26 +336,26 @@ class DiscordVoiceTTSBot(commands.Bot):
             await ctx.send("❌ Voice handler not initialized")
             return
 
-        if not self.voice_handler.is_connected:
+        status = self.voice_handler.get_status()
+        if not status["connected"]:
             await ctx.send("❌ Not connected to voice channel")
             return
 
         # Process and queue the test message
         processed_text = message_processor.process_message_content(text, ctx.author.display_name)
-        success = await self.voice_handler.add_to_queue(
-            processed_text,
-            ctx.author.display_name,
-            priority=1,  # Higher priority for test messages
-            user_id=ctx.author.id,
-        )
+        chunks = message_processor.chunk_message(processed_text)
 
-        if success:
-            await ctx.send(f"🎤 Test TTS queued: `{processed_text[:50]}...`")
-            current_count = self.stats.get("tts_messages_played", 0)
-            if isinstance(current_count, int):
-                self.stats["tts_messages_played"] = current_count + 1
-        else:
-            await ctx.send("❌ Failed to queue test TTS")
+        processed_message = {
+            "text": processed_text,
+            "user_id": ctx.author.id,
+            "username": ctx.author.display_name,
+            "chunks": chunks,
+            "group_id": f"test_{ctx.message.id}",
+        }
+
+        await self.voice_handler.add_to_queue(processed_message)
+        await ctx.send(f"🎤 Test TTS queued: `{processed_text[:50]}...`")
+        self.stats["tts_messages_played"] = (self.stats.get("tts_messages_played", 0) or 0) + 1
 
     async def _voice_command(self, ctx: commands.Context, speaker: str | None = None) -> None:
         """Set or show personal voice preference."""
@@ -417,12 +415,15 @@ class DiscordVoiceTTSBot(commands.Bot):
                 # Test the new voice
                 test_text = f"{matched_speaker}の声です"
                 if self.voice_handler:
-                    await self.voice_handler.add_to_queue(
-                        test_text,
-                        ctx.author.display_name,
-                        priority=1,
-                        user_id=ctx.author.id,
-                    )
+                    chunks = message_processor.chunk_message(test_text)
+                    processed_message = {
+                        "text": test_text,
+                        "user_id": ctx.author.id,
+                        "username": ctx.author.display_name,
+                        "chunks": chunks,
+                        "group_id": f"voice_test_{ctx.message.id}",
+                    }
+                    await self.voice_handler.add_to_queue(processed_message)
             else:
                 await ctx.send("❌ Failed to save voice preference")
         else:
@@ -474,7 +475,7 @@ class DiscordVoiceTTSBot(commands.Bot):
 
     def get_status(self) -> dict[str, Any]:
         """Get current bot status."""
-        voice_status = self.voice_handler.get_queue_status() if self.voice_handler else {}
+        voice_status = self.voice_handler.get_status() if self.voice_handler else {}
 
         uptime = 0.0
         uptime_start = self.stats.get("uptime_start")
@@ -502,7 +503,7 @@ class DiscordVoiceTTSBot(commands.Bot):
 
         # Stop voice handler
         if self.voice_handler:
-            await self.voice_handler.stop()
+            await self.voice_handler.cleanup()
 
         # Close TTS engine
         await tts_engine.close()

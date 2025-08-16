@@ -23,17 +23,17 @@ class TTSEngine:
     def __init__(self) -> None:
         """Initialize TTS engine with configuration."""
         self._session: aiohttp.ClientSession | None = None
-    
+
     @property
     def api_url(self) -> str:
         """Get current API URL from config."""
         return config.api_url
-    
+
     @property
     def speaker_id(self) -> int:
         """Get current speaker ID from config."""
         return config.speaker_id
-    
+
     @property
     def engine_name(self) -> str:
         """Get current engine name from config."""
@@ -96,12 +96,7 @@ class TTSEngine:
             logger.error(f"{self.engine_name} TTS API: {error_msg} - {e!s}")
             return False, error_msg
 
-    async def synthesize_audio(
-        self, 
-        text: str, 
-        speaker_id: int | None = None, 
-        engine_name: str | None = None
-    ) -> bytes | None:
+    async def synthesize_audio(self, text: str, speaker_id: int | None = None, engine_name: str | None = None) -> bytes | None:
         """Synthesize audio from text using the specified TTS engine.
 
         Args:
@@ -119,11 +114,11 @@ class TTSEngine:
         # Determine engine and speaker
         target_engine = engine_name or config.tts_engine
         engine_config = config.engines.get(target_engine, config.engines["voicevox"])
-        
+
         # Use provided speaker ID or engine default
         current_speaker_id = speaker_id or engine_config["default_speaker"]
         target_api_url = engine_config["url"]
-        
+
         logger.debug(f"Using {target_engine} engine (URL: {target_api_url}) with speaker {current_speaker_id}")
 
         # No truncation here - handled by chunking in voice_handler
@@ -221,12 +216,7 @@ class TTSEngine:
             logger.error(f"Failed to synthesize from query: {e!s}")
             return None
 
-    async def create_audio_source(
-        self, 
-        text: str, 
-        speaker_id: int | None = None, 
-        engine_name: str | None = None
-    ) -> Any:
+    async def create_audio_source(self, text: str, speaker_id: int | None = None, engine_name: str | None = None) -> Any:
         """Create Discord audio source from text.
 
         Args:
