@@ -1,10 +1,11 @@
 """Unit tests for message_processor module."""
 
-from datetime import datetime, timedelta
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock
+
 import pytest
-from src.message_processor import MessageProcessor
+
 from src.config import config
+from src.message_processor import MessageProcessor
 
 
 @pytest.fixture
@@ -144,7 +145,7 @@ class TestAsyncProcessing:
         """Successful message processing should return processed data."""
         mock_message.content = "Hello world"
         result = await processor.process_message(mock_message)
-        
+
         assert result is not None
         assert "user_id" in result
         assert "username" in result
@@ -164,7 +165,7 @@ class TestAsyncProcessing:
         """Long messages should be properly chunked."""
         mock_message.content = "これは長い文章です。" * 100
         result = await processor.process_message(mock_message)
-        
+
         assert result is not None
         assert len(result["chunks"]) > 1
         assert all(chunk for chunk in result["chunks"])  # No empty chunks

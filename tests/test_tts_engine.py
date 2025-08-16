@@ -1,7 +1,9 @@
 """Unit tests for tts_engine module."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
+
 import pytest
+
 from src.tts_engine import tts_engine  # Use the singleton
 
 
@@ -34,12 +36,12 @@ class TestSynthesizeAudio:
             mock_response.status = 200
             mock_response.read = AsyncMock(return_value=b"mock_audio_data")
             mock_response.json = AsyncMock(return_value={})
-            
+
             mock_session.post.return_value.__aenter__.return_value = mock_response
             mock_session.get.return_value.__aenter__.return_value = mock_response
-            
+
             # This might still fail due to actual API calls, but tests the interface
-            result = await tts_engine.synthesize_audio("Test", speaker_id=3)
+            await tts_engine.synthesize_audio("Test", speaker_id=3)
             # Can't guarantee result without full mocking
 
 
@@ -54,6 +56,6 @@ class TestEngineLifecycle:
             await tts_engine.close()
         except:
             pass  # OK if it fails, we're just testing the interface
-        
+
         # Reinitialize for other tests
         await tts_engine.start()

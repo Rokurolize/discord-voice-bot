@@ -131,6 +131,7 @@ class VoiceHandler:
                 if audio_data:
                     # Save to temporary file
                     import tempfile
+
                     with tempfile.NamedTemporaryFile(mode="wb", suffix=".wav", delete=False) as f:
                         f.write(audio_data)
                         audio_path = f.name
