@@ -1,0 +1,82 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment files
+.env
+.env.local
+secrets.env
+*.env
+
+# Logs
+*.log
+logs/
+
+# Audio debug files
+/tmp/discord_tts_debug/
+/tmp/fixed_voice_test/
+/tmp/*.wav
+/tmp/*.mp3
+
+# Test outputs
+test_output/
+*.wav
+*.mp3
+
+# Package managers
+node_modules/
+package-lock.json
+uv.lock
+
+# Temporary files
+*.tmp
+*.bak
+*.orig
+
+# Documentation build
+docs/_build/
+
+# Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Directory environment
+.envrc
