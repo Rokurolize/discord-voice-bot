@@ -34,6 +34,7 @@ email = "1701388+Rokurolize@users.noreply.github.com"
 
 [dependency-groups]
 dev = [
+  "pyright>=1.1.402",
   "poethepoet>=0.26",
   "ruff~=0.12",
   "black~=24.10",
@@ -83,7 +84,8 @@ _ruff_format = "ruff check --fix src/discord_voice_bot tests"
 lint = ["_black_check", "_ruff_check"]
 format = ["_ruff_format", "_black_format"]
 _mypy = "mypy src/discord_voice_bot"
-type-check = ["_mypy"]
+_pyright = "pyright src/discord_voice_bot"
+type-check = ["_mypy", "_pyright"]
 
 [tool.ruff]
 target-version = "py311"
@@ -213,6 +215,14 @@ max-complexity = 20
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["D103"]
+
+[tool.pyright]
+include = [ "src",]
+exclude = [ "**/__pycache__", ".git", ".venv", "venv", "node_modules", ".mypy_cache", ".pytest_cache",]
+pythonVersion = "3.11"
+typeCheckingMode = "strict"
+venvPath = "."
+venv = ".venv"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
