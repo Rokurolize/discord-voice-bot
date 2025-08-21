@@ -90,47 +90,47 @@ class DiscordVoiceTTSBot(commands.Bot):
         """Set up bot commands."""
 
         @self.command(name="status")
-        async def status_command(ctx: Any) -> None:
+        async def status_command(ctx: commands.Context[Any]) -> None:
             """Show bot status and statistics."""
             await self._status_command(ctx)
 
         @self.command(name="skip")
-        async def skip_command(ctx: Any) -> None:
+        async def skip_command(ctx: commands.Context[Any]) -> None:
             """Skip current TTS playback."""
             await self._skip_command(ctx)
 
         @self.command(name="clear")
-        async def clear_command(ctx: Any) -> None:
+        async def clear_command(ctx: commands.Context[Any]) -> None:
             """Clear TTS queue."""
             await self._clear_command(ctx)
 
         @self.command(name="speakers")
-        async def speakers_command(ctx: Any) -> None:
+        async def speakers_command(ctx: commands.Context[Any]) -> None:
             """List available TTS speakers."""
             await self._speakers_command(ctx)
 
         @self.command(name="test")
-        async def test_command(ctx: Any, *, text: str = "テストメッセージです") -> None:
+        async def test_command(ctx: commands.Context[Any], *, text: str = "テストメッセージです") -> None:
             """Test TTS with custom text."""
             await self._test_command(ctx, text)
 
         @self.command(name="voice")
-        async def voice_command(ctx: Any, *, speaker: str | None = None) -> None:
+        async def voice_command(ctx: commands.Context[Any], *, speaker: str | None = None) -> None:
             """Set or show personal voice preference."""
             await self._voice_command(ctx, speaker)
 
         @self.command(name="voices")
-        async def voices_command(ctx: Any) -> None:
+        async def voices_command(ctx: commands.Context[Any]) -> None:
             """List all available voices."""
             await self._voices_command(ctx)
 
         @self.command(name="voicecheck")
-        async def voicecheck_command(ctx: Any) -> None:
+        async def voicecheck_command(ctx: commands.Context[Any]) -> None:
             """Perform voice connection health check."""
             await self._voicecheck_command(ctx)
 
         @self.command(name="reconnect")
-        async def reconnect_command(ctx: Any) -> None:
+        async def reconnect_command(ctx: commands.Context[Any]) -> None:
             """Manually attempt to reconnect to voice channel."""
             await self._reconnect_command(ctx)
 
@@ -552,7 +552,7 @@ class DiscordVoiceTTSBot(commands.Bot):
         except Exception as e:
             logger.error(f"Error in monitoring task: {e!s}")
 
-    async def _status_command(self, ctx: commands.Context) -> None:
+    async def _status_command(self, ctx: commands.Context[Any]) -> None:
         """Show bot status and statistics."""
         status = self.get_status()
 
@@ -599,7 +599,7 @@ class DiscordVoiceTTSBot(commands.Bot):
 
         await ctx.send(embed=embed)
 
-    async def _skip_command(self, ctx: commands.Context) -> None:
+    async def _skip_command(self, ctx: commands.Context[Any]) -> None:
         """Skip current TTS playback."""
         if not self.voice_handler:
             await ctx.send("❌ Voice handler not initialized")
@@ -610,7 +610,7 @@ class DiscordVoiceTTSBot(commands.Bot):
         else:
             await ctx.send("ℹ️ No TTS currently playing")
 
-    async def _clear_command(self, ctx: commands.Context) -> None:
+    async def _clear_command(self, ctx: commands.Context[Any]) -> None:
         """Clear TTS queue."""
         if not self.voice_handler:
             await ctx.send("❌ Voice handler not initialized")
@@ -619,7 +619,7 @@ class DiscordVoiceTTSBot(commands.Bot):
         cleared_count = await self.voice_handler.clear_all()
         await ctx.send(f"🗑️ Cleared {cleared_count} items from TTS queue")
 
-    async def _speakers_command(self, ctx: commands.Context) -> None:
+    async def _speakers_command(self, ctx: commands.Context[Any]) -> None:
         """List available TTS speakers."""
         speakers = await tts_engine.get_available_speakers()
 
@@ -644,7 +644,7 @@ class DiscordVoiceTTSBot(commands.Bot):
 
         await ctx.send(embed=embed)
 
-    async def _test_command(self, ctx: commands.Context, text: str) -> None:
+    async def _test_command(self, ctx: commands.Context[Any], text: str) -> None:
         """Test TTS with custom text."""
         if not self.voice_handler:
             await ctx.send("❌ Voice handler not initialized")
@@ -671,7 +671,7 @@ class DiscordVoiceTTSBot(commands.Bot):
         await ctx.send(f"🎤 Test TTS queued: `{processed_text[:50]}...`")
         self.stats["tts_messages_played"] = (self.stats.get("tts_messages_played", 0) or 0) + 1
 
-    async def _voice_command(self, ctx: commands.Context, speaker: str | None = None) -> None:
+    async def _voice_command(self, ctx: commands.Context[Any], speaker: str | None = None) -> None:
         """Set or show personal voice preference."""
         from .user_settings import user_settings
 
@@ -743,7 +743,7 @@ class DiscordVoiceTTSBot(commands.Bot):
         else:
             await ctx.send(f"❌ Voice '{speaker}' not found. Use `!tts voices` to see available options.")
 
-    async def _voices_command(self, ctx: commands.Context) -> None:
+    async def _voices_command(self, ctx: commands.Context[Any]) -> None:
         """List all available voices with detailed information."""
         from .user_settings import user_settings
 
@@ -787,7 +787,7 @@ class DiscordVoiceTTSBot(commands.Bot):
 
         await ctx.send(embed=embed)
 
-    async def _voicecheck_command(self, ctx: commands.Context) -> None:
+    async def _voicecheck_command(self, ctx: commands.Context[Any]) -> None:
         """Perform voice connection health check."""
         if not self.voice_handler:
             embed = discord.Embed(title="🔍 Voice Health Check", color=discord.Color.red(), description="❌ Voice handler not initialized")
@@ -848,7 +848,7 @@ class DiscordVoiceTTSBot(commands.Bot):
 
         await message.edit(embed=embed)
 
-    async def _reconnect_command(self, ctx: commands.Context) -> None:
+    async def _reconnect_command(self, ctx: commands.Context[Any]) -> None:
         """Manually attempt to reconnect to voice channel."""
         if not self.voice_handler:
             embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.red(), description="❌ Voice handler not initialized")

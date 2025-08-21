@@ -23,7 +23,7 @@ class RateLimiter:
         """
         self.max_messages = max_messages
         self.period = timedelta(seconds=period_seconds)
-        self.message_times: dict[int, deque] = defaultdict(deque)  # user_id -> timestamps
+        self.message_times: dict[int, deque[datetime]] = defaultdict(lambda: deque[datetime]())  # user_id -> timestamps
 
     def is_allowed(self, user_id: int) -> bool:
         """Check if user is allowed to send message based on rate limit."""

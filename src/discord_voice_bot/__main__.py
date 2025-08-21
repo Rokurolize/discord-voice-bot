@@ -21,7 +21,7 @@ class BotManager:
 
     def __init__(self) -> None:
         """Initialize bot manager."""
-        self.bot_task: asyncio.Task | None = None
+        self.bot_task: asyncio.Task[None] | None = None
         self.shutdown_event = asyncio.Event()
         self.is_shutting_down = False
         self.health_monitor: HealthMonitor | None = None

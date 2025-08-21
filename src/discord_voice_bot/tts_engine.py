@@ -248,6 +248,7 @@ class TTSEngine:
         if not audio_data:
             return None
 
+        temp_path = ""
         try:
             # Create temporary file for audio data
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
@@ -315,7 +316,7 @@ class TTSEngine:
                         saved_discord_path = audio_debugger.save_audio_stage(wav_data, "discord_converted", text, metadata_discord)
                         logger.debug(f"🔍 Saved Discord-converted audio: {saved_discord_path}")
                     else:
-                        stderr_str = result.stderr.decode("utf-8") if isinstance(result.stderr, bytes) else result.stderr
+                        stderr_str = result.stderr.decode("utf-8")
                         logger.warning(f"FFmpeg conversion test failed: {stderr_str}")
 
                 except Exception as e:

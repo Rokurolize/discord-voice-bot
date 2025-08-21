@@ -45,43 +45,40 @@ class CircuitBreaker:
         self.state = "CLOSED"  # CLOSED, OPEN, HALF_OPEN
 
 
-async def can_make_request(self) -> bool:  # type: ignore[no-untyped-def]
-    """Check if a request can be made."""
-    current_time = time.time()
+    async def can_make_request(self) -> bool:
+        """Check if a request can be made."""
+        current_time = time.time()
 
-    if self.state == "CLOSED":
-        return True
-    elif self.state == "OPEN":
-        if current_time - self.last_failure_time >= self.recovery_timeout:
-            self.state = "HALF_OPEN"
-            logger.info("Circuit breaker transitioning to HALF_OPEN state")
+        if self.state == "CLOSED":
             return True
-        return False
-    else:  # HALF_OPEN
-        return True
+        elif self.state == "OPEN":
+            if current_time - self.last_failure_time >= self.recovery_timeout:
+                self.state = "HALF_OPEN"
+                logger.info("Circuit breaker transitioning to HALF_OPEN state")
+                return True
+            return False
+        else:  # HALF_OPEN
+            return True
 
+    async def record_success(self) -> None:
+        """Record a successful request."""
+        if self.state == "HALF_OPEN":
+            self.state = "CLOSED"
+            self.failure_count = 0
+            logger.info("Circuit breaker transitioning to CLOSED state")
 
-async def record_success(self) -> None:  # type: ignore[no-untyped-def]
-    """Record a successful request."""
-    if self.state == "HALF_OPEN":
-        self.state = "CLOSED"
-        self.failure_count = 0
-        logger.info("Circuit breaker transitioning to CLOSED state")
+    async def record_failure(self) -> None:
+        """Record a failed request."""
+        self.failure_count += 1
+        self.last_failure_time = time.time()
 
+        if self.failure_count >= self.failure_threshold:
+            self.state = "OPEN"
+            logger.error(f"Circuit breaker transitioning to OPEN state after {self.failure_count} failures")
 
-async def record_failure(self) -> None:  # type: ignore[no-untyped-def]
-    """Record a failed request."""
-    self.failure_count += 1
-    self.last_failure_time = time.time()
-
-    if self.failure_count >= self.failure_threshold:
-        self.state = "OPEN"
-        logger.error(f"Circuit breaker transitioning to OPEN state after {self.failure_count} failures")
-
-
-def get_state(self) -> dict[str, Any]:  # type: ignore[no-untyped-def]
-    """Get current circuit breaker state."""
-    return {"state": self.state, "failure_count": self.failure_count, "last_failure_time": self.last_failure_time}
+    def get_state(self) -> dict[str, Any]:
+        """Get current circuit breaker state."""
+        return {"state": self.state, "failure_count": self.failure_count, "last_failure_time": self.last_failure_time}
 
 
 class VoiceGatewayManager:
@@ -375,7 +372,7 @@ class VoiceHandler:
                     try:
                         # Try to get headers from response
                         headers = getattr(e.response, "headers", {})
-                        if hasattr(headers, "get") or isinstance(headers, dict):
+                        if hasattr(headers, "get"):
                             retry_after = headers.get("Retry-After", "1")
                     except (AttributeError, TypeError):
                         # Fallback for mock objects or malformed responses
@@ -450,7 +447,7 @@ class VoiceHandler:
         while not self.audio_queue.empty():
             try:
                 item = self.audio_queue.get_nowait()
-                if len(item) > 0 and isinstance(item[0], str):
+                if len(item) > 0:
                     self._cleanup_audio_file(item[0])
             except asyncio.QueueEmpty:
                 break
@@ -538,6 +535,7 @@ class VoiceHandler:
 
                 if not self.voice_client or not self.voice_client.is_connected():
                     self._cleanup_audio_file(audio_path)
+                    logger.debug(f"Skipping playback of {audio_path} (size: {audio_size} bytes) - not connected")
                     continue
 
                 # Wait if already playing

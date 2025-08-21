@@ -41,8 +41,8 @@ class HealthMonitor:
         """Initialize health monitor."""
         self.bot = bot_client
         self.status = HealthStatus()
-        self._monitoring_task: Optional[asyncio.Task] = None
-        self._permission_check_task: Optional[asyncio.Task] = None
+        self._monitoring_task: Optional[asyncio.Task[None]] = None
+        self._permission_check_task: Optional[asyncio.Task[None]] = None
         self._termination_conditions: dict[str, dict[str, Any]] = {
             "voice_disconnections_10min": {"max": 5, "window": 600, "count": 0, "last_reset": time.time()},
             "voice_disconnections_30min": {"max": 10, "window": 1800, "count": 0, "last_reset": time.time()},

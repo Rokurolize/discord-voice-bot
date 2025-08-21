@@ -302,8 +302,8 @@ class UserSettings:
             Dictionary with compatibility information
 
         """
-        compatible_users = []
-        mapped_users = []
+        compatible_users: list[dict[str, Any]] = []
+        mapped_users: list[dict[str, Any]] = []
 
         for user_id, user_data in self.settings.items():
             user_engine = user_data.get("engine", "voicevox")
