@@ -7,13 +7,12 @@ name = "discord-voice-bot"
 version = "0.1.0"
 description = "Discord voice channel text-to-speech bot with Zundamon voice"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 classifiers = [
    "Development Status :: 3 - Alpha",
    "Intended Audience :: Developers",
    "License :: OSI Approved :: MIT License",
    "Programming Language :: Python :: 3",
-   "Programming Language :: Python :: 3.11",
    "Programming Language :: Python :: 3.12",
    "Programming Language :: Python :: 3.13",
    "Topic :: Multimedia :: Sound/Audio :: Speech",
@@ -54,7 +53,7 @@ package = true
 
 [tool.black]
 line-length = 200
-target-version = ["py311"]
+target-version = ["py312"]
 
 [tool.mypy]
 allow_redefinition = true
@@ -88,7 +87,7 @@ _pyright = "pyright src/discord_voice_bot"
 type-check = ["_mypy", "_pyright"]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 line-length = 200
 
 [tool.ruff.format]
@@ -219,7 +218,7 @@ max-complexity = 20
 [tool.pyright]
 include = [ "src",]
 exclude = [ "**/__pycache__", ".git", ".venv", "venv", "node_modules", ".mypy_cache", ".pytest_cache",]
-pythonVersion = "3.11"
+pythonVersion = "3.12"
 typeCheckingMode = "strict"
 venvPath = "."
 venv = ".venv"

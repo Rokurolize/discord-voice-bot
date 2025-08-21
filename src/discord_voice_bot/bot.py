@@ -302,7 +302,7 @@ class DiscordVoiceTTSBot(commands.Bot):
             if self.voice_handler:
                 await self.voice_handler.add_to_queue(processed_message)
                 current_count = self.stats.get("messages_processed", 0)
-                self.stats["messages_processed"] = (current_count or 0) + 1
+                self.stats["messages_processed"] = (current_count if current_count is not None else 0) + 1
                 logger.debug(f"Queued TTS message from {message.author.display_name}")
             else:
                 logger.warning("Voice handler not initialized, cannot queue TTS message")
@@ -676,7 +676,8 @@ class DiscordVoiceTTSBot(commands.Bot):
 
         await self.voice_handler.add_to_queue(processed_message)
         await ctx.send(f"🎤 Test TTS queued: `{processed_text[:50]}...`")
-        self.stats["tts_messages_played"] = (self.stats.get("tts_messages_played", 0) or 0) + 1
+        current_count = self.stats.get("tts_messages_played", 0)
+        self.stats["tts_messages_played"] = (current_count if current_count is not None else 0) + 1
 
     async def _voice_command(self, ctx: commands.Context[Any], speaker: str | None = None) -> None:
         """Set or show personal voice preference."""
@@ -907,7 +908,7 @@ class DiscordVoiceTTSBot(commands.Bot):
 
         uptime = 0.0
         uptime_start = self.stats.get("uptime_start")
-        if uptime_start and isinstance(uptime_start, (int, float)):  # type: ignore[reportUnnecessaryIsInstance]
+        if uptime_start is not None and isinstance(uptime_start, (int, float)):
             uptime = asyncio.get_event_loop().time() - uptime_start
 
         return {
