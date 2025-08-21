@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Essential Commands (use these exact commands):**
 - `uv run poe format` - Format code (BLACK + RUFF) - ONLY allowed formatting command
-- `uv run poe type-check` - Run mypy type checking - ONLY allowed type checking command  
+- `uv run poe type-check` - Run mypy type checking - ONLY allowed type checking command
 - `uv run poe test` - Run tests
 - `uv run poe lint` - Check code style without fixing
 
@@ -15,6 +15,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 Discord Voice TTS Bot that reads voice channel text messages using Zundamon voice via VOICEVOX or AivisSpeech engines. The bot maintains a persistent connection to a specific voice channel and synthesizes text-to-speech for all messages posted in that channel's text chat.
+
+### Key Features
+- Real-time text-to-speech synthesis
+- Discord API compliance (Voice Gateway v8, E2EE, rate limiting)
+- Parallel audio processing for gap-free playback
+- Comprehensive health monitoring and error recovery
+- Multi-engine TTS support (VOICEVOX, AivisSpeech)
+- User-specific voice preferences
 
 ## Critical Configuration
 
@@ -60,7 +68,7 @@ Discord Voice TTS Bot that reads voice channel text messages using Zundamon voic
 ### Audio Pipeline
 
 ```
-Text Message → Message Processor → Chunking (if needed) → 
+Text Message → Message Processor → Chunking (if needed) →
 Synthesis Queue → Parallel TTS Synthesis → Audio Queue →
 FFmpegPCMAudio → Discord Voice Client → Voice Channel
 ```
@@ -91,7 +99,7 @@ FFmpegPCMAudio → Discord Voice Client → Voice Channel
 - Zundamon speaker IDs: normal=3, sexy=5, tsun=7, amai=1
 - Supports: speedScale, volumeScale, outputSamplingRate
 
-### AivisSpeech  
+### AivisSpeech
 - Default URL: `http://127.0.0.1:10101`
 - Zundamon speaker IDs: normal=1512153250, sexy=1512153251, tsun=1512153252
 - **CRITICAL**: Returns `pitchScale=0.0` which must NOT be modified
@@ -154,3 +162,16 @@ python test_voice_connection.py
 - Use loguru for all logging
 - Handle asyncio cancellation properly
 - Clean up resources (temp files, sessions) on shutdown
+
+## Specialized Agent Integration
+
+When working on specific aspects of the project, reference the appropriate specialized agent:
+
+- **Discord Bot Issues** → Discord Bot Specialist
+- **TTS Engine Problems** → TTS Engine Specialist
+- **Audio Processing** → Audio Processing Specialist
+- **Testing & TDD** → Testing Specialist
+- **Configuration** → Configuration Specialist
+- **Monitoring & Debugging** → Monitoring Specialist
+
+Each agent provides detailed guidance, best practices, and critical requirements for their domain.

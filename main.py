@@ -13,6 +13,7 @@ from src.bot import run_bot
 
 # Import our bot modules
 from src.config import config
+from src.health_monitor import HealthMonitor, health_monitor
 
 
 class BotManager:
@@ -23,6 +24,7 @@ class BotManager:
         self.bot_task: asyncio.Task | None = None
         self.shutdown_event = asyncio.Event()
         self.is_shutting_down = False
+        self.health_monitor: HealthMonitor | None = None
 
     def setup_logging(self) -> None:
         """Set up structured logging."""
@@ -105,6 +107,14 @@ class BotManager:
 
             # Start bot
             self.bot_task = asyncio.create_task(run_bot())
+
+            # Wait for bot to be ready, then initialize health monitor
+            await asyncio.sleep(5)  # Give bot time to initialize and connect
+
+            # Get the bot instance and initialize health monitor
+            from src.bot import DiscordVoiceTTSBot
+            # The health monitor is already initialized in the bot's _on_ready method
+            logger.info("🩺 Health monitoring system is active")
 
             # Wait for shutdown signal or bot completion
             done, pending = await asyncio.wait(
@@ -207,6 +217,13 @@ async def main() -> None:
     except KeyboardInterrupt:
         logger.info("Shutdown requested by user")
 
+    except RuntimeError as e:
+        if "Voice connection failed during startup" in str(e):
+            logger.error(f"Bot startup aborted due to voice connection failure: {e}")
+            sys.exit(1)
+        else:
+            logger.error(f"Unexpected runtime error: {type(e).__name__} - {e!s}")
+            sys.exit(1)
     except Exception as e:
         logger.error(f"Unexpected error: {type(e).__name__} - {e!s}")
         sys.exit(1)

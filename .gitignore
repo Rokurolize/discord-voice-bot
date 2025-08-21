@@ -80,3 +80,4 @@ dmypy.json
 
 # Directory environment
 .envrc
+repomix-output.xml

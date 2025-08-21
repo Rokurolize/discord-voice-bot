@@ -1,11 +1,12 @@
 """Unit tests for voice_handler module."""
 
 import asyncio
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, Mock
 
 import pytest
+import discord
 
-from src.voice_handler import VoiceHandler
+from src.voice_handler import VoiceHandler, SimpleRateLimiter
 
 
 @pytest.fixture
@@ -128,3 +129,98 @@ class TestCleanup:
 
         assert voice_handler.synthesis_queue.empty()
         assert voice_handler.audio_queue.empty()
+
+
+class TestComplianceTDD:
+    """TDD tests for Discord API compliance issues."""
+
+    @pytest.mark.asyncio
+    async def test_rate_limiter_compliance(self, voice_handler):
+        """Test that rate limiter meets Discord's 50 req/sec requirement."""
+        import time
+
+        start_time = time.time()
+
+        # Make 10 requests - should take at least 0.2 seconds (10/50)
+        for i in range(10):
+            await voice_handler.rate_limiter.wait_if_needed()
+
+        elapsed = time.time() - start_time
+
+        # Should have taken at least 0.2 seconds (10 requests at 50/sec = 0.2 sec)
+        assert elapsed >= 0.15  # Allow some margin for timing precision
+
+    @pytest.mark.asyncio
+    async def test_rate_limited_api_call_success(self, voice_handler):
+        """Test successful API call with rate limiting."""
+        call_count = 0
+
+        async def mock_success_api():
+            nonlocal call_count
+            call_count += 1
+            return f"success_{call_count}"
+
+        result = await voice_handler.make_rate_limited_request(mock_success_api)
+        assert result == "success_1"
+        assert call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_rate_limited_api_call_with_retry(self, voice_handler):
+        """Test API call that gets rate limited and retries."""
+        call_count = 0
+
+        async def mock_rate_limited_api():
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                # First call gets rate limited
+                mock_response = Mock()
+                mock_response.headers = {'Retry-After': '0.01'}
+                mock_response.status = 429
+                raise discord.HTTPException(
+                    response=mock_response,
+                    message="Too Many Requests"
+                )
+            return f"success_{call_count}"
+
+        result = await voice_handler.make_rate_limited_request(mock_rate_limited_api)
+        assert result == "success_2"  # Should succeed on retry
+        assert call_count == 2
+
+    def test_voice_handler_has_rate_limiter(self, voice_handler):
+        """Test that voice handler has proper rate limiter."""
+        assert hasattr(voice_handler, 'rate_limiter')
+        assert isinstance(voice_handler.rate_limiter, SimpleRateLimiter)
+
+    def test_voice_handler_has_voice_gateway(self, voice_handler):
+        """Test that voice handler can handle voice gateway events."""
+        assert hasattr(voice_handler, 'handle_voice_server_update')
+        assert hasattr(voice_handler, 'handle_voice_state_update')
+
+    @pytest.mark.asyncio
+    async def test_voice_gateway_event_handling(self, voice_handler):
+        """Test voice gateway event handling doesn't crash."""
+        # Test with minimal mock data
+        mock_payload = {
+            "token": "test_token",
+            "guild_id": "123456789",
+            "endpoint": "test.endpoint:1234"
+        }
+
+        # These should not raise exceptions
+        await voice_handler.handle_voice_server_update(mock_payload)
+
+        mock_state_payload = {
+            "session_id": "test_session_id"
+        }
+        await voice_handler.handle_voice_state_update(mock_state_payload)
+
+    def test_compliance_components_exist(self, voice_handler):
+        """Test that all compliance components are properly initialized."""
+        # Check that voice handler has the components needed for compliance
+        assert voice_handler.rate_limiter is not None
+        assert hasattr(voice_handler, 'make_rate_limited_request')
+
+        # Should be able to handle voice gateway events
+        assert callable(getattr(voice_handler, 'handle_voice_server_update', None))
+        assert callable(getattr(voice_handler, 'handle_voice_state_update', None))
