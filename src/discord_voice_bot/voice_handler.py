@@ -636,11 +636,11 @@ class VoiceHandler:
             return None
 
         # Convert queue to list to find highest priority item
-        items = []
+        items: list[tuple[str, str, int, int]] = []
         while not self.audio_queue.empty():
             try:
-                item = self.audio_queue.get_nowait()
-                items.append(item)
+                item = self.audio_queue.get_nowait()  # type: ignore[assignment]
+                items.append(item)  # type: ignore[arg-type]
             except asyncio.QueueEmpty:
                 break
 
@@ -648,12 +648,12 @@ class VoiceHandler:
             return None
 
         # Find highest priority item (lower number = higher priority)
-        items.sort(key=lambda x: x[2])  # Sort by priority (index 2)
+        items.sort(key=lambda x: x[2])  # type: ignore[arg-type] # Sort by priority (index 2)
         highest_priority_item = items[0]
 
         # Put back all items except the highest priority one
         for item in items[1:]:
-            await self.audio_queue.put(item)
+            await self.audio_queue.put(item)  # type: ignore[arg-type]
 
         return highest_priority_item
 
@@ -670,18 +670,18 @@ class VoiceHandler:
         cleared = 0
 
         # Clear synthesis queue
-        items = []
+        synthesis_items: list[dict[str, Any]] = []
         while not self.synthesis_queue.empty():
             try:
                 item = self.synthesis_queue.get_nowait()
                 if item.get("group_id") != group_id:
-                    items.append(item)
+                    synthesis_items.append(item)
                 else:
                     cleared += 1
             except asyncio.QueueEmpty:
                 break
 
-        for item in items:
+        for item in synthesis_items:
             await self.synthesis_queue.put(item)
 
         # Clear audio queue

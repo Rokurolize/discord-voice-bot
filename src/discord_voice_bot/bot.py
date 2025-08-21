@@ -1,4 +1,5 @@
 """Main Discord bot implementation for Voice TTS Bot."""
+# pyright: reportUnusedFunction=false
 
 import asyncio
 from typing import Any
@@ -47,6 +48,7 @@ class DiscordVoiceTTSBot(commands.Bot):
 
     def _setup_events(self) -> None:
         """Set up Discord event handlers."""
+        # pyright: ignore[reportUnusedFunction]
 
         @self.event
         async def on_ready() -> None:
@@ -88,6 +90,7 @@ class DiscordVoiceTTSBot(commands.Bot):
 
     def _setup_commands(self) -> None:
         """Set up bot commands."""
+        # pyright: ignore[reportUnusedFunction]
 
         @self.command(name="status")
         async def status_command(ctx: commands.Context[Any]) -> None:
@@ -194,8 +197,12 @@ class DiscordVoiceTTSBot(commands.Bot):
                 logger.debug(f"  - Target channel type: {type(target_channel).__name__}")
                 if hasattr(target_channel, "permissions_for") and guild.me:
                     try:
-                        perms = target_channel.permissions_for(guild.me)
-                        logger.debug(f"  - Bot permissions in channel: connect={perms.connect}, speak={perms.speak}")
+                        # Check if the channel is a guild channel before accessing permissions
+                        if hasattr(target_channel, "guild") and target_channel.guild:  # type: ignore[attr-defined]
+                            perms = target_channel.permissions_for(guild.me)  # type: ignore[attr-defined]
+                            logger.debug(f"  - Bot permissions in channel: connect={perms.connect}, speak={perms.speak}")  # type: ignore[attr-defined]
+                        else:
+                            logger.debug(f"  - Cannot check permissions for non-guild channel type: {type(target_channel).__name__}")
                     except AttributeError:
                         logger.debug(f"  - Could not check permissions for channel type: {type(target_channel).__name__}")
             else:
@@ -629,14 +636,14 @@ class DiscordVoiceTTSBot(commands.Bot):
             description=f"Current: **{config.tts_speaker}** (ID: {config.speaker_id})",
         )
 
-        speaker_list = []
+        speaker_list: list[str] = []
         for name, speaker_id in speakers.items():
             marker = "🔹" if name == config.tts_speaker else "▫️"
-            speaker_list.append(f"{marker} `{name}` (ID: {speaker_id})")
+            speaker_list.append(f"{marker} `{name}` (ID: {speaker_id})")  # type: ignore[arg-type]
 
         # Split into chunks if too long
         chunk_size = 10
-        chunks = [speaker_list[i : i + chunk_size] for i in range(0, len(speaker_list), chunk_size)]
+        chunks: list[list[str]] = [speaker_list[i : i + chunk_size] for i in range(0, len(speaker_list), chunk_size)]
 
         for i, chunk in enumerate(chunks):
             field_name = "Speakers" if i == 0 else f"Speakers (cont. {i+1})"
@@ -772,7 +779,7 @@ class DiscordVoiceTTSBot(commands.Bot):
 
         # Add fields for each speaker group
         for base_name, variants in speaker_groups.items():
-            field_lines = []
+            field_lines: list[str] = []
             for name, speaker_id in variants:
                 marker = "🔹" if name == current_speaker else "▫️"
                 field_lines.append(f"{marker} `{name}` ({speaker_id})")
@@ -900,7 +907,7 @@ class DiscordVoiceTTSBot(commands.Bot):
 
         uptime = 0.0
         uptime_start = self.stats.get("uptime_start")
-        if uptime_start and isinstance(uptime_start, (int, float)):
+        if uptime_start and isinstance(uptime_start, (int, float)):  # type: ignore[reportUnnecessaryIsInstance]
             uptime = asyncio.get_event_loop().time() - uptime_start
 
         return {

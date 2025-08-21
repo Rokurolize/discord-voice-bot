@@ -3,7 +3,7 @@
 import asyncio
 import time
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import discord
 from loguru import logger
@@ -27,11 +27,11 @@ class HealthStatus:
     """Comprehensive health status information."""
 
     healthy: bool = True
-    issues: list[str] = field(default_factory=list)
-    recommendations: list[str] = field(default_factory=list)
+    issues: list[str] = field(default_factory=list)  # type: ignore[assignment]
+    recommendations: list[str] = field(default_factory=list)  # type: ignore[assignment]
     last_check: float = field(default_factory=time.time)
     failure_count: int = 0
-    recent_failures: list[FailureRecord] = field(default_factory=list)
+    recent_failures: list[FailureRecord] = field(default_factory=list)  # type: ignore[assignment]
 
 
 class HealthMonitor:
@@ -150,8 +150,8 @@ class HealthMonitor:
         """Perform comprehensive health checks."""
         logger.debug("🔍 Performing comprehensive health checks...")
 
-        issues = []
-        recommendations = []
+        issues: list[str] = []
+        recommendations: list[str] = []
 
         # Check TTS API health
         try:
@@ -188,8 +188,8 @@ class HealthMonitor:
 
         # Update health status
         self.status.healthy = len(issues) == 0
-        self.status.issues = issues
-        self.status.recommendations = recommendations
+        self.status.issues = issues  # type: ignore[assignment]
+        self.status.recommendations = recommendations  # type: ignore[assignment]
         self.status.last_check = time.time()
 
         if not self.status.healthy:
@@ -206,12 +206,13 @@ class HealthMonitor:
 
     async def _check_voice_connection_health(self) -> tuple[bool, list[str]]:
         """Check voice connection health."""
-        issues = []
+        issues: list[str] = []
 
         try:
             # Get voice handler status
-            if hasattr(self.bot, "voice_handler") and self.bot.voice_handler:
-                status = self.bot.voice_handler.get_status()
+            voice_handler = getattr(self.bot, "voice_handler", None)
+            if voice_handler:
+                status = cast(Any, voice_handler).get_status()  # type: ignore[attr-defined]
                 if not status.get("connected", False):
                     issues.append("Voice connection lost")
                     self.record_disconnection("Health check detected disconnection")
@@ -219,6 +220,8 @@ class HealthMonitor:
                     issues.append("Audio playback not ready")
             else:
                 issues.append("Voice handler not initialized")
+        except AttributeError:
+            issues.append("Voice handler access error")
 
         except Exception as e:
             issues.append(f"Voice health check error: {e}")
@@ -254,18 +257,18 @@ class HealthMonitor:
 
                         # Check if this affects our target channel
                         target_channel = self.bot.get_channel(config.target_voice_channel_id)
-                        if target_channel and hasattr(target_channel, "guild") and target_channel.guild == guild:
+                        if target_channel and hasattr(target_channel, "guild") and target_channel.guild == guild:  # type: ignore[attr-defined]
                             logger.error(f"🚨 Critical permissions missing in target guild {guild.name}")
                             self._trigger_termination(f"Missing critical permissions: {', '.join(missing_perms)}")
-                    else:
-                        logger.debug(f"✅ All permissions present in {guild.name}")
+                        else:
+                            logger.debug(f"✅ All permissions present in {guild.name}")
 
             except Exception as e:
                 logger.error(f"Error checking permissions in {guild.name}: {e}")
 
     async def _check_critical_permissions(self) -> tuple[bool, list[str]]:
         """Check critical permissions for bot operation."""
-        issues = []
+        issues: list[str] = []
 
         try:
             target_channel = self.bot.get_channel(config.target_voice_channel_id)
@@ -348,13 +351,14 @@ class HealthMonitor:
 
         try:
             # Stop voice handler if exists
-            if hasattr(self.bot, "voice_handler") and self.bot.voice_handler:
-                await self.bot.voice_handler.cleanup()
+            voice_handler = getattr(self.bot, "voice_handler", None)
+            if voice_handler:
+                await cast(Any, voice_handler).cleanup()  # type: ignore[attr-defined]
 
             # Stop TTS engine
-            from .tts_engine import tts_engine
+            from .tts_engine import tts_engine  # type: ignore[import, attr-defined]
 
-            await tts_engine.close()
+            await tts_engine.close()  # type: ignore[attr-defined]
 
             # Close Discord connection
             if not self.bot.is_closed():

@@ -268,7 +268,7 @@ class MessageProcessor:
         if len(text) <= max_chunk_size:
             return [text]
 
-        chunks = []
+        chunks: list[str] = []
 
         # Try to split at sentence boundaries
         current_chunk = ""
