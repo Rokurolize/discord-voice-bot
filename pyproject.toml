@@ -1,6 +1,6 @@
 [build-system]
+requires = ["hatchling>=1.24"]
 build-backend = "hatchling.build"
-requires = ["hatchling"]
 
 [project]
 name = "discord-voice-bot"
@@ -8,20 +8,24 @@ version = "0.1.0"
 description = "Discord voice channel text-to-speech bot with Zundamon voice"
 authors = [{name = "Discord Voice Bot", email = "discord-voice-bot@example.com"}]
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 classifiers = [
-  "License :: OSI Approved :: MIT License",
-  "Programming Language :: Python :: 3.13",
+   "Development Status :: 3 - Alpha",
+   "Intended Audience :: Developers",
+   "License :: OSI Approved :: MIT License",
+   "Programming Language :: Python :: 3",
+   "Programming Language :: Python :: 3.11",
+   "Programming Language :: Python :: 3.12",
+   "Programming Language :: Python :: 3.13",
+   "Topic :: Multimedia :: Sound/Audio :: Speech",
+   "Topic :: Communications :: Chat",
 ]
+license = { file = "LICENSE" }
 dependencies = [
-    "discord.py[voice]>=2.3.2",
+    "discord.py[voice]~=2.6",
     "python-dotenv>=1.0.0",
-    "aiohttp>=3.9.1",
     "aiofiles>=23.2.0",
     "loguru>=0.7.2",
-    "websockets>=8.0",
-    "yarl>=1.12.0",
-    "multidict>=6.0",
     "zstandard>=0.23.0; platform_python_implementation == 'CPython' and python_version < '3.14'",
 ]
 
@@ -36,14 +40,17 @@ dev = [
 ]
 
 [project.scripts]
-discord-voice-bot = "main:main"
+discord-voice-bot = "discord_voice_bot.__main__:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src"]
+packages = ["src/discord_voice_bot"]
+
+[tool.uv]
+package = true
 
 [tool.black]
 line-length = 200
-target-version = ["py313"]
+target-version = ["py311"]
 
 [tool.mypy]
 allow_redefinition = true
@@ -66,17 +73,17 @@ warn_unused_ignores = false
 
 [tool.poe.tasks]
 test = "pytest tests -vv"
-_black_check = "black --check src tests"
-_ruff_check = "ruff check src tests"
-_black_format = "black src tests"
-_ruff_format = "ruff check --fix src tests"
+_black_check = "black --check src/discord_voice_bot tests"
+_ruff_check = "ruff check src/discord_voice_bot tests"
+_black_format = "black src/discord_voice_bot tests"
+_ruff_format = "ruff check --fix src/discord_voice_bot tests"
 lint = ["_black_check", "_ruff_check"]
 format = ["_ruff_format", "_black_format"]
-_mypy = "mypy src"
+_mypy = "mypy src/discord_voice_bot"
 type-check = ["_mypy"]
 
 [tool.ruff]
-target-version = "py313"
+target-version = "py311"
 line-length = 200
 
 [tool.ruff.format]

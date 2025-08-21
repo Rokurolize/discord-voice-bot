@@ -41,7 +41,7 @@ async def test_health_monitor():
 
     # Create mock bot and health monitor
     bot = MockBot()
-    from src.health_monitor import HealthMonitor
+    from discord_voice_bot.health_monitor import HealthMonitor
 
     monitor = HealthMonitor(bot)
     print("✅ Health monitor created")

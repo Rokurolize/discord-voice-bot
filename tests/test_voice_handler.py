@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, Mock
 import pytest
 import discord
 
-from src.voice_handler import VoiceHandler, SimpleRateLimiter
+from discord_voice_bot.voice_handler import VoiceHandler, SimpleRateLimiter
 
 
 @pytest.fixture

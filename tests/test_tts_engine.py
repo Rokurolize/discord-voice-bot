@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.tts_engine import tts_engine  # Use the singleton
+from discord_voice_bot.tts_engine import tts_engine  # Use the singleton
 
 
 class TestHealthCheck:

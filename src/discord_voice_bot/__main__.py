@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""Main entry point for Discord Voice TTS Bot."""
+"""Main entry point for the discord-voice-bot package."""
 
 import asyncio
 import signal
@@ -9,11 +8,11 @@ from pathlib import Path
 # Set up logging before importing our modules
 from loguru import logger
 
-from discord_voice_bot.bot import run_bot
+from .bot import run_bot
 
 # Import our bot modules
-from discord_voice_bot.config import config
-from discord_voice_bot.health_monitor import HealthMonitor, health_monitor
+from .config import config
+from .health_monitor import HealthMonitor
 
 
 class BotManager:
@@ -112,7 +111,7 @@ class BotManager:
             await asyncio.sleep(5)  # Give bot time to initialize and connect
 
             # Get the bot instance and initialize health monitor
-            from discord_voice_bot.bot import DiscordVoiceTTSBot
+            from .bot import DiscordVoiceTTSBot
             # The health monitor is already initialized in the bot's _on_ready method
             logger.info("🩺 Health monitoring system is active")
 
@@ -154,7 +153,7 @@ class BotManager:
 
         try:
             # Import TTS engine for health check
-            from discord_voice_bot.tts_engine import tts_engine
+            from .tts_engine import tts_engine
 
             # Check TTS API availability
             logger.info("Checking TTS API availability...")
@@ -237,6 +236,26 @@ def sync_main() -> None:
         if sys.platform == "win32":
             # Use ProactorEventLoop on Windows for better subprocess support
             asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
+        # Handle --help argument before running the bot
+        if len(sys.argv) > 1 and sys.argv[1] in ['--help', '-h']:
+            print("Discord Voice TTS Bot")
+            print("")
+            print("A Discord bot that reads voice channel text messages using Zundamon voice.")
+            print("")
+            print("Usage:")
+            print("  discord-voice-bot")
+            print("  python -m discord_voice_bot")
+            print("")
+            print("Environment Variables:")
+            print("  DISCORD_BOT_TOKEN     Discord bot token (required)")
+            print("  TARGET_VOICE_CHANNEL_ID  Voice channel ID (default: 1350964414286921749)")
+            print("  TTS_ENGINE            TTS engine (default: voicevox)")
+            print("  TTS_SPEAKER           Voice speaker (default: normal)")
+            print("  LOG_LEVEL             Logging level (default: INFO)")
+            print("")
+            print("For more information, see the README.md file.")
+            sys.exit(0)
 
         asyncio.run(main())
 

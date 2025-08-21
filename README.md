@@ -15,7 +15,7 @@ A Discord bot that reads voice channel text messages using Zundamon voice (VOICE
 ## Requirements
 
 ### System Dependencies
-- Python 3.8+
+- Python 3.11+
 - FFmpeg (for audio processing)
 - VOICEVOX or AivisSpeech TTS engine running locally
 
@@ -25,17 +25,20 @@ A Discord bot that reads voice channel text messages using Zundamon voice (VOICE
 
 ## Installation
 
-### Using Poetry (Recommended)
+### Using uv (Recommended)
 ```bash
 # Clone repository
 git clone <repo-url>
 cd discord-voice-bot
 
 # Install dependencies
-poetry install
+uv sync
 
-# Run the bot
-poetry run python main.py
+# Run the bot (CLI)
+uv run discord-voice-bot
+
+# Or run as module
+uv run python -m discord_voice_bot
 ```
 
 ### Using pip
@@ -49,10 +52,21 @@ python -m venv venv
 source venv/bin/activate  # On Windows: venv\\Scripts\\activate
 
 # Install dependencies
-pip install -r requirements.txt
+pip install -e .
 
-# Run the bot
-python main.py
+# Run the bot (CLI)
+discord-voice-bot
+
+# Or run as module
+python -m discord_voice_bot
+```
+
+### Development Installation
+```bash
+# Install with development dependencies
+uv sync --extra dev
+# Or with pip
+pip install -e ".[dev]"
 ```
 
 ## Configuration
@@ -65,17 +79,38 @@ python main.py
    ```
 
 3. **Set Required Variables**:
-   - `DISCORD_TOKEN`: Your Discord bot token
-   - `VOICE_CHANNEL_ID`: Target voice channel ID (default: 1350964414286921749)
+   - `DISCORD_BOT_TOKEN`: Your Discord bot token
+   - `TARGET_VOICE_CHANNEL_ID`: Target voice channel ID (default: 1350964414286921749)
+   - `VOICE_CHANNEL_ID`: Legacy fallback for backward compatibility
 
 ## Usage
 
 ### Starting the Bot
-```bash
-# With Poetry
-poetry run python main.py
 
-# With pip
+#### CLI Command (Recommended)
+```bash
+# Using uv
+uv run discord-voice-bot
+
+# Using pip
+discord-voice-bot
+```
+
+#### Module Execution
+```bash
+# Using uv
+uv run python -m discord_voice_bot
+
+# Using pip
+python -m discord_voice_bot
+```
+
+#### Direct Script Execution (Legacy)
+```bash
+# Using uv
+uv run python main.py
+
+# Using pip
 python main.py
 ```
 
@@ -113,22 +148,29 @@ python main.py
 ### Code Quality
 ```bash
 # Format code
-poetry run black .
+uv run black src/discord_voice_bot tests
 
-# Lint code  
-poetry run ruff check .
+# Lint code
+uv run ruff check src/discord_voice_bot tests
 
 # Type checking
-poetry run mypy .
+uv run mypy src/discord_voice_bot
 
 # Run tests
-poetry run pytest
+uv run pytest
 ```
 
-### Pre-commit Hooks
+### Development Tasks
 ```bash
-poetry run pre-commit install
-poetry run pre-commit run --all-files
+# Run all linting and type checking
+uv run poe lint
+uv run poe type-check
+
+# Format code
+uv run poe format
+
+# Run tests
+uv run poe test
 ```
 
 ## Configuration Options

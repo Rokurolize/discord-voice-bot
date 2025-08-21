@@ -4,8 +4,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.config import config
-from src.message_processor import MessageProcessor
+from discord_voice_bot.config import config
+from discord_voice_bot.message_processor import MessageProcessor
 
 
 @pytest.fixture

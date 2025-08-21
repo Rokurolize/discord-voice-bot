@@ -24,7 +24,7 @@ class Config:
 
         # Discord Configuration
         self.discord_token: str = self._get_required_env("DISCORD_BOT_TOKEN")
-        self.target_voice_channel_id: int = int(os.environ.get("VOICE_CHANNEL_ID", "1350964414286921749"))
+        self.target_voice_channel_id: int = int(os.environ.get("TARGET_VOICE_CHANNEL_ID") or os.environ.get("VOICE_CHANNEL_ID", "1350964414286921749"))
 
         # TTS Configuration
         self.tts_engine: str = os.environ.get("TTS_ENGINE", "voicevox").lower()
