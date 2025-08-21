@@ -67,7 +67,7 @@ class BotManager:
                 logger.warning("Force shutdown requested")
                 sys.exit(1)
 
-            signal_names = {
+            signal_names: dict[int, str] = {
                 signal.SIGINT: "SIGINT (Ctrl+C)",
                 signal.SIGTERM: "SIGTERM",
             }

@@ -294,14 +294,16 @@ class DiscordVoiceTTSBot(commands.Bot):
             # Add to TTS queue with rate limiting
             if self.voice_handler:
                 await self.voice_handler.add_to_queue(processed_message)
-                self.stats["messages_processed"] = (self.stats.get("messages_processed", 0) or 0) + 1
+                current_count = self.stats.get("messages_processed", 0)
+                self.stats["messages_processed"] = (current_count or 0) + 1
                 logger.debug(f"Queued TTS message from {message.author.display_name}")
             else:
                 logger.warning("Voice handler not initialized, cannot queue TTS message")
 
         except Exception as e:
             logger.error(f"Error processing message {message.id}: {e!s}")
-            self.stats["connection_errors"] = self.stats.get("connection_errors", 0) + 1
+            current_errors = self.stats.get("connection_errors", 0)
+            self.stats["connection_errors"] = (current_errors if current_errors is not None else 0) + 1
 
     async def _on_voice_state_update(
         self,

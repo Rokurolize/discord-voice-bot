@@ -43,7 +43,7 @@ class HealthMonitor:
         self.status = HealthStatus()
         self._monitoring_task: Optional[asyncio.Task] = None
         self._permission_check_task: Optional[asyncio.Task] = None
-        self._termination_conditions = {
+        self._termination_conditions: dict[str, dict[str, Any]] = {
             "voice_disconnections_10min": {"max": 5, "window": 600, "count": 0, "last_reset": time.time()},
             "voice_disconnections_30min": {"max": 10, "window": 1800, "count": 0, "last_reset": time.time()},
             "voice_disconnections_1hr": {"max": 20, "window": 3600, "count": 0, "last_reset": time.time()},
@@ -254,7 +254,7 @@ class HealthMonitor:
 
                         # Check if this affects our target channel
                         target_channel = self.bot.get_channel(config.target_voice_channel_id)
-                        if target_channel and target_channel.guild == guild:
+                        if target_channel and hasattr(target_channel, "guild") and target_channel.guild == guild:
                             logger.error(f"🚨 Critical permissions missing in target guild {guild.name}")
                             self._trigger_termination(f"Missing critical permissions: {', '.join(missing_perms)}")
                     else:
