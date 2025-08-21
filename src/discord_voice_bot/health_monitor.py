@@ -3,7 +3,7 @@
 import asyncio
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import discord
 from loguru import logger
@@ -14,6 +14,7 @@ from .config import config
 @dataclass
 class FailureRecord:
     """Record of a system failure."""
+
     timestamp: float
     failure_type: str
     details: str
@@ -24,12 +25,13 @@ class FailureRecord:
 @dataclass
 class HealthStatus:
     """Comprehensive health status information."""
+
     healthy: bool = True
-    issues: List[str] = field(default_factory=list)
-    recommendations: List[str] = field(default_factory=list)
+    issues: list[str] = field(default_factory=list)
+    recommendations: list[str] = field(default_factory=list)
     last_check: float = field(default_factory=time.time)
     failure_count: int = 0
-    recent_failures: List[FailureRecord] = field(default_factory=list)
+    recent_failures: list[FailureRecord] = field(default_factory=list)
 
 
 class HealthMonitor:
@@ -81,11 +83,7 @@ class HealthMonitor:
     def record_disconnection(self, reason: str = "Unknown") -> None:
         """Record a voice disconnection event."""
         now = time.time()
-        failure = FailureRecord(
-            timestamp=now,
-            failure_type="voice_disconnection",
-            details=reason
-        )
+        failure = FailureRecord(timestamp=now, failure_type="voice_disconnection", details=reason)
         self.status.recent_failures.append(failure)
         self.status.failure_count += 1
 
@@ -105,11 +103,7 @@ class HealthMonitor:
     def record_api_failure(self) -> None:
         """Record a TTS API failure."""
         now = time.time()
-        failure = FailureRecord(
-            timestamp=now,
-            failure_type="api_failure",
-            details="TTS API unavailable"
-        )
+        failure = FailureRecord(timestamp=now, failure_type="api_failure", details="TTS API unavailable")
         self.status.recent_failures.append(failure)
         self.status.failure_count += 1
 
@@ -162,6 +156,7 @@ class HealthMonitor:
         # Check TTS API health
         try:
             from .tts_engine import tts_engine
+
             api_healthy = await tts_engine.health_check()
             if not api_healthy:
                 issues.append("TTS API health check failed")
@@ -209,14 +204,13 @@ class HealthMonitor:
         # Check termination conditions
         await self._check_termination_conditions()
 
-    async def _check_voice_connection_health(self) -> tuple[bool, List[str]]:
+    async def _check_voice_connection_health(self) -> tuple[bool, list[str]]:
         """Check voice connection health."""
         issues = []
 
         try:
             # Get voice handler status
-            from .voice_handler import VoiceHandler
-            if hasattr(self.bot, 'voice_handler') and self.bot.voice_handler:
+            if hasattr(self.bot, "voice_handler") and self.bot.voice_handler:
                 status = self.bot.voice_handler.get_status()
                 if not status.get("connected", False):
                     issues.append("Voice connection lost")
@@ -269,7 +263,7 @@ class HealthMonitor:
             except Exception as e:
                 logger.error(f"Error checking permissions in {guild.name}: {e}")
 
-    async def _check_critical_permissions(self) -> tuple[bool, List[str]]:
+    async def _check_critical_permissions(self) -> tuple[bool, list[str]]:
         """Check critical permissions for bot operation."""
         issues = []
 
@@ -312,10 +306,7 @@ class HealthMonitor:
         for condition_name, condition in self._termination_conditions.items():
             if "disconnections" in condition_name:
                 if condition["count"] >= condition["max"]:
-                    self._trigger_termination(
-                        f"Termination condition met: {condition['count']} {condition_name} "
-                        f"(threshold: {condition['max']})"
-                    )
+                    self._trigger_termination(f"Termination condition met: {condition['count']} {condition_name} (threshold: {condition['max']})")
 
         # Check API unavailable duration
         api_condition = self._termination_conditions["api_unavailable_duration"]
@@ -332,7 +323,7 @@ class HealthMonitor:
         self._graceful_shutdown = True
         self._shutdown_reason = reason
 
-        logger.error(f"🚨 AUTOMATIC TERMINATION TRIGGERED 🚨")
+        logger.error("🚨 AUTOMATIC TERMINATION TRIGGERED 🚨")
         logger.error(f"Reason: {reason}")
         logger.error("🔧 Server will shutdown to prevent further issues")
         logger.error("💡 Check the following:")
@@ -357,11 +348,12 @@ class HealthMonitor:
 
         try:
             # Stop voice handler if exists
-            if hasattr(self.bot, 'voice_handler') and self.bot.voice_handler:
+            if hasattr(self.bot, "voice_handler") and self.bot.voice_handler:
                 await self.bot.voice_handler.cleanup()
 
             # Stop TTS engine
             from .tts_engine import tts_engine
+
             await tts_engine.close()
 
             # Close Discord connection
@@ -375,9 +367,10 @@ class HealthMonitor:
             logger.error("💀 Server shutdown complete")
             # Exit with error code
             import sys
+
             sys.exit(1)
 
-    def get_health_status(self) -> Dict[str, Any]:
+    def get_health_status(self) -> dict[str, Any]:
         """Get current health status information."""
         return {
             "healthy": self.status.healthy,
@@ -387,16 +380,10 @@ class HealthMonitor:
             "failure_count": self.status.failure_count,
             "recent_failures": len(self.status.recent_failures),
             "termination_conditions": {
-                name: {
-                    "count": data["count"],
-                    "max": data["max"],
-                    "window": data["window"],
-                    "last_reset": data["last_reset"]
-                }
-                for name, data in self._termination_conditions.items()
+                name: {"count": data["count"], "max": data["max"], "window": data["window"], "last_reset": data["last_reset"]} for name, data in self._termination_conditions.items()
             },
             "shutdown_reason": self._shutdown_reason,
-            "graceful_shutdown": self._graceful_shutdown
+            "graceful_shutdown": self._graceful_shutdown,
         }
 
 

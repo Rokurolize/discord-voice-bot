@@ -8,7 +8,7 @@ from discord.ext import commands, tasks
 from loguru import logger
 
 from .config import config
-from .health_monitor import HealthMonitor, health_monitor
+from .health_monitor import HealthMonitor
 from .message_processor import message_processor
 from .tts_engine import tts_engine
 from .voice_handler import VoiceHandler
@@ -151,10 +151,10 @@ class DiscordVoiceTTSBot(commands.Bot):
 
         # Log critical compliance information
         logger.info("🔧 DISCORD API COMPLIANCE CHECK:")
-        logger.info(f"   - Voice Gateway Version: 8 (required since Nov 2024)")
-        logger.info(f"   - E2EE Support: Enabled via discord.py abstraction")
-        logger.info(f"   - Rate Limiting: 50 req/sec with dynamic headers")
-        logger.info(f"   - Invalid Request Protection: Circuit breaker enabled")
+        logger.info("   - Voice Gateway Version: 8 (required since Nov 2024)")
+        logger.info("   - E2EE Support: Enabled via discord.py abstraction")
+        logger.info("   - Rate Limiting: 50 req/sec with dynamic headers")
+        logger.info("   - Invalid Request Protection: Circuit breaker enabled")
         logger.info("✅ Bot configured for Discord API compliance")
 
         # Initialize voice handler
@@ -189,10 +189,10 @@ class DiscordVoiceTTSBot(commands.Bot):
             # Check if target channel exists and is accessible
             target_channel = self.get_channel(config.target_voice_channel_id)
             if target_channel:
-                channel_name = getattr(target_channel, 'name', f'ID:{config.target_voice_channel_id}')
+                channel_name = getattr(target_channel, "name", f"ID:{config.target_voice_channel_id}")
                 logger.debug(f"  - Target channel found: {channel_name}")
                 logger.debug(f"  - Target channel type: {type(target_channel).__name__}")
-                if hasattr(target_channel, 'permissions_for') and guild.me:
+                if hasattr(target_channel, "permissions_for") and guild.me:
                     try:
                         perms = target_channel.permissions_for(guild.me)
                         logger.debug(f"  - Bot permissions in channel: connect={perms.connect}, speak={perms.speak}")
@@ -209,41 +209,39 @@ class DiscordVoiceTTSBot(commands.Bot):
                 if success:
                     logger.info("✅ STARTUP CONNECTION SUCCESSFUL - Bot is now connected to voice channel")
                     break
+                if attempt < max_retries - 1:
+                    wait_time = 10
+                    logger.warning(f"❌ ATTEMPT {attempt + 1} FAILED - Retrying in {wait_time}s...")
+                    await asyncio.sleep(wait_time)
                 else:
-                    if attempt < max_retries - 1:
-                        wait_time = 10
-                        logger.warning(f"❌ ATTEMPT {attempt + 1} FAILED - Retrying in {wait_time}s...")
-                        await asyncio.sleep(wait_time)
-                    else:
-                        logger.error("❌ STARTUP CONNECTION FAILED - All retry attempts exhausted")
-                        logger.error("🔧 BOT WILL SHUTDOWN - Voice connection is required for TTS functionality")
-                        logger.error("💡 TROUBLESHOOTING TIPS:")
-                        logger.error("   1. Verify the voice channel ID is correct")
-                        logger.error("   2. Check if the bot has 'Connect' and 'Speak' permissions in the target channel")
-                        logger.error("   3. Ensure the bot is added to the server and has proper permissions")
-                        logger.error("   4. Check if the voice channel exists and is not deleted")
-                        logger.error("   5. Check server audit logs for any bot-related errors")
+                    logger.error("❌ STARTUP CONNECTION FAILED - All retry attempts exhausted")
+                    logger.error("🔧 BOT WILL SHUTDOWN - Voice connection is required for TTS functionality")
+                    logger.error("💡 TROUBLESHOOTING TIPS:")
+                    logger.error("   1. Verify the voice channel ID is correct")
+                    logger.error("   2. Check if the bot has 'Connect' and 'Speak' permissions in the target channel")
+                    logger.error("   3. Ensure the bot is added to the server and has proper permissions")
+                    logger.error("   4. Check if the voice channel exists and is not deleted")
+                    logger.error("   5. Check server audit logs for any bot-related errors")
 
-                        # Perform final health check for diagnostics
-                        if self.voice_handler:
-                            health_status = await self.voice_handler.health_check()
-                            logger.error("🔍 FINAL DIAGNOSTICS:")
-                            for issue in health_status["issues"]:
-                                logger.error(f"   • {issue}")
+                    # Perform final health check for diagnostics
+                    if self.voice_handler:
+                        health_status = await self.voice_handler.health_check()
+                        logger.error("🔍 FINAL DIAGNOSTICS:")
+                        for issue in health_status["issues"]:
+                            logger.error(f"   • {issue}")
 
-                        # Count consecutive startup failures
-                        if not hasattr(self, '_startup_connection_failures'):
-                            self._startup_connection_failures = 0
-                        self._startup_connection_failures += 1
+                    # Count consecutive startup failures
+                    if not hasattr(self, "_startup_connection_failures"):
+                        self._startup_connection_failures = 0
+                    self._startup_connection_failures += 1
 
-                        logger.error(f"❌ STARTUP CONNECTION FAILURE #{self._startup_connection_failures}")
+                    logger.error(f"❌ STARTUP CONNECTION FAILURE #{self._startup_connection_failures}")
 
-                        if self._startup_connection_failures >= 3:
-                            logger.error("🔧 BOT SHUTDOWN - Maximum startup connection failures reached")
-                            # Instead of sys.exit, raise a custom exception to be caught by main.py
-                            raise RuntimeError("Voice connection failed during startup after 3 attempts - bot cannot function without voice channel access")
-                        else:
-                            logger.warning(f"⚠️ Connection failed {self._startup_connection_failures}/3 times during startup")
+                    if self._startup_connection_failures >= 3:
+                        logger.error("🔧 BOT SHUTDOWN - Maximum startup connection failures reached")
+                        # Instead of sys.exit, raise a custom exception to be caught by main.py
+                        raise RuntimeError("Voice connection failed during startup after 3 attempts - bot cannot function without voice channel access")
+                    logger.warning(f"⚠️ Connection failed {self._startup_connection_failures}/3 times during startup")
             except Exception as e:
                 logger.error(f"💥 CRITICAL ERROR during connection attempt {attempt + 1}: {e}")
                 logger.debug(f"Error type: {type(e).__name__}", exc_info=True)
@@ -258,6 +256,7 @@ class DiscordVoiceTTSBot(commands.Bot):
 
                     # Exit with error code to indicate failure
                     import sys
+
                     sys.exit(1)
 
         # Start monitoring task
@@ -274,9 +273,7 @@ class DiscordVoiceTTSBot(commands.Bot):
         """Handle message events with proper filtering and validation."""
         try:
             # Log all messages for debugging (rate limited)
-            logger.debug(
-                f"Received message from {message.author.name} (ID: {message.id}) in channel {message.channel.id}: {message.content[:50]}"
-            )
+            logger.debug(f"Received message from {message.author.name} (ID: {message.id}) in channel {message.channel.id}: {message.content[:50]}")
 
             # Apply comprehensive message filtering following Discord's patterns
             if not await self._should_process_message(message):
@@ -318,8 +315,8 @@ class DiscordVoiceTTSBot(commands.Bot):
             if not self.user or member.id != self.user.id:
                 return
 
-            before_channel_name = before.channel.name if before.channel else 'None'
-            after_channel_name = after.channel.name if after.channel else 'None'
+            before_channel_name = before.channel.name if before.channel else "None"
+            after_channel_name = after.channel.name if after.channel else "None"
             logger.debug(f"Voice state update - Before: {before_channel_name}, After: {after_channel_name}")
 
             # If the bot is disconnected from a voice channel, attempt to reconnect
@@ -405,7 +402,7 @@ class DiscordVoiceTTSBot(commands.Bot):
                 return False
 
             # Only process messages from the target voice channel's text chat
-            if hasattr(message.channel, 'id'):
+            if hasattr(message.channel, "id"):
                 # If we have a voice handler and it's connected, check if this is the right channel
                 if self.voice_handler and self.voice_handler.voice_client:
                     # For now, process messages from any channel that the bot can see
@@ -422,10 +419,7 @@ class DiscordVoiceTTSBot(commands.Bot):
         """Validate message content for security and compliance."""
         try:
             # Check for potentially harmful content
-            suspicious_patterns = [
-                '<script', 'javascript:', 'onload=', 'onerror=',
-                'data:text/html', 'vbscript:', 'onmouseover='
-            ]
+            suspicious_patterns = ["<script", "javascript:", "onload=", "onerror=", "data:text/html", "vbscript:", "onmouseover="]
 
             content_lower = content.lower()
             for pattern in suspicious_patterns:
@@ -456,9 +450,9 @@ class DiscordVoiceTTSBot(commands.Bot):
 
             if processed_message:
                 # Add additional validation and sanitization
-                processed_message['original_content'] = message.content
-                processed_message['sanitized_content'] = sanitized_content
-                processed_message['validation_passed'] = True
+                processed_message["original_content"] = message.content
+                processed_message["sanitized_content"] = sanitized_content
+                processed_message["validation_passed"] = True
 
                 # Apply rate limiting to message processing
                 if self.voice_handler:
@@ -474,25 +468,27 @@ class DiscordVoiceTTSBot(commands.Bot):
         """Sanitize message content for TTS processing."""
         try:
             # Remove excessive whitespace
-            content = ' '.join(content.split())
+            content = " ".join(content.split())
 
             # Remove or replace problematic characters
             replacements = {
-                '\r\n': ' ', '\r': ' ', '\n': ' ',
-                '\t': ' ',
-                '…': '...',
-                '—': '-',
-                '–': '-',
+                "\r\n": " ",
+                "\r": " ",
+                "\n": " ",
+                "\t": " ",
+                "…": "...",
+                "—": "-",
+                "–": "-",
                 '"': '"',  # Keep quotes but ensure they're proper
-                ''': "'",
-                ''': "'",
+                """: "'",
+                """: "'",
             }
 
             for old, new in replacements.items():
                 content = content.replace(old, new)
 
             # Remove non-printable characters but keep basic unicode
-            content = ''.join(c for c in content if c.isprintable() or c in ['\n', '\t', ' '])
+            content = "".join(c for c in content if c.isprintable() or c in ["\n", "\t", " "])
 
             # Limit length to prevent abuse
             if len(content) > 500:  # Reasonable limit for TTS
@@ -567,17 +563,14 @@ class DiscordVoiceTTSBot(commands.Bot):
         # Connection status
         embed.add_field(
             name="🔗 接続状態",
-            value=f"Voice: {'✅ 接続中' if status['voice_connected'] else '❌ 未接続'}\n"
-            f"Channel: {status['voice_channel_name'] or 'なし'}",
+            value=f"Voice: {'✅ 接続中' if status['voice_connected'] else '❌ 未接続'}\nChannel: {status['voice_channel_name'] or 'なし'}",
             inline=True,
         )
 
         # TTS status
         embed.add_field(
             name="🎤 TTS状態",
-            value=f"Engine: {config.tts_engine.upper()}\n"
-            f"Speaker: {config.tts_speaker}\n"
-            f"Playing: {'✅' if status['is_playing'] else '❌'}",
+            value=f"Engine: {config.tts_engine.upper()}\nSpeaker: {config.tts_speaker}\nPlaying: {'✅' if status['is_playing'] else '❌'}",
             inline=True,
         )
 
@@ -598,9 +591,7 @@ class DiscordVoiceTTSBot(commands.Bot):
 
         embed.add_field(
             name="ℹ️ Bot情報",
-            value=f"Uptime: {hours:02d}:{minutes:02d}:{seconds:02d}\n"
-            f"Latency: {self.latency * 1000:.0f}ms\n"
-            f"Errors: {status['connection_errors']}",
+            value=f"Uptime: {hours:02d}:{minutes:02d}:{seconds:02d}\nLatency: {self.latency * 1000:.0f}ms\nErrors: {status['connection_errors']}",
             inline=True,
         )
 
@@ -797,20 +788,12 @@ class DiscordVoiceTTSBot(commands.Bot):
     async def _voicecheck_command(self, ctx: commands.Context) -> None:
         """Perform voice connection health check."""
         if not self.voice_handler:
-            embed = discord.Embed(
-                title="🔍 Voice Health Check",
-                color=discord.Color.red(),
-                description="❌ Voice handler not initialized"
-            )
+            embed = discord.Embed(title="🔍 Voice Health Check", color=discord.Color.red(), description="❌ Voice handler not initialized")
             await ctx.send(embed=embed)
             return
 
         # Perform health check
-        embed = discord.Embed(
-            title="🔍 Voice Health Check",
-            color=discord.Color.blue(),
-            description="Performing comprehensive voice connection diagnostics..."
-        )
+        embed = discord.Embed(title="🔍 Voice Health Check", color=discord.Color.blue(), description="Performing comprehensive voice connection diagnostics...")
 
         # Send initial message
         message = await ctx.send(embed=embed)
@@ -824,84 +807,57 @@ class DiscordVoiceTTSBot(commands.Bot):
             embed = discord.Embed(
                 title="🔍 Voice Health Check Results",
                 color=(discord.Color.green() if health_status["healthy"] else discord.Color.red()),
-                description=f"Overall Status: {'✅ HEALTHY' if health_status['healthy'] else '❌ ISSUES FOUND'}"
+                description=f"Overall Status: {'✅ HEALTHY' if health_status['healthy'] else '❌ ISSUES FOUND'}",
             )
 
             # Connection status
             embed.add_field(
                 name="🔗 Connection Status",
                 value=f"Voice Client: {'✅' if health_status['voice_client_exists'] else '❌'}\n"
-                      f"Connected: {'✅' if health_status['voice_client_connected'] else '❌'}\n"
-                      f"Channel: {status.get('voice_channel_name', 'None') or 'None'}",
-                inline=True
+                f"Connected: {'✅' if health_status['voice_client_connected'] else '❌'}\n"
+                f"Channel: {status.get('voice_channel_name', 'None') or 'None'}",
+                inline=True,
             )
 
             # Audio system status
             embed.add_field(
                 name="🎵 Audio System",
                 value=f"Playback Ready: {'✅' if health_status['audio_playback_ready'] else '❌'}\n"
-                      f"Synthesis: {'✅' if health_status['can_synthesize'] else '❌'}\n"
-                      f"Queue Size: {status.get('total_queue_size', 0)}",
-                inline=True
+                f"Synthesis: {'✅' if health_status['can_synthesize'] else '❌'}\n"
+                f"Queue Size: {status.get('total_queue_size', 0)}",
+                inline=True,
             )
 
             # Issues and recommendations
             if health_status["issues"]:
                 issues_text = "\n".join(f"• {issue}" for issue in health_status["issues"])
-                embed.add_field(
-                    name="⚠️ Issues Found",
-                    value=issues_text,
-                    inline=False
-                )
+                embed.add_field(name="⚠️ Issues Found", value=issues_text, inline=False)
 
             if health_status["recommendations"]:
                 recommendations_text = "\n".join(f"💡 {rec}" for rec in health_status["recommendations"])
-                embed.add_field(
-                    name="🔧 Recommendations",
-                    value=recommendations_text,
-                    inline=False
-                )
+                embed.add_field(name="🔧 Recommendations", value=recommendations_text, inline=False)
 
             # If not healthy, offer to attempt reconnection
             if not health_status["healthy"]:
-                embed.add_field(
-                    name="🔄 Quick Actions",
-                    value="Use `!tts reconnect` to attempt reconnection",
-                    inline=False
-                )
+                embed.add_field(name="🔄 Quick Actions", value="Use `!tts reconnect` to attempt reconnection", inline=False)
 
         except Exception as e:
-            embed = discord.Embed(
-                title="🔍 Voice Health Check",
-                color=discord.Color.red(),
-                description=f"❌ Error during health check: {e}"
-            )
+            embed = discord.Embed(title="🔍 Voice Health Check", color=discord.Color.red(), description=f"❌ Error during health check: {e}")
 
         await message.edit(embed=embed)
 
     async def _reconnect_command(self, ctx: commands.Context) -> None:
         """Manually attempt to reconnect to voice channel."""
         if not self.voice_handler:
-            embed = discord.Embed(
-                title="🔄 Voice Reconnection",
-                color=discord.Color.red(),
-                description="❌ Voice handler not initialized"
-            )
+            embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.red(), description="❌ Voice handler not initialized")
             await ctx.send(embed=embed)
             return
 
-        embed = discord.Embed(
-            title="🔄 Voice Reconnection",
-            color=discord.Color.orange(),
-            description="Attempting to reconnect to voice channel..."
-        )
+        embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.orange(), description="Attempting to reconnect to voice channel...")
 
         message = await ctx.send(embed=embed)
 
         try:
-            # Get current status before reconnection
-            old_status = self.voice_handler.get_status()
-
             # Attempt reconnection
             logger.info(f"🔄 MANUAL RECONNECTION - User {ctx.author.name} requested voice reconnection")
             success = await self.voice_handler.connect_to_channel(config.target_voice_channel_id)
@@ -910,59 +866,28 @@ class DiscordVoiceTTSBot(commands.Bot):
             new_status = self.voice_handler.get_status()
 
             if success and new_status["connected"]:
-                embed = discord.Embed(
-                    title="🔄 Voice Reconnection",
-                    color=discord.Color.green(),
-                    description="✅ Successfully reconnected to voice channel!"
-                )
+                embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.green(), description="✅ Successfully reconnected to voice channel!")
 
-                embed.add_field(
-                    name="📍 Channel Info",
-                    value=f"Name: {new_status['voice_channel_name']}\n"
-                          f"ID: {new_status['voice_channel_id']}",
-                    inline=True
-                )
+                embed.add_field(name="📍 Channel Info", value=f"Name: {new_status['voice_channel_name']}\nID: {new_status['voice_channel_id']}", inline=True)
 
-                embed.add_field(
-                    name="📊 Queue Status",
-                    value=f"Ready: {new_status['audio_queue_size']} chunks\n"
-                          f"Synthesizing: {new_status['synthesis_queue_size']} chunks",
-                    inline=True
-                )
+                embed.add_field(name="📊 Queue Status", value=f"Ready: {new_status['audio_queue_size']} chunks\nSynthesizing: {new_status['synthesis_queue_size']} chunks", inline=True)
 
                 logger.info(f"✅ MANUAL RECONNECTION SUCCESSFUL - Connected to {new_status['voice_channel_name']}")
             else:
-                embed = discord.Embed(
-                    title="🔄 Voice Reconnection",
-                    color=discord.Color.red(),
-                    description="❌ Reconnection failed"
-                )
+                embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.red(), description="❌ Reconnection failed")
 
                 embed.add_field(
                     name="🔍 Troubleshooting",
-                    value="Check the bot logs for detailed error information.\n"
-                          "Common issues:\n"
-                          "• Bot lacks 'Connect' permission\n"
-                          "• Channel is full\n"
-                          "• Network connectivity issues",
-                    inline=False
+                    value="Check the bot logs for detailed error information.\nCommon issues:\n• Bot lacks 'Connect' permission\n• Channel is full\n• Network connectivity issues",
+                    inline=False,
                 )
 
-                embed.add_field(
-                    name="🔧 Next Steps",
-                    value="Use `!tts voicecheck` for detailed diagnostics\n"
-                          "Contact bot administrator if issues persist",
-                    inline=False
-                )
+                embed.add_field(name="🔧 Next Steps", value="Use `!tts voicecheck` for detailed diagnostics\nContact bot administrator if issues persist", inline=False)
 
-                logger.error(f"❌ MANUAL RECONNECTION FAILED - Check logs for detailed error information")
+                logger.error("❌ MANUAL RECONNECTION FAILED - Check logs for detailed error information")
 
         except Exception as e:
-            embed = discord.Embed(
-                title="🔄 Voice Reconnection",
-                color=discord.Color.red(),
-                description=f"❌ Error during reconnection: {e}"
-            )
+            embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.red(), description=f"❌ Error during reconnection: {e}")
             logger.error(f"💥 CRITICAL ERROR during manual reconnection: {e}")
 
         await message.edit(embed=embed)

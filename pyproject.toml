@@ -23,24 +23,24 @@ classifiers = [
 license = { file = "LICENSE" }
 dependencies = [
     "discord.py[voice]~=2.6",
-    "python-dotenv>=1.0.0",
-    "aiofiles>=23.2.0",
-    "loguru>=0.7.2",
+    "python-dotenv~=1.0",
+    "aiofiles~=23.2",
+    "loguru~=0.7",
     "zstandard>=0.23.0; platform_python_implementation == 'CPython' and python_version < '3.14'",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
-    "black>=23.7.0",
-    "mypy>=1.16.1",
-    "poethepoet>=0.20.0",
-    "pytest>=8.0.2",
-    "pytest-asyncio>=0.23.2",
-    "ruff>=0.0.285",
+  "poethepoet>=0.26",
+  "ruff~=0.12",
+  "black~=24.10",
+  "mypy~=1.11",
+  "pytest~=8.3",
+  "pytest-asyncio~=0.23",
 ]
 
 [project.scripts]
-discord-voice-bot = "discord_voice_bot.__main__:main"
+discord-voice-bot = "discord_voice_bot.__main__:sync_main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/discord_voice_bot"]

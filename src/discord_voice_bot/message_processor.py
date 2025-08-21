@@ -77,9 +77,7 @@ class MessageProcessor:
         self.japanese_emoticon_pattern = re.compile(r"[（）()（）\(\)]")
 
         if config.rate_limit_messages > 0 and config.rate_limit_messages < 1000:
-            logger.info(
-                f"Message processor initialized with rate limiting: {config.rate_limit_messages} messages per {config.rate_limit_period}s"
-            )
+            logger.info(f"Message processor initialized with rate limiting: {config.rate_limit_messages} messages per {config.rate_limit_period}s")
         else:
             logger.info("Message processor initialized without rate limiting")
 

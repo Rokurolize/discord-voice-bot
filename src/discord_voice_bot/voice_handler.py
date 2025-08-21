@@ -201,10 +201,7 @@ class VoiceHandler:
                 except Exception:
                     pass
             if not opus.is_loaded():
-                logger.warning(
-                    "Opus library is not loaded. Audio playback may fail. "
-                    "Install system libopus or ensure discord.py[voice] is correctly installed."
-                )
+                logger.warning("Opus library is not loaded. Audio playback may fail. Install system libopus or ensure discord.py[voice] is correctly installed.")
         except Exception:
             # Best-effort only
             pass
@@ -259,9 +256,7 @@ class VoiceHandler:
             # Check current connection status
             if self.is_connected():
                 current_channel_id = getattr(self.voice_client.channel, "id", None) if self.voice_client else None
-                logger.debug(
-                    f"Current connection status: Connected to {self.voice_client.channel.name if self.voice_client else 'None'} (ID: {current_channel_id})"
-                )
+                logger.debug(f"Current connection status: Connected to {self.voice_client.channel.name if self.voice_client else 'None'} (ID: {current_channel_id})")
 
                 if current_channel_id == channel_id:
                     logger.info(f"✅ ALREADY CONNECTED - Already connected to target channel {channel.name}")
@@ -280,9 +275,7 @@ class VoiceHandler:
 
             # Fresh connection attempt
             logger.info(f"🔗 ESTABLISHING NEW CONNECTION - Connecting to {channel.name}...")
-            logger.debug(
-                f"Channel permissions check: Bot can_connect={channel.permissions_for(channel.guild.me).connect if channel.guild.me else 'Unknown'}"
-            )
+            logger.debug(f"Channel permissions check: Bot can_connect={channel.permissions_for(channel.guild.me).connect if channel.guild.me else 'Unknown'}")
 
             try:
                 self.voice_client = await channel.connect()
@@ -376,10 +369,8 @@ class VoiceHandler:
                 if e.response:
                     try:
                         # Try to get headers from response
-                        headers = getattr(e.response, 'headers', {})
-                        if hasattr(headers, 'get'):
-                            retry_after = headers.get("Retry-After", "1")
-                        elif isinstance(headers, dict):
+                        headers = getattr(e.response, "headers", {})
+                        if hasattr(headers, "get") or isinstance(headers, dict):
                             retry_after = headers.get("Retry-After", "1")
                     except (AttributeError, TypeError):
                         # Fallback for mock objects or malformed responses
@@ -809,11 +800,7 @@ class VoiceHandler:
             logger.debug(f"⚠️ TTS engine check error: {e}")
 
         # Overall health assessment
-        critical_issues = [
-            issue
-            for issue in health_status["issues"]
-            if any(keyword in issue.lower() for keyword in ["not initialized", "not connected", "failed", "error"])
-        ]
+        critical_issues = [issue for issue in health_status["issues"] if any(keyword in issue.lower() for keyword in ["not initialized", "not connected", "failed", "error"])]
 
         if not critical_issues:
             health_status["healthy"] = True

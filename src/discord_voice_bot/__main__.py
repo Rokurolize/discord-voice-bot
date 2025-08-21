@@ -34,10 +34,7 @@ class BotManager:
         logger.add(
             sys.stderr,
             level=config.log_level,
-            format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
-            "<level>{level: <8}</level> | "
-            "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
-            "<level>{message}</level>",
+            format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | <level>{message}</level>",
             colorize=True,
             backtrace=True,
             diagnose=True,
@@ -111,7 +108,6 @@ class BotManager:
             await asyncio.sleep(5)  # Give bot time to initialize and connect
 
             # Get the bot instance and initialize health monitor
-            from .bot import DiscordVoiceTTSBot
             # The health monitor is already initialized in the bot's _on_ready method
             logger.info("🩺 Health monitoring system is active")
 
@@ -238,7 +234,7 @@ def sync_main() -> None:
             asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
         # Handle --help argument before running the bot
-        if len(sys.argv) > 1 and sys.argv[1] in ['--help', '-h']:
+        if len(sys.argv) > 1 and sys.argv[1] in ["--help", "-h"]:
             print("Discord Voice TTS Bot")
             print("")
             print("A Discord bot that reads voice channel text messages using Zundamon voice.")

@@ -108,6 +108,14 @@ class TTSEngine:
             Audio data as bytes, or None if synthesis failed
 
         """
+        # DEBUG: Log input validation
+        logger.debug(f"synthesize_audio called with text: '{text}' (length: {len(text)})")
+
+        # Check for empty text early
+        if not text or not text.strip():
+            logger.debug("Empty text provided, returning None")
+            return None
+
         if not self._session:
             await self.start()
 
