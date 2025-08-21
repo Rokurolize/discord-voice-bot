@@ -81,3 +81,8 @@ dmypy.json
 # Directory environment
 .envrc
 repomix-output.xml
+
+# Railway deployment files
+railway_app.py
+requirements_railway.txt
+RAILWAY_DEPLOYMENT.md

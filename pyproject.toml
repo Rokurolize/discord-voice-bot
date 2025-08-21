@@ -6,7 +6,6 @@ build-backend = "hatchling.build"
 name = "discord-voice-bot"
 version = "0.1.0"
 description = "Discord voice channel text-to-speech bot with Zundamon voice"
-authors = [{name = "Discord Voice Bot", email = "discord-voice-bot@example.com"}]
 readme = "README.md"
 requires-python = ">=3.11"
 classifiers = [
@@ -28,6 +27,10 @@ dependencies = [
     "loguru~=0.7",
     "zstandard>=0.23.0; platform_python_implementation == 'CPython' and python_version < '3.14'",
 ]
+
+[[project.authors]]
+name = "Rokurolize"
+email = "1701388+Rokurolize@users.noreply.github.com"
 
 [dependency-groups]
 dev = [
