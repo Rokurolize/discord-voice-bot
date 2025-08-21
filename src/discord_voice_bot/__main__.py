@@ -4,6 +4,7 @@ import asyncio
 import signal
 import sys
 from pathlib import Path
+from types import FrameType
 
 # Set up logging before importing our modules
 from loguru import logger
@@ -61,7 +62,7 @@ class BotManager:
     def setup_signal_handlers(self) -> None:
         """Set up signal handlers for graceful shutdown."""
 
-        def signal_handler(signum: int) -> None:
+        def signal_handler(signum: int, frame: FrameType | None) -> None:
             """Handle shutdown signals."""
             if self.is_shutting_down:
                 logger.warning("Force shutdown requested")
@@ -79,8 +80,8 @@ class BotManager:
             self.shutdown_event.set()
 
         # Set up signal handlers
-        signal.signal(signal.SIGINT, lambda s, f: signal_handler(s))
-        signal.signal(signal.SIGTERM, lambda s, f: signal_handler(s))
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
 
         logger.info("Signal handlers set up for graceful shutdown")
 

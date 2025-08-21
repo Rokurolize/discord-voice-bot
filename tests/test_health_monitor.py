@@ -75,7 +75,7 @@ async def test_health_monitor():
     # Mock the TTS engine health check
     original_tts_health_check = None
     try:
-        from src import tts_engine
+        from discord_voice_bot import tts_engine
         original_tts_health_check = tts_engine.tts_engine.health_check
         tts_engine.tts_engine.health_check = AsyncMock(return_value=True)
     except:
