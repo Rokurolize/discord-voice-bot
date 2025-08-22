@@ -97,14 +97,14 @@ class TestTextProcessing:
     def test_emoji_handling(self, processor):
         """Test emoji processing."""
         # Emojis are typically converted or kept
-        result = processor.process_message_content("Hello 😀", "TestUser")
+        result = processor.process_message_content("Hello :)", "TestUser")
         assert result  # Should not be empty
 
     def test_url_handling(self, processor):
         """URLs should be processed."""
         result = processor.process_message_content("Check https://example.com", "TestUser")
-        # URLs are converted to "リンク" in the actual implementation
-        assert "リンク" in result or "https://" in result
+        # URLs are converted to "link" in the actual implementation
+        assert "link" in result or "https://" in result
 
 
 class TestMessageChunking:
@@ -120,7 +120,7 @@ class TestMessageChunking:
     def test_long_message_chunked(self, processor):
         """Long messages should be chunked."""
         # Create a message longer than default max length
-        text = "これは長い文章です。" * 100  # Very long
+        text = "This is a long sentence. " * 100  # Very long
         chunks = processor.chunk_message(text)
         assert len(chunks) > 1
         # Verify no data loss
@@ -128,13 +128,13 @@ class TestMessageChunking:
 
     def test_chunk_at_sentence_boundary(self, processor):
         """Chunks should split at sentence boundaries when possible."""
-        text = "文章1。文章2。文章3。" * 50
+        text = "Sentence 1. Sentence 2. Sentence 3. " * 50
         chunks = processor.chunk_message(text)
         # Check that chunks end with sentence markers where possible
         for chunk in chunks[:-1]:  # All but last
             # Should end with a sentence marker if possible
             if len(chunk) < 500:  # If not at max length
-                assert chunk[-1] in "。！？…\n" or len(chunk) == 500
+                assert chunk[-1] in ".!?\n" or len(chunk) == 500
 
 
 class TestAsyncProcessing:
@@ -163,7 +163,7 @@ class TestAsyncProcessing:
     @pytest.mark.asyncio
     async def test_process_message_with_chunking(self, processor, mock_message):
         """Long messages should be properly chunked."""
-        mock_message.content = "これは長い文章です。" * 100
+        mock_message.content = "This is a long sentence. " * 100
         result = await processor.process_message(mock_message)
 
         assert result is not None

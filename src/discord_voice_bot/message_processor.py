@@ -143,7 +143,7 @@ class MessageProcessor:
 
         """
         # Remove URLs and replace with description
-        content = self.url_pattern.sub("リンク", content)
+        content = self.url_pattern.sub("link", content)
 
         # Replace Discord-specific mentions and emojis
         content = self._process_discord_markup(content)
@@ -162,25 +162,25 @@ class MessageProcessor:
         # Final validation
         content = content.strip()
         if not content:
-            content = "メッセージ"  # Fallback for empty processed content
+            content = "message"  # Fallback for empty processed content
 
         logger.debug(f"Processed content: '{content}'")
         return content
 
     def _process_discord_markup(self, content: str) -> str:
         """Process Discord-specific markup (mentions, emojis, etc.)."""
-        # Replace user mentions with "誰か"
-        content = self.mention_pattern.sub("誰か", content)
+        # Replace user mentions with "someone"
+        content = self.mention_pattern.sub("someone", content)
 
-        # Replace channel mentions with "チャンネル"
-        content = self.channel_mention_pattern.sub("チャンネル", content)
+        # Replace channel mentions with "channel"
+        content = self.channel_mention_pattern.sub("channel", content)
 
-        # Replace role mentions with "ロール"
-        content = self.role_mention_pattern.sub("ロール", content)
+        # Replace role mentions with "role"
+        content = self.role_mention_pattern.sub("role", content)
 
-        # Replace custom emojis with "絵文字"
-        content = self.emoji_pattern.sub("絵文字", content)
-        content = self.animated_emoji_pattern.sub("絵文字", content)
+        # Replace custom emojis with "emoji"
+        content = self.emoji_pattern.sub("emoji", content)
+        content = self.animated_emoji_pattern.sub("emoji", content)
 
         return content
 
@@ -199,7 +199,7 @@ class MessageProcessor:
             "*": "",  # Italic markdown
             "_": "",  # Underscore
             "\\": "",  # Escape characters
-            "\n": "。",  # Newlines become sentence breaks
+            "\n": ".",  # Newlines become sentence breaks
             "\r": "",  # Remove carriage returns
             "\t": " ",  # Tabs become spaces
         }
@@ -209,15 +209,15 @@ class MessageProcessor:
 
         # Replace common English abbreviations/emoticons
         emoticon_replacements = {
-            ":)": "スマイル",
-            ":D": "笑顔",
-            ":(": "悲しい",
-            ":P": "べー",
-            "xD": "爆笑",
-            "lol": "エルオーエル",
-            "LOL": "エルオーエル",
-            "www": "わらわらわら",
-            "WWW": "わらわらわら",
+            ":)": "smile",
+            ":D": "big smile",
+            ":(": "sad",
+            ":P": "tongue out",
+            "xD": "laughing hard",
+            "lol": "laugh out loud",
+            "LOL": "laugh out loud",
+            "www": "laughing",
+            "WWW": "laughing",
         }
 
         for emoticon, replacement in emoticon_replacements.items():
@@ -272,7 +272,7 @@ class MessageProcessor:
 
         # Try to split at sentence boundaries
         current_chunk = ""
-        sentences = re.split(r"([。！？…\n])", text)
+        sentences = re.split(r"([.!?\n])", text)
 
         for i in range(0, len(sentences), 2):
             sentence = sentences[i]

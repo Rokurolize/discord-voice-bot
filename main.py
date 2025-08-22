@@ -170,7 +170,7 @@ class BotManager:
 
             # Test TTS synthesis
             logger.info("Testing TTS synthesis...")
-            test_audio = await tts_engine.synthesize_audio("起動テスト")
+            test_audio = await tts_engine.synthesize_audio("Startup test")
             if not test_audio:
                 logger.error("TTS synthesis test failed")
                 return False

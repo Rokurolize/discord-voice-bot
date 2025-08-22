@@ -84,7 +84,7 @@ async def run_minimal_tests():
     print("🧪 MINIMAL AIVISPEECH API PITCH TEST")
     print("🎯 Testing raw API calls to isolate high-pitch issue\n")
 
-    test_text = "ピッチテスト：この音声の高さを確認してください。"
+    test_text = "Pitch test: Please check the pitch of this audio."
     generated_files = []
 
     OUTPUT_DIR.mkdir(exist_ok=True)

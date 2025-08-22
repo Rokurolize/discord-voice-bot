@@ -6,34 +6,34 @@ from typing import Any
 # Based on voice characteristics and style
 SPEAKER_MAPPING = {
     "voicevox_to_aivis": {
-        # ずんだもん variants
-        3: 1512153250,  # ノーマル -> zunda_normal
-        1: 1512153249,  # あまあま -> zunda_amai
-        7: 1512153252,  # ツンツン -> zunda_tsun
-        5: 1512153251,  # セクシー -> zunda_sexy
-        22: 1512153253,  # ささやき -> zunda_whisper
-        38: 1512153254,  # ヒソヒソ -> zunda_hisohiso
-        75: 1512153250,  # ヘロヘロ -> zunda_normal (no direct match)
-        76: 1512153250,  # なみだめ -> zunda_normal (no direct match)
+        # Zundamon variants
+        3: 1512153250,  # Normal -> zunda_normal
+        1: 1512153249,  # Sweet -> zunda_amai
+        7: 1512153252,  # Tsundere -> zunda_tsun
+        5: 1512153251,  # Seductive -> zunda_sexy
+        22: 1512153253,  # Whisper -> zunda_whisper
+        38: 1512153254,  # Murmur -> zunda_hisohiso
+        75: 1512153250,  # Flirty -> zunda_normal (no direct match)
+        76: 1512153250,  # Tearful -> zunda_normal (no direct match)
     },
     "aivis_to_voicevox": {
         # Reverse mapping
-        1512153250: 3,  # zunda_normal -> ノーマル
-        1512153249: 1,  # zunda_amai -> あまあま
-        1512153252: 7,  # zunda_tsun -> ツンツン
-        1512153251: 5,  # zunda_sexy -> セクシー
-        1512153253: 22,  # zunda_whisper -> ささやき
-        1512153254: 38,  # zunda_hisohiso -> ヒソヒソ
-        1512153248: 3,  # zunda_reading -> ノーマル (no direct match)
-        # Other AIVIS speakers map to VOICEVOX ずんだもんノーマル as fallback
-        888753760: 3,  # anneli_normal -> ずんだもんノーマル
-        888753761: 3,  # anneli_normal2 -> ずんだもんノーマル
-        888753762: 3,  # anneli_tension -> ずんだもんノーマル
-        888753763: 3,  # anneli_calm -> ずんだもんノーマル
-        888753764: 3,  # anneli_happy -> ずんだもんノーマル
-        888753765: 3,  # anneli_angry -> ずんだもんノーマル
-        1431611904: 3,  # まい -> ずんだもんノーマル
-        604166016: 3,  # 中2 -> ずんだもんノーマル
+        1512153250: 3,  # zunda_normal -> Normal
+        1512153249: 1,  # zunda_amai -> Sweet
+        1512153252: 7,  # zunda_tsun -> Tsundere
+        1512153251: 5,  # zunda_sexy -> Seductive
+        1512153253: 22,  # zunda_whisper -> Whisper
+        1512153254: 38,  # zunda_hisohiso -> Murmur
+        1512153248: 3,  # zunda_reading -> Normal (no direct match)
+        # Other AIVIS speakers map to VOICEVOX Zundamon Normal as fallback
+        888753760: 3,  # anneli_normal -> Zundamon Normal
+        888753761: 3,  # anneli_normal2 -> Zundamon Normal
+        888753762: 3,  # anneli_tension -> Zundamon Normal
+        888753763: 3,  # anneli_calm -> Zundamon Normal
+        888753764: 3,  # anneli_happy -> Zundamon Normal
+        888753765: 3,  # anneli_angry -> Zundamon Normal
+        1431611904: 3,  # Mai -> Zundamon Normal
+        604166016: 3,  # Chuunibyou -> Zundamon Normal
     },
 }
 
@@ -83,31 +83,31 @@ def get_speaker_info(speaker_id: int, engine: str) -> dict[str, Any]:
     # Speaker information database
     speaker_db = {
         "voicevox": {
-            1: {"name": "ずんだもん（あまあま）", "character": "ずんだもん"},
-            3: {"name": "ずんだもん（ノーマル）", "character": "ずんだもん"},
-            5: {"name": "ずんだもん（セクシー）", "character": "ずんだもん"},
-            7: {"name": "ずんだもん（ツンツン）", "character": "ずんだもん"},
-            22: {"name": "ずんだもん（ささやき）", "character": "ずんだもん"},
-            38: {"name": "ずんだもん（ヒソヒソ）", "character": "ずんだもん"},
-            75: {"name": "ずんだもん（ヘロヘロ）", "character": "ずんだもん"},
-            76: {"name": "ずんだもん（なみだめ）", "character": "ずんだもん"},
+            1: {"name": "Zundamon (Sweet)", "character": "Zundamon"},
+            3: {"name": "Zundamon (Normal)", "character": "Zundamon"},
+            5: {"name": "Zundamon (Seductive)", "character": "Zundamon"},
+            7: {"name": "Zundamon (Tsundere)", "character": "Zundamon"},
+            22: {"name": "Zundamon (Whisper)", "character": "Zundamon"},
+            38: {"name": "Zundamon (Murmur)", "character": "Zundamon"},
+            75: {"name": "Zundamon (Flirty)", "character": "Zundamon"},
+            76: {"name": "Zundamon (Tearful)", "character": "Zundamon"},
         },
         "aivis": {
-            1512153248: {"name": "非公式ずんだもん（朗読）", "character": "ずんだもん"},
-            1512153249: {"name": "非公式ずんだもん（あまあま）", "character": "ずんだもん"},
-            1512153250: {"name": "非公式ずんだもん（ノーマル）", "character": "ずんだもん"},
-            1512153251: {"name": "非公式ずんだもん（セクシー）", "character": "ずんだもん"},
-            1512153252: {"name": "非公式ずんだもん（ツンツン）", "character": "ずんだもん"},
-            1512153253: {"name": "非公式ずんだもん（ささやき）", "character": "ずんだもん"},
-            1512153254: {"name": "非公式ずんだもん（ヒソヒソ）", "character": "ずんだもん"},
-            888753760: {"name": "Anneli（ノーマル）", "character": "Anneli"},
-            888753761: {"name": "Anneli（通常）", "character": "Anneli"},
-            888753762: {"name": "Anneli（テンション高め）", "character": "Anneli"},
-            888753763: {"name": "Anneli（落ち着き）", "character": "Anneli"},
-            888753764: {"name": "Anneli（上機嫌）", "character": "Anneli"},
-            888753765: {"name": "Anneli（怒り・悲しみ）", "character": "Anneli"},
-            1431611904: {"name": "まい", "character": "まい"},
-            604166016: {"name": "中2", "character": "中2"},
+            1512153248: {"name": "Unofficial Zundamon (Reading)", "character": "Zundamon"},
+            1512153249: {"name": "Unofficial Zundamon (Sweet)", "character": "Zundamon"},
+            1512153250: {"name": "Unofficial Zundamon (Normal)", "character": "Zundamon"},
+            1512153251: {"name": "Unofficial Zundamon (Seductive)", "character": "Zundamon"},
+            1512153252: {"name": "Unofficial Zundamon (Tsundere)", "character": "Zundamon"},
+            1512153253: {"name": "Unofficial Zundamon (Whisper)", "character": "Zundamon"},
+            1512153254: {"name": "Unofficial Zundamon (Murmur)", "character": "Zundamon"},
+            888753760: {"name": "Anneli (Normal)", "character": "Anneli"},
+            888753761: {"name": "Anneli (Standard)", "character": "Anneli"},
+            888753762: {"name": "Anneli (High Tension)", "character": "Anneli"},
+            888753763: {"name": "Anneli (Calm)", "character": "Anneli"},
+            888753764: {"name": "Anneli (Happy)", "character": "Anneli"},
+            888753765: {"name": "Anneli (Angry/Sad)", "character": "Anneli"},
+            1431611904: {"name": "Mai", "character": "Mai"},
+            604166016: {"name": "Chuunibyou", "character": "Chuunibyou"},
         },
     }
 

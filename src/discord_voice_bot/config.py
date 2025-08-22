@@ -34,37 +34,37 @@ class Config:
         self.engines: dict[str, dict[str, Any]] = {
             "voicevox": {
                 "url": os.environ.get("VOICEVOX_URL", "http://localhost:50021"),
-                "default_speaker": 3,  # ずんだもん（ノーマル）
+                "default_speaker": 3,  # Zundamon (Normal)
                 "speakers": {
-                    "normal": 3,  # ずんだもん（ノーマル）
-                    "sexy": 5,  # ずんだもん（セクシー）
-                    "tsun": 7,  # ずんだもん（ツンツン）
-                    "amai": 1,  # ずんだもん（あまあま）
+                    "normal": 3,  # Zundamon (Normal)
+                    "sexy": 5,  # Zundamon (Seductive)
+                    "tsun": 7,  # Zundamon (Tsundere)
+                    "amai": 1,  # Zundamon (Sweet)
                 },
             },
             "aivis": {
                 "url": os.environ.get("AIVIS_URL", "http://127.0.0.1:10101"),
-                "default_speaker": 1512153250,  # 非公式ずんだもん（ノーマル）
+                "default_speaker": 1512153250,  # Unofficial Zundamon (Normal)
                 "speakers": {
                     # Anneli voices
-                    "anneli_normal": 888753760,  # Anneli（ノーマル）
-                    "anneli_normal2": 888753761,  # Anneli（通常）
-                    "anneli_tension": 888753762,  # Anneli（テンション高め）
-                    "anneli_calm": 888753763,  # Anneli（落ち着き）
-                    "anneli_happy": 888753764,  # Anneli（上機嫌）
-                    "anneli_angry": 888753765,  # Anneli（怒り・悲しみ）
-                    # まい voice
-                    "まい": 1431611904,  # まい（ノーマル）
-                    # 中2 voice
-                    "中2": 604166016,  # 中2（ノーマル）
-                    # 非公式ずんだもん voices
-                    "zunda_reading": 1512153248,  # 非公式ずんだもん（朗読）
-                    "zunda_normal": 1512153250,  # 非公式ずんだもん（ノーマル）
-                    "zunda_amai": 1512153249,  # 非公式ずんだもん（あまあま）
-                    "zunda_sexy": 1512153251,  # 非公式ずんだもん（セクシー）
-                    "zunda_tsun": 1512153252,  # 非公式ずんだもん（ツンツン）
-                    "zunda_whisper": 1512153253,  # 非公式ずんだもん（ささやき）
-                    "zunda_hisohiso": 1512153254,  # 非公式ずんだもん（ヒソヒソ）
+                    "anneli_normal": 888753760,  # Anneli (Normal)
+                    "anneli_normal2": 888753761,  # Anneli (Standard)
+                    "anneli_tension": 888753762,  # Anneli (High Tension)
+                    "anneli_calm": 888753763,  # Anneli (Calm)
+                    "anneli_happy": 888753764,  # Anneli (Happy)
+                    "anneli_angry": 888753765,  # Anneli (Angry/Sad)
+                    # Mai voice
+                    "まい": 1431611904,  # Mai (Normal)
+                    # Chuunibyou voice
+                    "中2": 604166016,  # Chuunibyou (Normal)
+                    # Unofficial Zundamon voices
+                    "zunda_reading": 1512153248,  # Unofficial Zundamon (Reading)
+                    "zunda_normal": 1512153250,  # Unofficial Zundamon (Normal)
+                    "zunda_amai": 1512153249,  # Unofficial Zundamon (Sweet)
+                    "zunda_sexy": 1512153251,  # Unofficial Zundamon (Seductive)
+                    "zunda_tsun": 1512153252,  # Unofficial Zundamon (Tsundere)
+                    "zunda_whisper": 1512153253,  # Unofficial Zundamon (Whisper)
+                    "zunda_hisohiso": 1512153254,  # Unofficial Zundamon (Murmur)
                 },
             },
         }

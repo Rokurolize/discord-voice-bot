@@ -10,22 +10,22 @@ from loguru import logger
 # Speaker mapping between engines for consistent voice experience
 SPEAKER_MAPPING = {
     "voicevox_to_aivis": {
-        1: 1512153249,  # ずんだもん（あまあま） → 非公式ずんだもん（あまあま）
-        3: 1512153250,  # ずんだもん（ノーマル） → 非公式ずんだもん（ノーマル）
-        5: 1512153251,  # ずんだもん（セクシー） → 非公式ずんだもん（セクシー）
-        7: 1512153252,  # ずんだもん（ツンツン） → 非公式ずんだもん（ツンツン）
+        1: 1512153249,  # Zundamon (Sweet) -> Unofficial Zundamon (Sweet)
+        3: 1512153250,  # Zundamon (Normal) -> Unofficial Zundamon (Normal)
+        5: 1512153251,  # Zundamon (Seductive) -> Unofficial Zundamon (Seductive)
+        7: 1512153252,  # Zundamon (Tsundere) -> Unofficial Zundamon (Tsundere)
     },
     "aivis_to_voicevox": {
-        1512153249: 1,  # 非公式ずんだもん（あまあま） → ずんだもん（あまあま）
-        1512153250: 3,  # 非公式ずんだもん（ノーマル） → ずんだもん（ノーマル）
-        1512153251: 5,  # 非公式ずんだもん（セクシー） → ずんだもん（セクシー）
-        1512153252: 7,  # 非公式ずんだもん（ツンツン） → ずんだもん（ツンツン）
-        1512153248: 3,  # 非公式ずんだもん（朗読） → ずんだもん（ノーマル）（代替）
-        1512153253: 3,  # 非公式ずんだもん（ささやき） → ずんだもん（ノーマル）（代替）
-        1512153254: 3,  # 非公式ずんだもん（ヒソヒソ） → ずんだもん（ノーマル）（代替）
-        888753760: 3,  # Anneli（ノーマル） → ずんだもん（ノーマル）（代替）
-        1431611904: 3,  # まい（ノーマル） → ずんだもん（ノーマル）（代替）
-        604166016: 3,  # 中2（ノーマル） → ずんだもん（ノーマル）（代替）
+        1512153249: 1,  # Unofficial Zundamon (Sweet) -> Zundamon (Sweet)
+        1512153250: 3,  # Unofficial Zundamon (Normal) -> Zundamon (Normal)
+        1512153251: 5,  # Unofficial Zundamon (Seductive) -> Zundamon (Seductive)
+        1512153252: 7,  # Unofficial Zundamon (Tsundere) -> Zundamon (Tsundere)
+        1512153248: 3,  # Unofficial Zundamon (Reading) -> Zundamon (Normal) (fallback)
+        1512153253: 3,  # Unofficial Zundamon (Whisper) -> Zundamon (Normal) (fallback)
+        1512153254: 3,  # Unofficial Zundamon (Murmur) -> Zundamon (Normal) (fallback)
+        888753760: 3,  # Anneli (Normal) -> Zundamon (Normal) (fallback)
+        1431611904: 3,  # Mai (Normal) -> Zundamon (Normal) (fallback)
+        604166016: 3,  # Chuunibyou (Normal) -> Zundamon (Normal) (fallback)
     },
 }
 
@@ -180,9 +180,9 @@ class UserSettings:
 
         # No direct mapping found, use engine defaults
         if to_engine == "voicevox":
-            return 3  # ずんだもん（ノーマル）
+            return 3  # Zundamon (Normal)
         elif to_engine == "aivis":
-            return 1512153250  # 非公式ずんだもん（ノーマル）
+            return 1512153250  # Unofficial Zundamon (Normal)
 
         return speaker_id  # Fallback to original
 

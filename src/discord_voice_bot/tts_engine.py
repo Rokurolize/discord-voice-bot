@@ -415,7 +415,7 @@ class TTSEngine:
                 return False
 
             # Test synthesis with a simple phrase
-            test_audio = await self.synthesize_audio("テスト")
+            test_audio = await self.synthesize_audio("test")
             if not test_audio:
                 logger.warning("TTS health check failed: unable to synthesize test audio")
                 return False

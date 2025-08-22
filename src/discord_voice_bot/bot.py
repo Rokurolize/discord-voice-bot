@@ -710,7 +710,7 @@ class DiscordVoiceTTSBot(commands.Bot):
         chunks: list[list[str]] = [speaker_list[i : i + chunk_size] for i in range(0, len(speaker_list), chunk_size)]
 
         for i, chunk in enumerate(chunks):
-            field_name = "Speakers" if i == 0 else f"Speakers (cont. {i+1})"
+            field_name = "Speakers" if i == 0 else f"Speakers (cont. {i + 1})"
             embed.add_field(name=field_name, value="\n".join(chunk), inline=False)
 
         await ctx.send(embed=embed)
@@ -1062,7 +1062,7 @@ class DiscordVoiceTTSBot(commands.Bot):
         chunks: list[list[str]] = [speaker_list[i : i + chunk_size] for i in range(0, len(speaker_list), chunk_size)]
 
         for i, chunk in enumerate(chunks):
-            field_name = "Speakers" if i == 0 else f"Speakers (cont. {i+1})"
+            field_name = "Speakers" if i == 0 else f"Speakers (cont. {i + 1})"
             embed.add_field(name=field_name, value="\n".join(chunk), inline=False)
 
         await interaction.followup.send(embed=embed)
