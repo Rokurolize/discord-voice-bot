@@ -9,7 +9,7 @@ from loguru import logger
 from .gateway import VoiceGatewayManager
 from .health import health_check
 from .queues import PriorityAudioQueue, SynthesisQueue
-from .ratelimit import SimpleRateLimiter
+from .ratelimit import CircuitBreaker, SimpleRateLimiter
 from .status import build_status
 from .workers.player import PlayerWorker
 from .workers.synthesizer import SynthesizerWorker
@@ -37,6 +37,8 @@ class VoiceHandler:
 
         # Simple rate limiter for Discord API compliance
         self.rate_limiter = SimpleRateLimiter()
+        # Circuit breaker for API failure handling
+        self.circuit_breaker = CircuitBreaker()
 
     async def start(self) -> None:
         """Start the voice handler tasks."""
@@ -78,7 +80,7 @@ class VoiceHandler:
             time_since_last_attempt = now - self._last_connection_attempt
             if time_since_last_attempt < self._reconnection_cooldown:
                 wait_time = self._reconnection_cooldown - time_since_last_attempt
-                logger.debug(".1f")
+                logger.debug(f"Connection attempt too soon, waiting {wait_time:.1f}s")
                 await asyncio.sleep(wait_time)
 
             self._last_connection_attempt = now
@@ -211,13 +213,24 @@ class VoiceHandler:
             logger.warning("⚠️ Voice gateway manager not initialized, cannot handle voice state update")
 
     async def make_rate_limited_request(self, api_call: Any, *args: Any, **kwargs: Any) -> Any:
-        """Make a simple rate-limited API request respecting Discord's limits."""
+        """Make a rate-limited API request with circuit breaker pattern."""
+        # Check circuit breaker state first
+        if not await self.circuit_breaker.can_make_request():
+            logger.error("Circuit breaker is OPEN, skipping request")
+            raise discord.HTTPException(None, "Circuit breaker is open")
+
         await self.rate_limiter.wait_if_needed()
 
         try:
             result = await api_call(*args, **kwargs)
+            # Record success in circuit breaker
+            await self.circuit_breaker.record_success()
             return result
         except discord.HTTPException as e:
+            # Record failure in circuit breaker for non-rate-limit errors
+            if e.status != 429:
+                await self.circuit_breaker.record_failure()
+
             if e.status == 429:  # Rate limited by Discord
                 # Handle both real responses and mock objects in tests
                 retry_after = "1"  # Default value
