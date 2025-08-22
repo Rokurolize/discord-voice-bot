@@ -167,7 +167,7 @@ class BotFactory:
 
         return CommandHandler(bot)
 
-    async def _create_slash_command_handler(self, bot: "DiscordVoiceTTSBot") -> ("SlashCommandHandler" | None):
+    async def _create_slash_command_handler(self, bot: "DiscordVoiceTTSBot") -> "SlashCommandHandler" | None:
         """Create slash command handler.
 
         Args:
