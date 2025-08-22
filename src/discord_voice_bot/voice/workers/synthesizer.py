@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 from ...tts_engine import tts_engine
 from ...user_settings import user_settings
-from ..audio_utils import get_audio_size, validate_wav_format
+from ..audio_utils import calculate_message_priority, get_audio_size, validate_wav_format
 
 
 class SynthesizerWorker:
@@ -64,8 +64,8 @@ class SynthesizerWorker:
                     self.buffer_size += audio_size
 
                     # Calculate priority and add to audio queue
-                    priority = self._calculate_message_priority(item)
-                    await self.voice_handler.audio_queue.put((audio_path, item["group_id"], priority, audio_size))
+                    priority = calculate_message_priority(item)
+                    await self.voice_handler.audio_queue.put((audio_path, item["group_id"], priority, item["chunk_index"]))
                     logger.debug(f"Synthesized chunk {item['chunk_index'] + 1}/{item['total_chunks']} (size: {audio_size} bytes)")
 
                 else:
@@ -82,21 +82,3 @@ class SynthesizerWorker:
         with tempfile.NamedTemporaryFile(mode="wb", suffix=".wav", delete=False) as f:
             f.write(audio_data)
             return f.name
-
-    def _calculate_message_priority(self, item: dict[str, any]) -> int:
-        """Calculate priority for message processing."""
-        priority = 5  # Default priority
-
-        # Higher priority for shorter messages (quicker processing)
-        if len(item.get("text", "")) < 50:
-            priority -= 1
-
-        # Higher priority for commands
-        if item.get("text", "").startswith("!"):
-            priority -= 2
-
-        # Lower priority for very long messages
-        if len(item.get("text", "")) > 200:
-            priority += 2
-
-        return max(1, min(10, priority))

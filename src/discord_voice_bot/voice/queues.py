@@ -1,7 +1,8 @@
 """Queue implementations for voice operations."""
 
 import asyncio
-from typing import Any, Optional
+import heapq
+from typing import Any
 
 
 class SynthesisQueue:
@@ -42,80 +43,51 @@ class PriorityAudioQueue:
     """Priority queue for audio playback with proper ordering."""
 
     def __init__(self):
-        self._queue: asyncio.Queue[tuple[str, str, int, int]] = asyncio.Queue()
+        self._heap: list[tuple[int, int, str, str, int, int]] = []
+        self._lock = asyncio.Lock()
+        self._counter = 0  # For FIFO ordering with same priority
 
     async def put(self, item: tuple[str, str, int, int]) -> None:
-        """Add item to priority queue."""
-        await self._queue.put(item)
+        """Add item to priority queue with proper ordering."""
+        async with self._lock:
+            # item format: (audio_path, group_id, priority, chunk_index)
+            # heap format: (priority, counter, audio_path, group_id, priority, chunk_index)
+            heapq.heappush(self._heap, (item[2], self._counter, item[0], item[1], item[2], item[3]))
+            self._counter += 1
 
     async def get(self) -> tuple[str, str, int, int]:
-        """Get highest priority item from queue."""
-        return await self._queue.get()
+        """Get highest priority item from queue (lowest priority number first)."""
+        async with self._lock:
+            if not self._heap:
+                raise asyncio.QueueEmpty("Queue is empty")
+
+            # Get item from heap: (priority, counter, audio_path, group_id, priority, chunk_index)
+            _, _, audio_path, group_id, priority, chunk_index = heapq.heappop(self._heap)
+            return (audio_path, group_id, priority, chunk_index)
 
     def qsize(self) -> int:
         """Get queue size."""
-        return self._queue.qsize()
+        return len(self._heap)
 
     def empty(self) -> bool:
         """Check if queue is empty."""
-        return self._queue.empty()
-
-    async def get_highest_priority_item(self) -> Optional[tuple[str, str, int, int]]:
-        """Get the highest priority item from the audio queue."""
-        if self._queue.empty():
-            return None
-
-        # Convert queue to list to find highest priority item
-        items: list[tuple[str, str, int, int]] = []
-        while not self._queue.empty():
-            try:
-                item = self._queue.get_nowait()
-                items.append(item)
-            except asyncio.QueueEmpty:
-                break
-
-        if not items:
-            return None
-
-        # Find highest priority item (lower number = higher priority)
-        items.sort(key=lambda x: x[2])  # Sort by priority (index 2)
-        highest_priority_item = items[0]
-
-        # Put back all items except the highest priority one
-        for item in items[1:]:
-            await self._queue.put(item)
-
-        return highest_priority_item
+        return len(self._heap) == 0
 
     async def clear(self) -> int:
         """Clear all items from queue."""
-        count = 0
-        while not self._queue.empty():
-            try:
-                self._queue.get_nowait()
-                count += 1
-            except asyncio.QueueEmpty:
-                break
-        return count
+        async with self._lock:
+            count = len(self._heap)
+            self._heap.clear()
+            self._counter = 0
+            return count
 
     async def clear_group(self, group_id: str) -> int:
         """Clear all items with specified group_id from queue."""
-        cleared = 0
-
-        # Collect all items
-        items: list[tuple[str, str, int, int]] = []
-        while not self._queue.empty():
-            try:
-                item = self._queue.get_nowait()
-                if item[1] != group_id:  # item[1] is group_id
-                    items.append(item)
-                else:
-                    cleared += 1
-            except asyncio.QueueEmpty:
-                break
-
-        # Put back non-cleared items
-        for item in items:
-            await self._queue.put(item)
-
-        return cleared
+        async with self._lock:
+            # Filter out items with matching group_id
+            original_heap = self._heap[:]
+            self._heap = [item for item in original_heap if item[3] != group_id]
+            cleared_count = len(original_heap) - len(self._heap)
+            # Re-heapify after filtering
+            heapq.heapify(self._heap)
+            return cleared_count

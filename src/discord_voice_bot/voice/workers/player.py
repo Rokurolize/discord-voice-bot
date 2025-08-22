@@ -23,17 +23,11 @@ class PlayerWorker:
         while True:
             try:
                 # Get highest priority item from queue
-                queue_item = await self.voice_handler.audio_queue.get_highest_priority_item()
-
-                if not queue_item:
-                    await asyncio.sleep(0.1)
-                    continue
-
-                audio_path, group_id, priority, audio_size = queue_item
+                audio_path, group_id, priority, chunk_index = await self.voice_handler.audio_queue.get()
 
                 if not self.voice_handler.voice_client or not self.voice_handler.voice_client.is_connected():
                     cleanup_file(audio_path)
-                    logger.debug(f"Skipping playback of {audio_path} (size: {audio_size} bytes) - not connected")
+                    logger.debug(f"Skipping playback of {audio_path} (chunk: {chunk_index}) - not connected")
                     continue
 
                 # Wait if already playing
