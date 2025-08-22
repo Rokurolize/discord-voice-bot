@@ -191,6 +191,17 @@ ignore = [
   "C400",
   "UP037",
   "UP045",
+  "W191",
+  "E111",
+  "E114",
+  "E117",
+  "D206",
+  "D300",
+  "Q000",
+  "Q001",
+  "Q002",
+  "Q003",
+  "COM819",
 ]
 unfixable = ["F841", "F601", "F602", "B018"]
 extend-fixable = ["F401", "B905"]
@@ -202,6 +213,8 @@ max-complexity = 20
 include = ["src"]
 pythonVersion = "3.12"
 pythonPlatform = "Linux"
+venvPath = "."
+venv = ".venv"
 strictListInference = true
 strictDictionaryInference = true
 strictSetInference = true
