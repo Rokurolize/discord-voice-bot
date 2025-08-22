@@ -252,20 +252,15 @@ class TestComplianceTDD:
         mock_voice_client.is_connected.return_value = True
         voice_handler.voice_client = mock_voice_client
         from discord_voice_bot.voice_handler import VoiceGatewayManager
+
         voice_handler.voice_gateway = VoiceGatewayManager(mock_voice_client)
 
         # Test voice server update handling (step 1 in Discord flow)
-        voice_server_payload: dict[str, str] = {
-            "token": "test_voice_token_123",
-            "guild_id": "123456789012345678",
-            "endpoint": "test-voice-endpoint.example.com:443"
-        }
+        voice_server_payload: dict[str, str] = {"token": "test_voice_token_123", "guild_id": "123456789012345678", "endpoint": "test-voice-endpoint.example.com:443"}
         await voice_handler.handle_voice_server_update(voice_server_payload)
 
         # Test voice state update handling (step 2 in Discord flow)
-        voice_state_payload: dict[str, str] = {
-            "session_id": "test_session_abc123"
-        }
+        voice_state_payload: dict[str, str] = {"session_id": "test_session_abc123"}
         await voice_handler.handle_voice_state_update(voice_state_payload)
 
         # Verify voice gateway manager was created and configured
@@ -295,13 +290,7 @@ class TestComplianceTDD:
         voice_handler.voice_client = mock_voice_client
 
         # Test heartbeat handling (version 8 requires seq_ack) - create but don't use as it's for documentation
-        _heartbeat_payload: dict[str, Any] = {
-            "op": 3,  # Heartbeat
-            "d": {
-                "t": 1501184119561,
-                "seq_ack": 10
-            }
-        }
+        _heartbeat_payload: dict[str, Any] = {"op": 3, "d": {"t": 1501184119561, "seq_ack": 10}}  # Heartbeat
         # This should be handled by discord.py internally
 
     @pytest.mark.asyncio
@@ -315,13 +304,7 @@ class TestComplianceTDD:
         assert hasattr(voice_handler, "handle_voice_state_update")
 
         # Test handling of protocol transition messages - create but don't use as it's for documentation
-        _transition_payload: dict[str, Any] = {
-            "op": 21,  # DAVE Protocol Prepare Transition
-            "d": {
-                "transition_id": "test_transition_123",
-                "protocol_version": 0  # Downgrade to non-E2EE
-            }
-        }
+        _transition_payload: dict[str, Any] = {"op": 21, "d": {"transition_id": "test_transition_123", "protocol_version": 0}}  # DAVE Protocol Prepare Transition  # Downgrade to non-E2EE
 
         # Should handle protocol transition without crashing
         # (In practice, discord.py handles the actual protocol negotiation)
@@ -340,10 +323,10 @@ class TestComplianceTDD:
 
         # IP Discovery packet format examples (for documentation) - these would be used by discord.py internally
         # Type: 0x1 (request), Length: 70, SSRC: uint32, Address: 64 bytes, Port: uint16
-        _discovery_request: bytes = b'\x00\x01' + b'\x00\x46' + b'\x00\x00\x00\x01' + b'\x00' * 64 + b'\x00\x00'
+        _discovery_request: bytes = b"\x00\x01" + b"\x00\x46" + b"\x00\x00\x00\x01" + b"\x00" * 64 + b"\x00\x00"
 
         # Response would be Type: 0x2 (response) + same format with actual IP/port
-        _discovery_response: bytes = b'\x00\x02' + b'\x00\x46' + b'\x00\x00\x00\x01' + b'127.0.0.1'.ljust(64, b'\x00') + b'\x1f\x40'
+        _discovery_response: bytes = b"\x00\x02" + b"\x00\x46" + b"\x00\x00\x00\x01" + b"127.0.0.1".ljust(64, b"\x00") + b"\x1f\x40"
 
         # Voice handler should support IP discovery through discord.py
         # We test that the handler can be initialized with IP discovery capability
@@ -366,6 +349,7 @@ class TestComplianceTDD:
 
         # Test connection attempt tracking
         import time
+
         old_time: float = voice_handler._last_connection_attempt  # type: ignore[attr-defined]
         time.sleep(0.001)  # Small delay to ensure time difference
         voice_handler._last_connection_attempt = time.time()  # type: ignore[attr-defined]

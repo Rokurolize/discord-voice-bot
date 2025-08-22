@@ -2,18 +2,20 @@
 """Test script for the enhanced health monitoring system."""
 
 import asyncio
-import time
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock, Mock
+
 
 # Mock Discord objects for testing
 class MockVoiceState:
     def __init__(self, channel=None):
         self.channel = channel
 
+
 class MockChannel:
     def __init__(self, name="Test Channel", id=123):
         self.name = name
         self.id = id
+
 
 class MockGuild:
     def __init__(self):
@@ -25,6 +27,7 @@ class MockGuild:
         self.me.guild_permissions.connect = True
         self.me.guild_permissions.speak = True
 
+
 class MockBot:
     def __init__(self):
         self.guilds = [MockGuild()]
@@ -33,6 +36,7 @@ class MockBot:
 
     def get_channel(self, channel_id):
         return MockChannel()
+
 
 async def test_health_monitor():
     """Test the health monitoring system."""
@@ -64,7 +68,7 @@ async def test_health_monitor():
 
     # Test termination conditions
     print("\n⚠️ Testing termination conditions...")
-    conditions = status['termination_conditions']
+    conditions = status["termination_conditions"]
 
     for condition_name, condition_data in conditions.items():
         print(f"   {condition_name}: {condition_data['count']}/{condition_data['max']} (window: {condition_data['window']}s)")
@@ -76,6 +80,7 @@ async def test_health_monitor():
     original_tts_health_check = None
     try:
         from discord_voice_bot import tts_engine
+
         original_tts_health_check = tts_engine.tts_engine.health_check
         tts_engine.tts_engine.health_check = AsyncMock(return_value=True)
     except:
@@ -113,6 +118,7 @@ async def test_health_monitor():
     print("   ✅ Graceful shutdown")
 
     return True
+
 
 if __name__ == "__main__":
     asyncio.run(test_health_monitor())

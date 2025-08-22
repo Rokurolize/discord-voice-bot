@@ -1,4 +1,5 @@
 """Main Discord bot implementation for Voice TTS Bot."""
+
 # pyright: reportUnusedFunction=false
 
 import asyncio
@@ -7,6 +8,7 @@ from typing import Any
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
+
 from loguru import logger
 
 from .config import config
@@ -138,56 +140,12 @@ class DiscordVoiceTTSBot(commands.Bot):
             """Manually attempt to reconnect to voice channel."""
             await self._reconnect_command(ctx)
 
-        # Slash Commands Setup
-        # These provide better Discord integration and user experience
-
-        @self.tree.command(name="status", description="Show bot status and statistics")  # type: ignore[arg-type]
-        async def slash_status(self, interaction: discord.Interaction) -> None:  # type: ignore[misc,no-untyped-def]
-            """Show bot status and statistics via slash command."""
-            await self._slash_status_command(interaction)  # type: ignore[attr-defined]
-
-        @self.tree.command(name="skip", description="Skip current TTS playback")  # type: ignore[arg-type]
-        async def slash_skip(self, interaction: discord.Interaction) -> None:  # type: ignore[misc,no-untyped-def]
-            """Skip current TTS playback via slash command."""
-            await self._slash_skip_command(interaction)  # type: ignore[attr-defined]
-
-        @self.tree.command(name="clear", description="Clear TTS message queue")  # type: ignore[arg-type]
-        async def slash_clear(self, interaction: discord.Interaction) -> None:  # type: ignore[misc,no-untyped-def]
-            """Clear TTS queue via slash command."""
-            await self._slash_clear_command(interaction)  # type: ignore[attr-defined]
-
-        @self.tree.command(name="speakers", description="List available TTS speakers")  # type: ignore[arg-type]
-        async def slash_speakers(self, interaction: discord.Interaction) -> None:  # type: ignore[misc,no-untyped-def]
-            """List available TTS speakers via slash command."""
-            await self._slash_speakers_command(interaction)  # type: ignore[attr-defined]
-
-        @self.tree.command(name="test", description="Test TTS with custom message")  # type: ignore[arg-type]
-        @discord.app_commands.describe(text="Text to convert to speech (default: テストメッセージです)")
-        async def slash_test(self, interaction: discord.Interaction, text: str = "テストメッセージです") -> None:  # type: ignore[misc,no-untyped-def]
-            """Test TTS with custom text via slash command."""
-            await self._slash_test_command(interaction, text)  # type: ignore[attr-defined]
-
-        @self.tree.command(name="voice", description="Set or show personal voice preference")  # type: ignore[arg-type]
-        @discord.app_commands.describe(speaker="Voice speaker to use (leave empty to show current)")
-        @discord.app_commands.autocomplete(speaker=self._voice_autocomplete)  # type: ignore[attr-defined]
-        async def slash_voice(self, interaction: discord.Interaction, speaker: str | None = None) -> None:  # type: ignore[misc,no-untyped-def]
-            """Set or show personal voice preference via slash command."""
-            await self._slash_voice_command(interaction, speaker)  # type: ignore[attr-defined]
-
-        @self.tree.command(name="voices", description="List all available voices with details")  # type: ignore[arg-type]
-        async def slash_voices(self, interaction: discord.Interaction) -> None:  # type: ignore[misc,no-untyped-def]
-            """List all available voices via slash command."""
-            await self._slash_voices_command(interaction)  # type: ignore[attr-defined]
-
-        @self.tree.command(name="voicecheck", description="Perform voice connection health check")  # type: ignore[arg-type]
-        async def slash_voicecheck(self, interaction: discord.Interaction) -> None:  # type: ignore[misc,no-untyped-def]
-            """Perform voice connection health check via slash command."""
-            await self._slash_voicecheck_command(interaction)  # type: ignore[attr-defined]
-
-        @self.tree.command(name="reconnect", description="Manually attempt to reconnect to voice channel")  # type: ignore[arg-type]
-        async def slash_reconnect(self, interaction: discord.Interaction) -> None:  # type: ignore[misc,no-untyped-def]
-            """Manually attempt to reconnect to voice channel via slash command."""
-            await self._slash_reconnect_command(interaction)  # type: ignore[attr-defined]
+    #         # Slash Commands Setup
+    #         # These provide better Discord integration and user experience
+    #
+    #         @self.tree.command(name="status", description="Show bot status and statistics")  # type: ignore[arg-type]
+    #             """Clear TTS queue via slash command."""
+    #             """List all available voices via slash command."""
 
     # Slash Commands Implementation
     # These provide better Discord integration and user experience
@@ -966,13 +924,6 @@ class DiscordVoiceTTSBot(commands.Bot):
 
         await message.edit(embed=embed)
 
-    # Slash Command Handlers
-    async def _slash_status_command(self, interaction: discord.Interaction) -> None:
-        """Handle slash command for bot status."""
-        await interaction.response.defer()
-
-        status = self.get_status()
-
         embed = discord.Embed(
             title="🤖 Discord Voice TTS Bot Status",
             color=(discord.Color.green() if status["voice_connected"] else discord.Color.red()),
@@ -1016,35 +967,13 @@ class DiscordVoiceTTSBot(commands.Bot):
 
         await interaction.followup.send(embed=embed)
 
-    async def _slash_skip_command(self, interaction: discord.Interaction) -> None:
-        """Handle slash command to skip current TTS."""
-        await interaction.response.defer()
-
-        if not self.voice_handler:
-            await interaction.followup.send("❌ Voice handler not initialized")
-            return
-
         if await self.voice_handler.skip_current():
             await interaction.followup.send("⏭️ Current TTS skipped")
         else:
             await interaction.followup.send("ℹ️ No TTS currently playing")
 
-    async def _slash_clear_command(self, interaction: discord.Interaction) -> None:
-        """Handle slash command to clear TTS queue."""
-        await interaction.response.defer()
-
-        if not self.voice_handler:
-            await interaction.followup.send("❌ Voice handler not initialized")
-            return
-
         cleared_count = await self.voice_handler.clear_all()
         await interaction.followup.send(f"🗑️ Cleared {cleared_count} items from TTS queue")
-
-    async def _slash_speakers_command(self, interaction: discord.Interaction) -> None:
-        """Handle slash command to list available TTS speakers."""
-        await interaction.response.defer()
-
-        speakers = await tts_engine.get_available_speakers()
 
         embed = discord.Embed(
             title=f"🎭 Available Speakers ({config.tts_engine.upper()})",
@@ -1067,14 +996,6 @@ class DiscordVoiceTTSBot(commands.Bot):
 
         await interaction.followup.send(embed=embed)
 
-    async def _slash_test_command(self, interaction: discord.Interaction, text: str) -> None:
-        """Handle slash command to test TTS with custom text."""
-        await interaction.response.defer()
-
-        if not self.voice_handler:
-            await interaction.followup.send("❌ Voice handler not initialized")
-            return
-
         status = self.voice_handler.get_status()
         if not status["connected"]:
             await interaction.followup.send("❌ Not connected to voice channel")
@@ -1094,12 +1015,6 @@ class DiscordVoiceTTSBot(commands.Bot):
 
         await self.voice_handler.add_to_queue(processed_message)
         await interaction.followup.send(f"🎤 Test TTS queued: `{processed_text[:50]}...`")
-
-    async def _slash_voice_command(self, interaction: discord.Interaction, speaker: str | None = None) -> None:
-        """Handle slash command to set or show personal voice preference."""
-        await interaction.response.defer()
-
-        from .user_settings import user_settings
 
         user_id = str(interaction.user.id)
 
@@ -1169,12 +1084,6 @@ class DiscordVoiceTTSBot(commands.Bot):
         else:
             await interaction.followup.send(f"❌ Voice '{speaker}' not found. Use `/voices` to see available options.")
 
-    async def _slash_voices_command(self, interaction: discord.Interaction) -> None:
-        """Handle slash command to list all available voices with detailed information."""
-        await interaction.response.defer()
-
-        from .user_settings import user_settings
-
         # Get available speakers from TTS engine
         speakers = await tts_engine.get_available_speakers()
 
@@ -1214,15 +1123,6 @@ class DiscordVoiceTTSBot(commands.Bot):
             embed.set_footer(text="You're using the default voice")
 
         await interaction.followup.send(embed=embed)
-
-    async def _slash_voicecheck_command(self, interaction: discord.Interaction) -> None:
-        """Handle slash command to perform voice connection health check."""
-        await interaction.response.defer()
-
-        if not self.voice_handler:
-            embed = discord.Embed(title="🔍 Voice Health Check", color=discord.Color.red(), description="❌ Voice handler not initialized")
-            await interaction.followup.send(embed=embed)
-            return
 
         # Perform health check
         embed = discord.Embed(title="🔍 Voice Health Check", color=discord.Color.blue(), description="Performing comprehensive voice connection diagnostics...")
@@ -1278,15 +1178,6 @@ class DiscordVoiceTTSBot(commands.Bot):
 
         await interaction.edit_original_response(embed=embed)
 
-    async def _slash_reconnect_command(self, interaction: discord.Interaction) -> None:
-        """Handle slash command to manually attempt to reconnect to voice channel."""
-        await interaction.response.defer()
-
-        if not self.voice_handler:
-            embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.red(), description="❌ Voice handler not initialized")
-            await interaction.followup.send(embed=embed)
-            return
-
         embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.orange(), description="Attempting to reconnect to voice channel...")
 
         await interaction.followup.send(embed=embed)
@@ -1326,7 +1217,7 @@ class DiscordVoiceTTSBot(commands.Bot):
 
         await interaction.edit_original_response(embed=embed)
 
-    async def _voice_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    async def _voice_autocomplete(self, interaction, current: str) -> list[app_commands.Choice[str]]:
         """Provide autocomplete suggestions for voice selection."""
         speakers = await tts_engine.get_available_speakers()
 

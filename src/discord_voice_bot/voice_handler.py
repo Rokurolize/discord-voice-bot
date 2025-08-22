@@ -44,7 +44,6 @@ class CircuitBreaker:
         self.last_failure_time = 0.0
         self.state = "CLOSED"  # CLOSED, OPEN, HALF_OPEN
 
-
     async def can_make_request(self) -> bool:
         """Check if a request can be made."""
         current_time = time.time()
