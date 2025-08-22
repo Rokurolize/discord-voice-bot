@@ -22,6 +22,7 @@ class RateLimiter:
             period_seconds: Time period in seconds
 
         """
+        super().__init__()
         self.max_messages = max_messages
         self.period = timedelta(seconds=period_seconds)
         self.message_times: dict[int, deque[datetime]] = defaultdict(lambda: deque[datetime]())  # user_id -> timestamps
@@ -33,7 +34,7 @@ class RateLimiter:
 
         # Remove old timestamps outside the time window
         while user_times and now - user_times[0] > self.period:
-            user_times.popleft()
+            _ = user_times.popleft()
 
         # Check if under limit
         if len(user_times) < self.max_messages:
@@ -62,6 +63,7 @@ class MessageProcessor:
 
     def __init__(self) -> None:
         """Initialize message processor."""
+        super().__init__()
         self.rate_limiter = RateLimiter(config.rate_limit_messages, config.rate_limit_period)
         self.blocked_users: set[int] = set()
         self.ignored_prefixes = ["!", "/", ".", ">", "<"]  # Common bot/command prefixes
@@ -361,7 +363,7 @@ def get_message_processor() -> MessageProcessor:
 class _MessageProcessorProxy:
     """Proxy to delay message processor creation until first access."""
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         return getattr(get_message_processor(), name)
 
 

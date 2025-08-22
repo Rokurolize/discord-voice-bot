@@ -13,17 +13,18 @@ class Config:
 
     def __init__(self) -> None:
         """Initialize configuration from environment variables."""
+        super().__init__()
         # Only load .env files in development/testing, not in production
         if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("DEBUG", "false").lower() == "true":
             # Load from project-specific secrets file
             secrets_file = Path("/home/ubuntu/.config/discord-voice-bot/secrets.env")
             if secrets_file.exists():
-                load_dotenv(secrets_file)
+                _ = load_dotenv(secrets_file)
 
             # Load from local .env if it exists
             local_env = Path(".env")
             if local_env.exists():
-                load_dotenv(local_env)
+                _ = load_dotenv(local_env)
 
         # Discord Configuration
         self.discord_token: str = self._get_required_env("DISCORD_BOT_TOKEN")
@@ -161,7 +162,7 @@ def get_config() -> Config:
 class _ConfigProxy:
     """Proxy to delay config creation until first access."""
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         return getattr(get_config(), name)
 
 
