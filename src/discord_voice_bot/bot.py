@@ -140,12 +140,40 @@ class DiscordVoiceTTSBot(commands.Bot):
             """Manually attempt to reconnect to voice channel."""
             await self._reconnect_command(ctx)
 
-    #         # Slash Commands Setup
-    #         # These provide better Discord integration and user experience
-    #
-    #         @self.tree.command(name="status", description="Show bot status and statistics")  # type: ignore[arg-type]
-    #             """Clear TTS queue via slash command."""
-    #             """List all available voices via slash command."""
+        # Slash Commands Setup
+        # These provide better Discord integration and user experience
+        # Note: Slash commands in discord.py don't use type annotations for Interaction parameters
+
+        @self.tree.command(name="status", description="Show bot status and statistics")
+        async def status_slash(interaction: discord.Interaction):
+            """Show bot status and statistics via slash command."""
+            await self._status_command_slash(interaction)
+
+        @self.tree.command(name="skip", description="Skip current TTS playback")
+        async def skip_slash(interaction: discord.Interaction):
+            """Skip current TTS playback via slash command."""
+            await self._skip_command_slash(interaction)
+
+        @self.tree.command(name="clear", description="Clear TTS queue")
+        async def clear_slash(interaction: discord.Interaction):
+            """Clear TTS queue via slash command."""
+            await self._clear_command_slash(interaction)
+
+        @self.tree.command(name="voices", description="List all available voices")
+        async def voices_slash(interaction: discord.Interaction):
+            """List all available voices via slash command."""
+            await self._voices_command_slash(interaction)
+
+        @self.tree.command(name="test", description="Test TTS with custom text")
+        async def test_slash(interaction: discord.Interaction, text: str = "テストメッセージです"):
+            """Test TTS with custom text via slash command."""
+            await self._test_command_slash(interaction, text)
+
+        # Log registered commands for debugging
+        logger.info("📝 Registered commands:")
+        for cmd in self.commands:
+            logger.info(f"  - Prefix command: {self.command_prefix}{cmd.name}")
+        logger.info(f"  - Slash commands: {len([cmd for cmd in self.tree.get_commands()])} registered")
 
     # Slash Commands Implementation
     # These provide better Discord integration and user experience
@@ -289,11 +317,30 @@ class DiscordVoiceTTSBot(commands.Bot):
         # Sync slash commands with Discord
         try:
             logger.info("🔧 Syncing slash commands with Discord...")
+
+            # First try syncing globally
             synced = await self.tree.sync()
-            logger.info(f"✅ Successfully synced {len(synced)} slash commands with Discord")
+            logger.info(f"✅ Successfully synced {len(synced)} slash commands globally with Discord")
+
+            # Log the synced commands for debugging
+            for cmd in synced:
+                logger.debug(f"  - Synced command: /{cmd.name} - {cmd.description}")
+
         except Exception as e:
-            logger.error(f"❌ Failed to sync slash commands: {e}")
-            logger.warning("⚠️ Slash commands may not be available until next restart")
+            logger.error(f"❌ Failed to sync slash commands globally: {e}")
+
+            # Try syncing to current guild only as fallback
+            try:
+                if self.guilds:
+                    guild = self.guilds[0]
+                    logger.info(f"🔄 Attempting guild-only sync to {guild.name}...")
+                    guild_synced = await self.tree.sync(guild=guild)
+                    logger.info(f"✅ Successfully synced {len(guild_synced)} slash commands to guild {guild.name}")
+                else:
+                    logger.warning("⚠️ No guilds available for guild-only sync")
+            except Exception as guild_e:
+                logger.error(f"❌ Failed to sync slash commands to guild: {guild_e}")
+                logger.warning("⚠️ Slash commands may not be available until next restart")
 
         logger.info("Bot startup complete and ready for TTS!")
         logger.info("🩺 Health monitoring system is active")
@@ -304,15 +351,16 @@ class DiscordVoiceTTSBot(commands.Bot):
             # Log all messages for debugging (rate limited)
             logger.debug(f"Received message from {message.author.name} (ID: {message.id}) in channel {message.channel.id}: {message.content[:50]}")
 
-            # Apply comprehensive message filtering following Discord's patterns
-            if not await self._should_process_message(message):
-                return
-
-            # Process commands first (with rate limiting)
+            # Process commands first (with rate limiting) - BEFORE TTS filtering
+            logger.debug(f"Processing commands for message: {message.content}")
             if self.voice_handler:
                 await self.voice_handler.make_rate_limited_request(self.process_commands, message)
             else:
                 await self.process_commands(message)
+
+            # Apply comprehensive message filtering following Discord's patterns
+            if not await self._should_process_message(message):
+                return
 
             # Apply additional message validation
             processed_message = await self._validate_and_process_message(message)
@@ -1232,6 +1280,66 @@ class DiscordVoiceTTSBot(commands.Bot):
                     break
 
         return choices
+
+    # Slash Command Handlers
+    async def _status_command_slash(self, interaction) -> None:
+        """Handle slash command version of status."""
+        try:
+            embed = await self._create_status_embed()
+            await interaction.response.send_message(embed=embed)
+        except Exception as e:
+            logger.error(f"Error in status slash command: {e}")
+            await interaction.response.send_message("❌ Error retrieving status", ephemeral=True)
+
+    async def _skip_command_slash(self, interaction) -> None:
+        """Handle slash command version of skip."""
+        try:
+            if self.voice_handler:
+                skipped = await self.voice_handler.skip_current()
+                if skipped:
+                    await interaction.response.send_message("⏭️ Skipped current TTS message")
+                else:
+                    await interaction.response.send_message("❌ No TTS message to skip")
+            else:
+                await interaction.response.send_message("❌ Voice handler not available")
+        except Exception as e:
+            logger.error(f"Error in skip slash command: {e}")
+            await interaction.response.send_message("❌ Error skipping message", ephemeral=True)
+
+    async def _clear_command_slash(self, interaction) -> None:
+        """Handle slash command version of clear."""
+        try:
+            if self.voice_handler:
+                cleared_count = await self.voice_handler.clear_queue()
+                await interaction.response.send_message(f"🗑️ Cleared {cleared_count} messages from TTS queue")
+            else:
+                await interaction.response.send_message("❌ Voice handler not available")
+        except Exception as e:
+            logger.error(f"Error in clear slash command: {e}")
+            await interaction.response.send_message("❌ Error clearing queue", ephemeral=True)
+
+    async def _voices_command_slash(self, interaction) -> None:
+        """Handle slash command version of voices."""
+        try:
+            embed = await self._create_voices_embed()
+            await interaction.response.send_message(embed=embed)
+        except Exception as e:
+            logger.error(f"Error in voices slash command: {e}")
+            await interaction.response.send_message("❌ Error retrieving voices", ephemeral=True)
+
+    async def _test_command_slash(self, interaction, text: str) -> None:
+        """Handle slash command version of test."""
+        try:
+            if self.voice_handler:
+                # Create a test message object
+                test_message = {"content": text, "author_display_name": interaction.user.display_name, "sanitized_content": text, "voice_preference": None}
+                await self.voice_handler.add_to_queue(test_message)
+                await interaction.response.send_message(f"🗣️ Added test TTS: {text}")
+            else:
+                await interaction.response.send_message("❌ Voice handler not available")
+        except Exception as e:
+            logger.error(f"Error in test slash command: {e}")
+            await interaction.response.send_message("❌ Error testing TTS", ephemeral=True)
 
     def get_status(self) -> dict[str, Any]:
         """Get current bot status."""
