@@ -19,10 +19,10 @@ classifiers = [
 ]
 license = { file = "LICENSE" }
 dependencies = [
-  "discord.py[voice]>=2.6.0,<3.0.0",
-  "python-dotenv~=1.0",
-  "aiofiles~=23.2",
-  "loguru~=0.7",
+  "discord.py[voice]>=2.6.0",
+  "python-dotenv>=1.0",
+  "aiofiles>=23.2",
+  "loguru>=0.7",
   "zstandard>=0.23.0; platform_python_implementation == 'CPython'",
 ]
 
@@ -34,9 +34,9 @@ email = "1701388+Rokurolize@users.noreply.github.com"
 dev = [
   "pyright>=1.1.402",
   "poethepoet>=0.26",
-  "ruff~=0.12",
-  "pytest~=8.3",
-  "pytest-asyncio~=0.23",
+  "ruff>=0.12",
+  "pytest>=8.3",
+  "pytest-asyncio>=0.23",
 ]
 
 [project.scripts]
@@ -199,19 +199,51 @@ max-complexity = 20
 
 [tool.pyright]
 include = ["src"]
-exclude = [
-  "**/__pycache__",
-  ".git",
-  ".venv",
-  "venv",
-  "node_modules",
-  ".mypy_cache",
-  ".pytest_cache",
-]
 pythonVersion = "3.12"
+pythonPlatform = "Linux"
+strictListInference = true
+strictDictionaryInference = true
+strictSetInference = true
+deprecateTypingAliases = true
+enableReachabilityAnalysis = true
 typeCheckingMode = "strict"
-venvPath = "."
-venv = ".venv"
+reportMissingTypeStubs = true
+reportImportCycles = true
+reportUntypedFunctionDecorator = true
+reportUntypedClassDecorator = true
+reportUntypedBaseClass = true
+reportUntypedNamedTuple = true
+reportPrivateUsage = true
+reportTypeCommentUsage = true
+reportConstantRedefinition = true
+reportDeprecated = true
+reportInconsistentConstructor = true
+reportMissingSuperCall = true
+reportUninitializedInstanceVariable = true
+reportInvalidStringEscapeSequence = true
+reportUnknownParameterType = true
+reportUnknownArgumentType = true
+reportUnknownLambdaType = true
+reportUnknownVariableType = true
+reportUnknownMemberType = true
+reportMissingParameterType = true
+reportMissingTypeArgument = true
+reportCallInDefaultInitializer = true
+reportUnnecessaryIsInstance = true
+reportUnnecessaryCast = true
+reportUnnecessaryComparison = true
+reportUnnecessaryContains = true
+reportImplicitStringConcatenation = true
+reportInvalidStubStatement = true
+reportIncompleteStub = true
+reportUnnecessaryTypeIgnoreComment = true
+reportMatchNotExhaustive = true
+reportUnreachable = true
+reportImplicitOverride = true
+reportShadowedImports = true
+reportPropertyTypeMismatch = true
+reportUnusedCallResult = true
+
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
