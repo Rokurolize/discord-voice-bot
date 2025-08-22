@@ -1,6 +1,6 @@
 """Bot factory for Discord Voice TTS Bot initialization and configuration."""
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
@@ -20,6 +20,7 @@ class ComponentRegistry:
 
     def __init__(self) -> None:
         """Initialize component registry."""
+        super().__init__()
         self._components: dict[str, Any] = {}
 
     def register(self, name: str, component: Any) -> None:
@@ -64,10 +65,11 @@ class BotFactory:
 
     def __init__(self) -> None:
         """Initialize bot factory."""
+        super().__init__()
         self.registry = ComponentRegistry()
         logger.info("Bot factory initialized")
 
-    async def create_bot(self, bot_class: type["DiscordVoiceTTSBot"] = None) -> "DiscordVoiceTTSBot":
+    async def create_bot(self, bot_class: (type["DiscordVoiceTTSBot"] | None) = None) -> "DiscordVoiceTTSBot":
         """Create and configure a new bot instance.
 
         Args:
@@ -165,7 +167,7 @@ class BotFactory:
 
         return CommandHandler(bot)
 
-    async def _create_slash_command_handler(self, bot: "DiscordVoiceTTSBot") -> Optional["SlashCommandHandler"]:
+    async def _create_slash_command_handler(self, bot: "DiscordVoiceTTSBot") -> ("SlashCommandHandler" | None):
         """Create slash command handler.
 
         Args:
@@ -347,10 +349,10 @@ class BotFactory:
 
             if not hasattr(tts_engine, "_initialized") or not tts_engine._initialized:
                 services_initialized = False
-                status["errors"].append("TTS engine not initialized")
+                _ = status["errors"].append("TTS engine not initialized")
         except Exception as e:
             services_initialized = False
-            status["errors"].append(f"TTS engine error: {e}")
+            _ = status["errors"].append(f"TTS engine error: {e}")
 
         status["services_initialized"] = services_initialized
 
