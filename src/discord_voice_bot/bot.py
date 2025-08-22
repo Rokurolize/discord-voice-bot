@@ -5,6 +5,7 @@ import asyncio
 from typing import Any
 
 import discord
+from discord import app_commands
 from discord.ext import commands, tasks
 from loguru import logger
 
@@ -136,6 +137,60 @@ class DiscordVoiceTTSBot(commands.Bot):
         async def reconnect_command(ctx: commands.Context[Any]) -> None:
             """Manually attempt to reconnect to voice channel."""
             await self._reconnect_command(ctx)
+
+        # Slash Commands Setup
+        # These provide better Discord integration and user experience
+
+        @self.tree.command(name="status", description="Show bot status and statistics")  # type: ignore[arg-type]
+        async def slash_status(self, interaction: discord.Interaction) -> None:  # type: ignore[misc,no-untyped-def]
+            """Show bot status and statistics via slash command."""
+            await self._slash_status_command(interaction)  # type: ignore[attr-defined]
+
+        @self.tree.command(name="skip", description="Skip current TTS playback")  # type: ignore[arg-type]
+        async def slash_skip(self, interaction: discord.Interaction) -> None:  # type: ignore[misc,no-untyped-def]
+            """Skip current TTS playback via slash command."""
+            await self._slash_skip_command(interaction)  # type: ignore[attr-defined]
+
+        @self.tree.command(name="clear", description="Clear TTS message queue")  # type: ignore[arg-type]
+        async def slash_clear(self, interaction: discord.Interaction) -> None:  # type: ignore[misc,no-untyped-def]
+            """Clear TTS queue via slash command."""
+            await self._slash_clear_command(interaction)  # type: ignore[attr-defined]
+
+        @self.tree.command(name="speakers", description="List available TTS speakers")  # type: ignore[arg-type]
+        async def slash_speakers(self, interaction: discord.Interaction) -> None:  # type: ignore[misc,no-untyped-def]
+            """List available TTS speakers via slash command."""
+            await self._slash_speakers_command(interaction)  # type: ignore[attr-defined]
+
+        @self.tree.command(name="test", description="Test TTS with custom message")  # type: ignore[arg-type]
+        @discord.app_commands.describe(text="Text to convert to speech (default: テストメッセージです)")
+        async def slash_test(self, interaction: discord.Interaction, text: str = "テストメッセージです") -> None:  # type: ignore[misc,no-untyped-def]
+            """Test TTS with custom text via slash command."""
+            await self._slash_test_command(interaction, text)  # type: ignore[attr-defined]
+
+        @self.tree.command(name="voice", description="Set or show personal voice preference")  # type: ignore[arg-type]
+        @discord.app_commands.describe(speaker="Voice speaker to use (leave empty to show current)")
+        @discord.app_commands.autocomplete(speaker=self._voice_autocomplete)  # type: ignore[attr-defined]
+        async def slash_voice(self, interaction: discord.Interaction, speaker: str | None = None) -> None:  # type: ignore[misc,no-untyped-def]
+            """Set or show personal voice preference via slash command."""
+            await self._slash_voice_command(interaction, speaker)  # type: ignore[attr-defined]
+
+        @self.tree.command(name="voices", description="List all available voices with details")  # type: ignore[arg-type]
+        async def slash_voices(self, interaction: discord.Interaction) -> None:  # type: ignore[misc,no-untyped-def]
+            """List all available voices via slash command."""
+            await self._slash_voices_command(interaction)  # type: ignore[attr-defined]
+
+        @self.tree.command(name="voicecheck", description="Perform voice connection health check")  # type: ignore[arg-type]
+        async def slash_voicecheck(self, interaction: discord.Interaction) -> None:  # type: ignore[misc,no-untyped-def]
+            """Perform voice connection health check via slash command."""
+            await self._slash_voicecheck_command(interaction)  # type: ignore[attr-defined]
+
+        @self.tree.command(name="reconnect", description="Manually attempt to reconnect to voice channel")  # type: ignore[arg-type]
+        async def slash_reconnect(self, interaction: discord.Interaction) -> None:  # type: ignore[misc,no-untyped-def]
+            """Manually attempt to reconnect to voice channel via slash command."""
+            await self._slash_reconnect_command(interaction)  # type: ignore[attr-defined]
+
+    # Slash Commands Implementation
+    # These provide better Discord integration and user experience
 
     async def _on_ready(self) -> None:
         """Handle bot ready event."""
@@ -273,6 +328,15 @@ class DiscordVoiceTTSBot(commands.Bot):
         self.startup_complete = True
         self.stats["uptime_start"] = asyncio.get_event_loop().time()
 
+        # Sync slash commands with Discord
+        try:
+            logger.info("🔧 Syncing slash commands with Discord...")
+            synced = await self.tree.sync()
+            logger.info(f"✅ Successfully synced {len(synced)} slash commands with Discord")
+        except Exception as e:
+            logger.error(f"❌ Failed to sync slash commands: {e}")
+            logger.warning("⚠️ Slash commands may not be available until next restart")
+
         logger.info("Bot startup complete and ready for TTS!")
         logger.info("🩺 Health monitoring system is active")
 
@@ -302,7 +366,7 @@ class DiscordVoiceTTSBot(commands.Bot):
             if self.voice_handler:
                 await self.voice_handler.add_to_queue(processed_message)
                 current_count = self.stats.get("messages_processed", 0)
-                self.stats["messages_processed"] = (current_count if current_count is not None else 0) + 1
+                self.stats["messages_processed"] = int(current_count if current_count is not None else 0) + 1
                 logger.debug(f"Queued TTS message from {message.author.display_name}")
             else:
                 logger.warning("Voice handler not initialized, cannot queue TTS message")
@@ -310,7 +374,7 @@ class DiscordVoiceTTSBot(commands.Bot):
         except Exception as e:
             logger.error(f"Error processing message {message.id}: {e!s}")
             current_errors = self.stats.get("connection_errors", 0)
-            self.stats["connection_errors"] = (current_errors if current_errors is not None else 0) + 1
+            self.stats["connection_errors"] = int(current_errors if current_errors is not None else 0) + 1
 
     async def _on_voice_state_update(
         self,
@@ -677,7 +741,7 @@ class DiscordVoiceTTSBot(commands.Bot):
         await self.voice_handler.add_to_queue(processed_message)
         await ctx.send(f"🎤 Test TTS queued: `{processed_text[:50]}...`")
         current_count = self.stats.get("tts_messages_played", 0)
-        self.stats["tts_messages_played"] = (current_count if current_count is not None else 0) + 1
+        self.stats["tts_messages_played"] = int(current_count if current_count is not None else 0) + 1
 
     async def _voice_command(self, ctx: commands.Context[Any], speaker: str | None = None) -> None:
         """Set or show personal voice preference."""
@@ -902,13 +966,389 @@ class DiscordVoiceTTSBot(commands.Bot):
 
         await message.edit(embed=embed)
 
+    # Slash Command Handlers
+    async def _slash_status_command(self, interaction: discord.Interaction) -> None:
+        """Handle slash command for bot status."""
+        await interaction.response.defer()
+
+        status = self.get_status()
+
+        embed = discord.Embed(
+            title="🤖 Discord Voice TTS Bot Status",
+            color=(discord.Color.green() if status["voice_connected"] else discord.Color.red()),
+            description="ずんだもんボイス読み上げBot",
+        )
+
+        # Connection status
+        embed.add_field(
+            name="🔗 接続状態",
+            value=f"Voice: {'✅ 接続中' if status['voice_connected'] else '❌ 未接続'}\nChannel: {status['voice_channel_name'] or 'なし'}",
+            inline=True,
+        )
+
+        # TTS status
+        embed.add_field(
+            name="🎤 TTS状態",
+            value=f"Engine: {config.tts_engine.upper()}\nSpeaker: {config.tts_speaker}\nPlaying: {'✅' if status['is_playing'] else '❌'}",
+            inline=True,
+        )
+
+        # Queue status
+        embed.add_field(
+            name="📋 キュー状態",
+            value=f"Ready: {status.get('audio_queue_size', 0)} chunks\n"
+            f"Synthesizing: {status.get('synthesis_queue_size', 0)} chunks\n"
+            f"Total: {status.get('total_queue_size', 0)}/{status['max_queue_size']}\n"
+            f"Processed: {status['messages_processed']}",
+            inline=True,
+        )
+
+        # Bot info
+        uptime = status.get("uptime_seconds", 0)
+        hours, remainder = divmod(int(uptime), 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        embed.add_field(
+            name="ℹ️ Bot情報",
+            value=f"Uptime: {hours:02d}:{minutes:02d}:{seconds:02d}\nLatency: {self.latency * 1000:.0f}ms\nErrors: {status['connection_errors']}",
+            inline=True,
+        )
+
+        await interaction.followup.send(embed=embed)
+
+    async def _slash_skip_command(self, interaction: discord.Interaction) -> None:
+        """Handle slash command to skip current TTS."""
+        await interaction.response.defer()
+
+        if not self.voice_handler:
+            await interaction.followup.send("❌ Voice handler not initialized")
+            return
+
+        if await self.voice_handler.skip_current():
+            await interaction.followup.send("⏭️ Current TTS skipped")
+        else:
+            await interaction.followup.send("ℹ️ No TTS currently playing")
+
+    async def _slash_clear_command(self, interaction: discord.Interaction) -> None:
+        """Handle slash command to clear TTS queue."""
+        await interaction.response.defer()
+
+        if not self.voice_handler:
+            await interaction.followup.send("❌ Voice handler not initialized")
+            return
+
+        cleared_count = await self.voice_handler.clear_all()
+        await interaction.followup.send(f"🗑️ Cleared {cleared_count} items from TTS queue")
+
+    async def _slash_speakers_command(self, interaction: discord.Interaction) -> None:
+        """Handle slash command to list available TTS speakers."""
+        await interaction.response.defer()
+
+        speakers = await tts_engine.get_available_speakers()
+
+        embed = discord.Embed(
+            title=f"🎭 Available Speakers ({config.tts_engine.upper()})",
+            color=discord.Color.blue(),
+            description=f"Current: **{config.tts_speaker}** (ID: {config.speaker_id})",
+        )
+
+        speaker_list: list[str] = []
+        for name, speaker_id in speakers.items():
+            marker = "🔹" if name == config.tts_speaker else "▫️"
+            speaker_list.append(f"{marker} `{name}` (ID: {speaker_id})")
+
+        # Split into chunks if too long
+        chunk_size = 10
+        chunks: list[list[str]] = [speaker_list[i : i + chunk_size] for i in range(0, len(speaker_list), chunk_size)]
+
+        for i, chunk in enumerate(chunks):
+            field_name = "Speakers" if i == 0 else f"Speakers (cont. {i+1})"
+            embed.add_field(name=field_name, value="\n".join(chunk), inline=False)
+
+        await interaction.followup.send(embed=embed)
+
+    async def _slash_test_command(self, interaction: discord.Interaction, text: str) -> None:
+        """Handle slash command to test TTS with custom text."""
+        await interaction.response.defer()
+
+        if not self.voice_handler:
+            await interaction.followup.send("❌ Voice handler not initialized")
+            return
+
+        status = self.voice_handler.get_status()
+        if not status["connected"]:
+            await interaction.followup.send("❌ Not connected to voice channel")
+            return
+
+        # Process and queue the test message
+        processed_text = message_processor.process_message_content(text, interaction.user.display_name)
+        chunks = message_processor.chunk_message(processed_text)
+
+        processed_message = {
+            "text": processed_text,
+            "user_id": interaction.user.id,
+            "username": interaction.user.display_name,
+            "chunks": chunks,
+            "group_id": f"slash_test_{interaction.id}",
+        }
+
+        await self.voice_handler.add_to_queue(processed_message)
+        await interaction.followup.send(f"🎤 Test TTS queued: `{processed_text[:50]}...`")
+
+    async def _slash_voice_command(self, interaction: discord.Interaction, speaker: str | None = None) -> None:
+        """Handle slash command to set or show personal voice preference."""
+        await interaction.response.defer()
+
+        from .user_settings import user_settings
+
+        user_id = str(interaction.user.id)
+
+        # If no speaker specified, show current setting
+        if speaker is None:
+            current_settings = user_settings.get_user_settings(user_id)
+            if current_settings:
+                embed = discord.Embed(
+                    title="🎭 Your Voice Settings",
+                    color=discord.Color.blue(),
+                    description=f"Current voice: **{current_settings['speaker_name']}** (ID: {current_settings['speaker_id']})",
+                )
+            else:
+                embed = discord.Embed(
+                    title="🎭 Your Voice Settings",
+                    color=discord.Color.greyple(),
+                    description="No custom voice set. Using default voice.",
+                )
+            embed.add_field(
+                name="Commands",
+                value="`/voice <name>` - Set voice\n`/voice reset` - Reset to default\n`/voices` - List available",
+                inline=False,
+            )
+            await interaction.followup.send(embed=embed)
+            return
+
+        # Handle reset
+        if speaker.lower() == "reset":
+            if user_settings.remove_user_speaker(user_id):
+                await interaction.followup.send("✅ Voice preference reset to default")
+            else:
+                await interaction.followup.send("ℹ️ You don't have a custom voice set")
+            return
+
+        # Get available speakers
+        speakers = await tts_engine.get_available_speakers()
+
+        # Find matching speaker (case-insensitive)
+        speaker_lower = speaker.lower()
+        matched_speaker = None
+        matched_id = None
+
+        for name, speaker_id in speakers.items():
+            if name.lower() == speaker_lower or str(speaker_id) == speaker:
+                matched_speaker = name
+                matched_id = speaker_id
+                break
+
+        if matched_speaker and matched_id is not None:
+            # Pass current engine to ensure proper mapping
+            if user_settings.set_user_speaker(user_id, matched_id, matched_speaker, config.tts_engine):
+                await interaction.followup.send(f"✅ Voice set to **{matched_speaker}** (ID: {matched_id}) on {config.tts_engine.upper()}")
+                # Test the new voice
+                test_text = f"{matched_speaker}の声です"
+                if self.voice_handler:
+                    chunks = message_processor.chunk_message(test_text)
+                    processed_message = {
+                        "text": test_text,
+                        "user_id": interaction.user.id,
+                        "username": interaction.user.display_name,
+                        "chunks": chunks,
+                        "group_id": f"slash_voice_test_{interaction.id}",
+                    }
+                    await self.voice_handler.add_to_queue(processed_message)
+            else:
+                await interaction.followup.send("❌ Failed to save voice preference")
+        else:
+            await interaction.followup.send(f"❌ Voice '{speaker}' not found. Use `/voices` to see available options.")
+
+    async def _slash_voices_command(self, interaction: discord.Interaction) -> None:
+        """Handle slash command to list all available voices with detailed information."""
+        await interaction.response.defer()
+
+        from .user_settings import user_settings
+
+        # Get available speakers from TTS engine
+        speakers = await tts_engine.get_available_speakers()
+
+        # Get user's current setting
+        user_id = str(interaction.user.id)
+        current_settings = user_settings.get_user_settings(user_id)
+        current_speaker = current_settings["speaker_name"] if current_settings else None
+
+        embed = discord.Embed(
+            title=f"🎭 Available Voices ({config.tts_engine.upper()})",
+            color=discord.Color.blue(),
+            description="Use `/voice <name>` to set your personal voice",
+        )
+
+        # Group speakers by base name
+        speaker_groups: dict[str, list[tuple[str, int]]] = {}
+        for name, speaker_id in speakers.items():
+            # Extract base name (e.g., "zunda" from "zunda_normal")
+            base_name = name.split("_")[0] if "_" in name else name
+            if base_name not in speaker_groups:
+                speaker_groups[base_name] = []
+            speaker_groups[base_name].append((name, speaker_id))
+
+        # Add fields for each speaker group
+        for base_name, variants in speaker_groups.items():
+            field_lines: list[str] = []
+            for name, speaker_id in variants:
+                marker = "🔹" if name == current_speaker else "▫️"
+                field_lines.append(f"{marker} `{name}` ({speaker_id})")
+
+            embed.add_field(name=base_name.title(), value="\n".join(field_lines), inline=True)
+
+        # Add current setting info
+        if current_speaker:
+            embed.set_footer(text=f"Your current voice: {current_speaker}")
+        else:
+            embed.set_footer(text="You're using the default voice")
+
+        await interaction.followup.send(embed=embed)
+
+    async def _slash_voicecheck_command(self, interaction: discord.Interaction) -> None:
+        """Handle slash command to perform voice connection health check."""
+        await interaction.response.defer()
+
+        if not self.voice_handler:
+            embed = discord.Embed(title="🔍 Voice Health Check", color=discord.Color.red(), description="❌ Voice handler not initialized")
+            await interaction.followup.send(embed=embed)
+            return
+
+        # Perform health check
+        embed = discord.Embed(title="🔍 Voice Health Check", color=discord.Color.blue(), description="Performing comprehensive voice connection diagnostics...")
+
+        # Send initial message
+        await interaction.followup.send(embed=embed)
+
+        try:
+            # Get basic status
+            status = self.voice_handler.get_status()
+            health_status = await self.voice_handler.health_check()
+
+            # Update embed with results
+            embed = discord.Embed(
+                title="🔍 Voice Health Check Results",
+                color=(discord.Color.green() if health_status["healthy"] else discord.Color.red()),
+                description=f"Overall Status: {'✅ HEALTHY' if health_status['healthy'] else '❌ ISSUES FOUND'}",
+            )
+
+            # Connection status
+            embed.add_field(
+                name="🔗 Connection Status",
+                value=f"Voice Client: {'✅' if health_status['voice_client_exists'] else '❌'}\n"
+                f"Connected: {'✅' if health_status['voice_client_connected'] else '❌'}\n"
+                f"Channel: {status.get('voice_channel_name', 'None') or 'None'}",
+                inline=True,
+            )
+
+            # Audio system status
+            embed.add_field(
+                name="🎵 Audio System",
+                value=f"Playback Ready: {'✅' if health_status['audio_playback_ready'] else '❌'}\n"
+                f"Synthesis: {'✅' if health_status['can_synthesize'] else '❌'}\n"
+                f"Queue Size: {status.get('total_queue_size', 0)}",
+                inline=True,
+            )
+
+            # Issues and recommendations
+            if health_status["issues"]:
+                issues_text = "\n".join(f"• {issue}" for issue in health_status["issues"])
+                embed.add_field(name="⚠️ Issues Found", value=issues_text, inline=False)
+
+            if health_status["recommendations"]:
+                recommendations_text = "\n".join(f"💡 {rec}" for rec in health_status["recommendations"])
+                embed.add_field(name="🔧 Recommendations", value=recommendations_text, inline=False)
+
+            # If not healthy, offer to attempt reconnection
+            if not health_status["healthy"]:
+                embed.add_field(name="🔄 Quick Actions", value="Use `/reconnect` to attempt reconnection", inline=False)
+
+        except Exception as e:
+            embed = discord.Embed(title="🔍 Voice Health Check", color=discord.Color.red(), description=f"❌ Error during health check: {e}")
+
+        await interaction.edit_original_response(embed=embed)
+
+    async def _slash_reconnect_command(self, interaction: discord.Interaction) -> None:
+        """Handle slash command to manually attempt to reconnect to voice channel."""
+        await interaction.response.defer()
+
+        if not self.voice_handler:
+            embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.red(), description="❌ Voice handler not initialized")
+            await interaction.followup.send(embed=embed)
+            return
+
+        embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.orange(), description="Attempting to reconnect to voice channel...")
+
+        await interaction.followup.send(embed=embed)
+
+        try:
+            # Attempt reconnection
+            logger.info(f"🔄 MANUAL RECONNECTION - User {interaction.user.name} requested voice reconnection")
+            success = await self.voice_handler.connect_to_channel(config.target_voice_channel_id)
+
+            # Get new status
+            new_status = self.voice_handler.get_status()
+
+            if success and new_status["connected"]:
+                embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.green(), description="✅ Successfully reconnected to voice channel!")
+
+                embed.add_field(name="📍 Channel Info", value=f"Name: {new_status['voice_channel_name']}\nID: {new_status['voice_channel_id']}", inline=True)
+
+                embed.add_field(name="📊 Queue Status", value=f"Ready: {new_status['audio_queue_size']} chunks\nSynthesizing: {new_status['synthesis_queue_size']} chunks", inline=True)
+
+                logger.info(f"✅ MANUAL RECONNECTION SUCCESSFUL - Connected to {new_status['voice_channel_name']}")
+            else:
+                embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.red(), description="❌ Reconnection failed")
+
+                embed.add_field(
+                    name="🔍 Troubleshooting",
+                    value="Check the bot logs for detailed error information.\nCommon issues:\n• Bot lacks 'Connect' permission\n• Channel is full\n• Network connectivity issues",
+                    inline=False,
+                )
+
+                embed.add_field(name="🔧 Next Steps", value="Use `/voicecheck` for detailed diagnostics\nContact bot administrator if issues persist", inline=False)
+
+                logger.error("❌ MANUAL RECONNECTION FAILED - Check logs for detailed error information")
+
+        except Exception as e:
+            embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.red(), description=f"❌ Error during reconnection: {e}")
+            logger.error(f"💥 CRITICAL ERROR during manual reconnection: {e}")
+
+        await interaction.edit_original_response(embed=embed)
+
+    async def _voice_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        """Provide autocomplete suggestions for voice selection."""
+        speakers = await tts_engine.get_available_speakers()
+
+        # Filter speakers based on current input
+        choices: list[app_commands.Choice[str]] = []
+        current_lower = current.lower()
+
+        for name in speakers.keys():
+            if current_lower in name.lower():
+                choices.append(app_commands.Choice(name=name, value=name))
+                if len(choices) >= 25:  # Discord's limit for autocomplete choices
+                    break
+
+        return choices
+
     def get_status(self) -> dict[str, Any]:
         """Get current bot status."""
         voice_status = self.voice_handler.get_status() if self.voice_handler else {}
 
         uptime = 0.0
         uptime_start = self.stats.get("uptime_start")
-        if uptime_start is not None and isinstance(uptime_start, (int, float)):
+        if uptime_start is not None:
             uptime = asyncio.get_event_loop().time() - uptime_start
 
         return {

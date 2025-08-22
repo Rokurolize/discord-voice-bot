@@ -11,6 +11,8 @@ A Discord bot that reads voice channel text messages using Zundamon voice (VOICE
 - 🔄 **Auto-Reconnect**: Automatically reconnects if disconnected
 - 🛡️ **Rate Limiting**: Prevents spam with configurable rate limits
 - 📊 **Status Commands**: Bot status and queue management commands
+- ⚡ **Slash Commands**: Modern Discord slash command interface with autocomplete
+- 🔧 **Voice Management**: Advanced voice connection health checks and reconnection
 
 ## Requirements
 
@@ -115,11 +117,24 @@ python main.py
 ```
 
 ### Bot Commands
+
+#### Traditional Prefix Commands
 - `!tts status` - Show bot status and statistics
 - `!tts skip` - Skip current TTS playback
 - `!tts clear` - Clear TTS message queue
 - `!tts speakers` - List available TTS speakers
 - `!tts test [message]` - Test TTS with custom message
+
+#### Modern Slash Commands (Recommended)
+- `/status` - Show bot status and statistics
+- `/skip` - Skip current TTS playback
+- `/clear` - Clear TTS message queue
+- `/speakers` - List available TTS speakers
+- `/test [text]` - Test TTS with custom message
+- `/voice [speaker]` - Set or show personal voice preference with autocomplete
+- `/voices` - List all available voices with details
+- `/voicecheck` - Perform voice connection health check
+- `/reconnect` - Manually attempt to reconnect to voice channel
 
 ### Bot Permissions Required
 - Connect to Voice Channels
