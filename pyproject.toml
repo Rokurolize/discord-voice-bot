@@ -37,6 +37,7 @@ dev = [
   "ruff>=0.12",
   "pytest>=8.3",
   "pytest-asyncio>=0.23",
+  "pre-commit>=4.3.0",
 ]
 
 [project.scripts]
@@ -253,3 +254,8 @@ python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 pythonpath = ["src"]
+filterwarnings = [
+  "error::RuntimeWarning:.*was never awaited", # 未awaitはエラーに
+  "ignore::DeprecationWarning:discord\\.",     # discord.pyの警告は一旦無視
+  "ignore::DeprecationWarning:.*audioop.*",    # audioop deprecation warnings
+]

@@ -2,7 +2,7 @@
 
 import unittest
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 
 class BaseTestCase(unittest.TestCase):

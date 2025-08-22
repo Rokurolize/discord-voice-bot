@@ -1,12 +1,13 @@
 """Tests for StatusManager component - TDD Approach (Red-Green-Refactor)."""
 
-import asyncio
-import time
 import unittest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
-from .base_test import BaseTestCase, MockDiscordObjects
-from discord_voice_bot.status_manager import BotStats, StatusManager, VoiceStatus, SystemHealth
+import pytest
+
+from discord_voice_bot.status_manager import BotStats, StatusManager, SystemHealth, VoiceStatus
+
+from .base_test import BaseTestCase
 
 
 class TestBotStats(BaseTestCase):
@@ -61,23 +62,22 @@ class TestSystemHealth(BaseTestCase):
         self.assertEqual(health.health_check_failures, 0)
 
 
-class TestStatusManager(BaseTestCase):
+class TestStatusManager:
     """Test cases for StatusManager - Main component."""
 
-    def setUp(self) -> None:
+    def setup_method(self) -> None:
         """Set up test fixtures."""
-        super().setUp()
         self.status_manager = StatusManager()
 
     def test_initialization(self) -> None:
         """Test StatusManager initializes correctly."""
-        self.assertIsInstance(self.status_manager.stats, BotStats)
-        self.assertIsInstance(self.status_manager.voice_status, VoiceStatus)
-        self.assertIsInstance(self.status_manager.health, SystemHealth)
-        self.assertIsNotNone(self.status_manager.stats.uptime_start)
-        self.assertEqual(self.status_manager._command_timings, {})
-        self.assertEqual(self.status_manager._response_times, [])
-        self.assertEqual(self.status_manager._status_update_callbacks, [])
+        assert isinstance(self.status_manager.stats, BotStats)
+        assert isinstance(self.status_manager.voice_status, VoiceStatus)
+        assert isinstance(self.status_manager.health, SystemHealth)
+        assert self.status_manager.stats.uptime_start is not None
+        assert self.status_manager._command_timings == {}
+        assert self.status_manager._response_times == []
+        assert self.status_manager._status_update_callbacks == []
 
     def test_record_message_processed(self) -> None:
         """Test recording a processed message."""
@@ -85,7 +85,7 @@ class TestStatusManager(BaseTestCase):
 
         self.status_manager.record_message_processed()
 
-        self.assertEqual(self.status_manager.stats.messages_processed, initial_count + 1)
+        assert self.status_manager.stats.messages_processed == initial_count + 1
 
     def test_record_tts_played(self) -> None:
         """Test recording a TTS message played."""
@@ -93,7 +93,7 @@ class TestStatusManager(BaseTestCase):
 
         self.status_manager.record_tts_played()
 
-        self.assertEqual(self.status_manager.stats.tts_messages_played, initial_count + 1)
+        assert self.status_manager.stats.tts_messages_played == initial_count + 1
 
     def test_record_connection_error(self) -> None:
         """Test recording a connection error."""
@@ -101,7 +101,7 @@ class TestStatusManager(BaseTestCase):
 
         self.status_manager.record_connection_error()
 
-        self.assertEqual(self.status_manager.stats.connection_errors, initial_count + 1)
+        assert self.status_manager.stats.connection_errors == initial_count + 1
 
     def test_record_command_usage(self) -> None:
         """Test recording command usage."""
@@ -109,9 +109,9 @@ class TestStatusManager(BaseTestCase):
 
         self.status_manager.record_command_usage(command_name)
 
-        self.assertEqual(self.status_manager.stats.command_usage[command_name], 1)
-        self.assertIn(command_name, self.status_manager._command_timings)
-        self.assertEqual(len(self.status_manager._command_timings[command_name]), 1)
+        assert self.status_manager.stats.command_usage[command_name] == 1
+        assert command_name in self.status_manager._command_timings
+        assert len(self.status_manager._command_timings[command_name]) == 1
 
     def test_record_voice_connection(self) -> None:
         """Test recording voice connection."""
@@ -119,10 +119,10 @@ class TestStatusManager(BaseTestCase):
 
         self.status_manager.record_voice_connection()
 
-        self.assertEqual(self.status_manager.stats.voice_connections, initial_connections + 1)
-        self.assertTrue(self.status_manager.voice_status.connected)
-        self.assertIsNotNone(self.status_manager.voice_status.connection_time)
-        self.assertIsNotNone(self.status_manager.voice_status.last_activity)
+        assert self.status_manager.stats.voice_connections == initial_connections + 1
+        assert self.status_manager.voice_status.connected
+        assert self.status_manager.voice_status.connection_time is not None
+        assert self.status_manager.voice_status.last_activity is not None
 
     def test_record_voice_disconnection(self) -> None:
         """Test recording voice disconnection."""
@@ -133,9 +133,9 @@ class TestStatusManager(BaseTestCase):
         # Then disconnect
         self.status_manager.record_voice_disconnection()
 
-        self.assertEqual(self.status_manager.stats.voice_disconnections, initial_disconnections + 1)
-        self.assertFalse(self.status_manager.voice_status.connected)
-        self.assertIsNone(self.status_manager.voice_status.connection_time)
+        assert self.status_manager.stats.voice_disconnections == initial_disconnections + 1
+        assert not self.status_manager.voice_status.connected
+        assert self.status_manager.voice_status.connection_time is None
 
     def test_record_tts_failure(self) -> None:
         """Test recording TTS failure."""
@@ -143,7 +143,7 @@ class TestStatusManager(BaseTestCase):
 
         self.status_manager.record_tts_failure()
 
-        self.assertEqual(self.status_manager.stats.failed_tts_requests, initial_failures + 1)
+        assert self.status_manager.stats.failed_tts_requests == initial_failures + 1
 
     def test_record_response_time(self) -> None:
         """Test recording response time."""
@@ -348,11 +348,17 @@ class TestStatusManager(BaseTestCase):
 
     @patch("asyncio.iscoroutinefunction", return_value=True)
     @patch("asyncio.create_task")
-    def test_async_status_callback(self, mock_create_task, mock_iscoroutine) -> None:
+    @pytest.mark.asyncio
+    async def test_async_status_callback(self, mock_create_task, mock_iscoroutine) -> None:
         """Test async status update callbacks."""
+        from unittest.mock import AsyncMock
+
+        # Create a mock task that behaves like a real task
+        mock_task = AsyncMock()
+        mock_create_task.return_value = mock_task
 
         async def async_callback() -> None:
-            pass
+            pass  # Simple callback that doesn't need to await anything
 
         # Add async callback
         self.status_manager.add_status_callback(async_callback)
@@ -360,8 +366,8 @@ class TestStatusManager(BaseTestCase):
         # Notify callbacks
         self.status_manager._notify_status_callbacks()
 
-        # Verify create_task was called once (we don't care about exact coroutine object)
-        self.assertEqual(mock_create_task.call_count, 1)
+        # Verify create_task was called once
+        assert mock_create_task.call_count == 1
         # Verify the called function is async
         mock_iscoroutine.assert_called_once_with(async_callback)
 

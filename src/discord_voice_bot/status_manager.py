@@ -2,8 +2,9 @@
 
 import asyncio
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Optional
 
 import discord
 from loguru import logger
@@ -17,7 +18,7 @@ class BotStats:
     tts_messages_played: int = 0
     connection_errors: int = 0
     uptime_start: Optional[float] = None
-    command_usage: Dict[str, int] = field(default_factory=dict)
+    command_usage: dict[str, int] = field(default_factory=dict)
     voice_connections: int = 0
     voice_disconnections: int = 0
     failed_tts_requests: int = 0
@@ -60,9 +61,9 @@ class StatusManager:
         self.stats = BotStats()
         self.voice_status = VoiceStatus()
         self.health = SystemHealth()
-        self._command_timings: Dict[str, List[float]] = {}
-        self._response_times: List[float] = []
-        self._status_update_callbacks: List[Callable[[], Any]] = []
+        self._command_timings: dict[str, list[float]] = {}
+        self._response_times: list[float] = []
+        self._status_update_callbacks: list[Callable[[], Any]] = []
 
         # Set initial uptime
         self.stats.uptime_start = time.time()
@@ -86,6 +87,7 @@ class StatusManager:
 
         Args:
             command_name: Name of the command used
+
         """
         self.stats.command_usage[command_name] = self.stats.command_usage.get(command_name, 0) + 1
 
@@ -118,6 +120,7 @@ class StatusManager:
 
         Args:
             response_time: Response time in seconds
+
         """
         self._response_times.append(response_time)
 
@@ -147,6 +150,7 @@ class StatusManager:
             is_playing: Whether audio is playing
             queue_size: Size of audio queue
             current_group: Current message group being played
+
         """
         if connected is not None:
             self.voice_status.connected = connected
@@ -184,6 +188,7 @@ class StatusManager:
             voice_system_healthy: Voice system health status
             memory_usage: Memory usage percentage
             cpu_usage: CPU usage percentage
+
         """
         if tts_engine_healthy is not None:
             self.health.tts_engine_healthy = tts_engine_healthy
@@ -208,6 +213,7 @@ class StatusManager:
 
         Args:
             count: Number of guilds the bot is in
+
         """
         self.stats.total_guilds = count
 
@@ -221,6 +227,7 @@ class StatusManager:
 
         Args:
             bot: Discord bot client
+
         """
         try:
             # Create presence based on current status
@@ -247,6 +254,7 @@ class StatusManager:
 
         Returns:
             True if system is healthy, False otherwise
+
         """
         return (
             self.health.tts_engine_healthy and self.health.voice_system_healthy and self.stats.connection_errors < 10  # Allow some connection errors
@@ -257,6 +265,7 @@ class StatusManager:
 
         Returns:
             Uptime in seconds
+
         """
         if self.stats.uptime_start is None:
             return 0.0
@@ -267,17 +276,19 @@ class StatusManager:
 
         Returns:
             Formatted uptime string (HH:MM:SS)
+
         """
         uptime = int(self.get_uptime_seconds())
         hours, remainder = divmod(uptime, 3600)
         minutes, seconds = divmod(remainder, 60)
         return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """Get comprehensive bot statistics.
 
         Returns:
             Dictionary with all statistics
+
         """
         return {
             "messages_processed": self.stats.messages_processed,
@@ -315,6 +326,7 @@ class StatusManager:
 
         Returns:
             Status summary string
+
         """
         uptime = self.get_uptime_formatted()
         health_status = "✅ Healthy" if self.get_overall_health() else "⚠️ Issues Detected"
@@ -338,6 +350,7 @@ class StatusManager:
 
         Args:
             callback: Function to call when status updates
+
         """
         self._status_update_callbacks.append(callback)
 
@@ -346,6 +359,7 @@ class StatusManager:
 
         Args:
             callback: Callback function to remove
+
         """
         if callback in self._status_update_callbacks:
             self._status_update_callbacks.remove(callback)

@@ -12,15 +12,17 @@ class Config:
 
     def __init__(self) -> None:
         """Initialize configuration from environment variables."""
-        # Load from project-specific secrets file
-        secrets_file = Path("/home/ubuntu/.config/discord-voice-bot/secrets.env")
-        if secrets_file.exists():
-            load_dotenv(secrets_file)
+        # Only load .env files in development/testing, not in production
+        if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("DEBUG", "false").lower() == "true":
+            # Load from project-specific secrets file
+            secrets_file = Path("/home/ubuntu/.config/discord-voice-bot/secrets.env")
+            if secrets_file.exists():
+                load_dotenv(secrets_file)
 
-        # Load from local .env if it exists
-        local_env = Path(".env")
-        if local_env.exists():
-            load_dotenv(local_env)
+            # Load from local .env if it exists
+            local_env = Path(".env")
+            if local_env.exists():
+                load_dotenv(local_env)
 
         # Discord Configuration
         self.discord_token: str = self._get_required_env("DISCORD_BOT_TOKEN")
@@ -89,7 +91,8 @@ class Config:
         self.log_file: str | None = os.environ.get("LOG_FILE")
 
         # Development Configuration
-        self.debug: bool = os.environ.get("DEBUG", "false").lower() == "true"
+        debug_value = os.environ.get("DEBUG", "false").lower()
+        self.debug: bool = debug_value == "true" or debug_value == "1"
 
     def _get_required_env(self, key: str) -> str:
         """Get required environment variable or raise error."""
@@ -146,5 +149,25 @@ class Config:
             raise ValueError("Message queue size must be positive")
 
 
-# Global configuration instance
-config = Config()
+# Global configuration instance - created lazily
+_config: Config | None = None
+
+
+def get_config() -> Config:
+    """Get the global configuration instance, creating it if necessary."""
+    global _config
+    if _config is None:
+        _config = Config()
+    return _config
+
+
+# For backward compatibility, provide config instance
+# Note: This will be created when first accessed
+class _ConfigProxy:
+    """Proxy to delay config creation until first access."""
+
+    def __getattr__(self, name):
+        return getattr(get_config(), name)
+
+
+config = _ConfigProxy()

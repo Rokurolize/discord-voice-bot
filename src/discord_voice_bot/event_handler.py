@@ -18,6 +18,7 @@ class EventHandler:
 
         Args:
             bot: The Discord bot instance
+
         """
         self.bot = bot
         self._voice_state_updating = False

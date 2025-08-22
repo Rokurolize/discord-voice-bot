@@ -123,3 +123,18 @@ def admin_token(admin_user):
 def admin_auth_headers(admin_token):
     """Create admin authentication headers."""
     return {"Authorization": f"Bearer {admin_token}"}
+
+
+@pytest.fixture
+def task_group():
+    """Create a task group for async task cleanup."""
+    tasks = []
+    try:
+        yield tasks
+    finally:
+        for t in tasks:
+            if not t.done():
+                t.cancel()
+        # gatherでキャンセル完了を待ち、未処理例外を吸収
+        if tasks:
+            asyncio.get_event_loop().run_until_complete(asyncio.gather(*tasks, return_exceptions=True))

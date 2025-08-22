@@ -1,10 +1,7 @@
 """Bot factory for Discord Voice TTS Bot initialization and configuration."""
 
-import asyncio
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Optional
 
-import discord
-from discord.ext import commands
 from loguru import logger
 
 from .config import config
@@ -23,7 +20,7 @@ class ComponentRegistry:
 
     def __init__(self) -> None:
         """Initialize component registry."""
-        self._components: Dict[str, Any] = {}
+        self._components: dict[str, Any] = {}
 
     def register(self, name: str, component: Any) -> None:
         """Register a component.
@@ -31,6 +28,7 @@ class ComponentRegistry:
         Args:
             name: Component name
             component: Component instance
+
         """
         self._components[name] = component
         logger.debug(f"Registered component: {name}")
@@ -43,14 +41,16 @@ class ComponentRegistry:
 
         Returns:
             Component instance or None if not found
+
         """
         return self._components.get(name)
 
-    def get_all(self) -> Dict[str, Any]:
+    def get_all(self) -> dict[str, Any]:
         """Get all registered components.
 
         Returns:
             Dictionary of all components
+
         """
         return self._components.copy()
 
@@ -67,7 +67,7 @@ class BotFactory:
         self.registry = ComponentRegistry()
         logger.info("Bot factory initialized")
 
-    async def create_bot(self, bot_class: Type["DiscordVoiceTTSBot"] = None) -> "DiscordVoiceTTSBot":
+    async def create_bot(self, bot_class: type["DiscordVoiceTTSBot"] = None) -> "DiscordVoiceTTSBot":
         """Create and configure a new bot instance.
 
         Args:
@@ -75,6 +75,7 @@ class BotFactory:
 
         Returns:
             Configured bot instance
+
         """
         try:
             # Import here to avoid circular imports
@@ -104,6 +105,7 @@ class BotFactory:
 
         Args:
             bot: Bot instance to setup components for
+
         """
         logger.info("Setting up bot components...")
 
@@ -142,6 +144,7 @@ class BotFactory:
 
         Returns:
             Configured event handler
+
         """
         from .event_handler import EventHandler
 
@@ -155,6 +158,7 @@ class BotFactory:
 
         Returns:
             Configured command handler
+
         """
         from .command_handler import CommandHandler
 
@@ -168,6 +172,7 @@ class BotFactory:
 
         Returns:
             Configured slash command handler or None if not available
+
         """
         try:
             from .slash_command_handler import SlashCommandHandler
@@ -185,6 +190,7 @@ class BotFactory:
 
         Returns:
             Configured message validator
+
         """
         from .message_validator import MessageValidator
 
@@ -198,6 +204,7 @@ class BotFactory:
 
         Returns:
             Configured status manager
+
         """
         from .status_manager import StatusManager
 
@@ -208,6 +215,7 @@ class BotFactory:
 
         Args:
             bot: Bot instance
+
         """
         # Voice handler should already be initialized in bot constructor
         if hasattr(bot, "voice_handler") and bot.voice_handler:
@@ -228,6 +236,7 @@ class BotFactory:
         Raises:
             ValueError: If configuration is invalid
             RuntimeError: If required components are missing
+
         """
         logger.info("Validating bot configuration...")
 
@@ -271,6 +280,7 @@ class BotFactory:
 
         Args:
             bot: Bot instance
+
         """
         logger.info("Initializing external services...")
 
@@ -297,18 +307,19 @@ class BotFactory:
             logger.error(f"Failed to initialize services: {e}")
             raise
 
-    def get_component_info(self) -> Dict[str, Any]:
+    def get_component_info(self) -> dict[str, Any]:
         """Get information about registered components.
 
         Returns:
             Dictionary with component information
+
         """
         info = {}
         for name, component in self.registry.get_all().items():
             info[name] = {"type": type(component).__name__, "methods": [method for method in dir(component) if not method.startswith("_")], "status": "active" if component else "inactive"}
         return info
 
-    def get_initialization_status(self, bot: "DiscordVoiceTTSBot") -> Dict[str, Any]:
+    def get_initialization_status(self, bot: "DiscordVoiceTTSBot") -> dict[str, Any]:
         """Get comprehensive initialization status.
 
         Args:
@@ -316,6 +327,7 @@ class BotFactory:
 
         Returns:
             Dictionary with initialization status
+
         """
         status = {"bot_configured": False, "components_registered": len(self.registry.get_all()), "services_initialized": False, "component_status": {}, "errors": []}
 
@@ -348,6 +360,7 @@ class BotFactory:
 
         Args:
             bot: Bot instance to shutdown
+
         """
         logger.info("Starting bot shutdown...")
 

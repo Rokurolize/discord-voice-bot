@@ -68,6 +68,7 @@ class MessageValidator:
 
         Returns:
             Validation result
+
         """
         result = ValidationResult(is_valid=True)
 
@@ -116,6 +117,7 @@ class MessageValidator:
 
         Returns:
             True if checks pass, False otherwise
+
         """
         # Skip bot messages
         if message.author.bot:
@@ -159,6 +161,7 @@ class MessageValidator:
 
         Returns:
             True if content is safe, False otherwise
+
         """
         content_lower = message.content.lower()
 
@@ -188,6 +191,7 @@ class MessageValidator:
 
         Returns:
             True if user has permission, False otherwise
+
         """
         # Check blocked users
         if message.author.id in self._blocked_users:
@@ -215,6 +219,7 @@ class MessageValidator:
 
         Returns:
             True if within limits, False otherwise
+
         """
         # This would integrate with a rate limiter
         # For now, we'll assume it's handled elsewhere
@@ -236,6 +241,7 @@ class MessageValidator:
 
         Returns:
             Filtered content suitable for TTS
+
         """
         content = message.content
 
@@ -267,6 +273,7 @@ class MessageValidator:
 
         Returns:
             Content without markdown
+
         """
         # Remove common markdown patterns
         replacements = {
@@ -293,6 +300,7 @@ class MessageValidator:
 
         Returns:
             Content with normalized whitespace
+
         """
         # Replace multiple spaces with single space
         content = re.sub(r"\s+", " ", content)
@@ -311,6 +319,7 @@ class MessageValidator:
 
         Returns:
             True if length is valid, False otherwise
+
         """
         if not content:
             result.is_valid = False
@@ -331,6 +340,7 @@ class MessageValidator:
 
         Returns:
             True if message should be processed, False otherwise
+
         """
         # Quick checks without full validation
         if message.author.bot:
@@ -353,6 +363,7 @@ class MessageValidator:
 
         Args:
             word: Word to block
+
         """
         self._blocked_words.add(word.lower())
         logger.info(f"Added blocked word: {word}")
@@ -362,6 +373,7 @@ class MessageValidator:
 
         Args:
             word: Word to unblock
+
         """
         self._blocked_words.discard(word.lower())
         logger.info(f"Removed blocked word: {word}")
@@ -371,6 +383,7 @@ class MessageValidator:
 
         Args:
             user_id: Discord user ID to block
+
         """
         self._blocked_users.add(user_id)
         logger.info(f"Added blocked user: {user_id}")
@@ -380,6 +393,7 @@ class MessageValidator:
 
         Args:
             user_id: Discord user ID to unblock
+
         """
         self._blocked_users.discard(user_id)
         logger.info(f"Removed blocked user: {user_id}")
@@ -389,6 +403,7 @@ class MessageValidator:
 
         Args:
             channel_id: Discord channel ID to block
+
         """
         self._blocked_channels.add(channel_id)
         logger.info(f"Added blocked channel: {channel_id}")
@@ -398,6 +413,7 @@ class MessageValidator:
 
         Args:
             channel_id: Discord channel ID to unblock
+
         """
         self._blocked_channels.discard(channel_id)
         logger.info(f"Removed blocked channel: {channel_id}")
@@ -407,6 +423,7 @@ class MessageValidator:
 
         Returns:
             Dictionary with validation statistics
+
         """
         return {
             "blocked_words": len(self._blocked_words),

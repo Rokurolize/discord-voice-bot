@@ -1,0 +1,56 @@
+"""Status embed creation for slash commands."""
+
+from typing import Any
+
+import discord
+
+
+async def create_status_embed(status: dict[str, Any]) -> discord.Embed:
+    """Create status embed from status data."""
+    embed = discord.Embed(
+        title="🤖 Discord Voice TTS Bot Status",
+        color=(discord.Color.green() if status.get("voice_status", {}).get("connected") else discord.Color.red()),
+        description="ずんだもんボイス読み上げBot",
+    )
+
+    # Connection status
+    voice_status = status.get("voice_status", {})
+    embed.add_field(
+        name="🔗 接続状態",
+        value=f"Voice: {'✅ 接続中' if voice_status.get('connected') else '❌ 未接続'}\nChannel: {voice_status.get('channel_name') or 'なし'}",
+        inline=True,
+    )
+
+    # TTS status
+    from ...config import config
+
+    embed.add_field(
+        name="🎤 TTS状態",
+        value=f"Engine: {config.tts_engine.upper()}\nSpeaker: {config.tts_speaker}\nPlaying: {'✅' if voice_status.get('is_playing') else '❌'}",
+        inline=True,
+    )
+
+    # Queue status
+    embed.add_field(
+        name="📋 キュー状態",
+        value=f"Ready: {voice_status.get('queue_size', 0)} chunks\nTotal: {voice_status.get('queue_size', 0)}\nProcessed: {status.get('messages_processed', 0)}",
+        inline=True,
+    )
+
+    # Bot info
+    embed.add_field(
+        name="ℹ️ Bot情報",
+        value=f"Uptime: {status.get('uptime_formatted', 'Unknown')}\nErrors: {status.get('connection_errors', 0)}",
+        inline=True,
+    )
+
+    return embed
+
+
+async def create_basic_status_embed() -> discord.Embed:
+    """Create basic status embed when status manager is not available."""
+    embed = discord.Embed(title="🤖 Discord Voice TTS Bot Status", color=discord.Color.blue(), description="Status information unavailable")
+
+    embed.add_field(name="ℹ️ Status", value="Basic status information is currently unavailable.\nThe bot may still be starting up or experiencing issues.", inline=False)
+
+    return embed

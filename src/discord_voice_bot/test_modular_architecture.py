@@ -1,13 +1,14 @@
 """Test script to demonstrate the modular architecture components."""
 
-from .event_handler import EventHandler
-from .command_handler import CommandHandler
-from .slash_command_handler import SlashCommandHandler
-from .message_validator import MessageValidator, ValidationResult
-from .status_manager import StatusManager
-from .bot_factory import BotFactory
-from .config import config
 import asyncio
+
+from .bot_factory import BotFactory
+from .command_handler import CommandHandler
+from .config import config
+from .event_handler import EventHandler
+from .message_validator import MessageValidator
+from .slash_command_handler import SlashCommandHandler
+from .status_manager import StatusManager
 
 
 async def test_modular_components():

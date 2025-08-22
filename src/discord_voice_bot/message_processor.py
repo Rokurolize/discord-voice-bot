@@ -350,5 +350,24 @@ class MessageProcessor:
         }
 
 
-# Global message processor instance
-message_processor = MessageProcessor()
+# Global message processor instance - created lazily
+_message_processor: MessageProcessor | None = None
+
+
+def get_message_processor() -> MessageProcessor:
+    """Get the global message processor instance, creating it if necessary."""
+    global _message_processor
+    if _message_processor is None:
+        _message_processor = MessageProcessor()
+    return _message_processor
+
+
+# For backward compatibility, provide message_processor instance
+class _MessageProcessorProxy:
+    """Proxy to delay message processor creation until first access."""
+
+    def __getattr__(self, name):
+        return getattr(get_message_processor(), name)
+
+
+message_processor = _MessageProcessorProxy()

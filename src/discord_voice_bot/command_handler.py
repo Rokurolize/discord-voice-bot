@@ -1,6 +1,7 @@
 """Command handling for Discord Voice TTS Bot."""
 
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 import discord
 from discord.ext import commands
@@ -18,6 +19,7 @@ class CommandHandler:
 
         Args:
             bot: The Discord bot instance
+
         """
         self.bot = bot
         self._commands: dict[str, dict[str, Any]] = {}
@@ -33,6 +35,7 @@ class CommandHandler:
             help_text: Help description for the command
             usage: Usage instructions
             permissions: Required permissions
+
         """
         self._commands[name] = {
             "func": func,
@@ -55,6 +58,7 @@ class CommandHandler:
 
         Returns:
             True if command was processed, False otherwise
+
         """
         try:
             # Extract command and arguments
@@ -112,6 +116,7 @@ class CommandHandler:
 
         Returns:
             Command context
+
         """
         # Create a mock context object
         ctx = type(
@@ -156,6 +161,7 @@ class CommandHandler:
 
         Returns:
             Help text for the command
+
         """
         command = self._commands.get(command_name)
         if not command or "alias_for" in command:
@@ -174,6 +180,7 @@ class CommandHandler:
 
         Returns:
             List of command names (excluding aliases)
+
         """
         return [name for name, cmd in self._commands.items() if "alias_for" not in cmd]
 
@@ -186,6 +193,7 @@ def get_command_info(self, command_name: str) -> dict[str, Any] | None:
 
     Returns:
         Dictionary with command information, or None if not found
+
     """
     command = self._commands.get(command_name)
     if not command or "alias_for" in command:
@@ -208,6 +216,7 @@ def unregister_command(self, name: str) -> bool:
 
     Returns:
         True if command was unregistered, False otherwise
+
     """
     if name not in self._commands:
         return False
@@ -239,5 +248,6 @@ def has_command(self, name: str) -> bool:
 
     Returns:
         True if command exists, False otherwise
+
     """
     return name in self._commands and "alias_for" not in self._commands[name]

@@ -1,0 +1,19 @@
+repos:
+  # Ruff（lint + format）
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.12.10
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  # 500行超ブロック用のローカルフック（全テキストファイル対象）
+  - repo: local
+    hooks:
+      - id: check-max-lines
+        name: "Block files > 500 lines"
+        entry: bash scripts/check-max-lines.sh
+        language: system
+        pass_filenames: true
+        types: [text]
+        stages: [pre-commit, pre-push]
