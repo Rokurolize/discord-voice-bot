@@ -13,7 +13,7 @@ from discord_voice_bot.bot import run_bot
 
 # Import our bot modules
 from discord_voice_bot.config import config
-from discord_voice_bot.health_monitor import HealthMonitor, health_monitor
+from discord_voice_bot.health_monitor import HealthMonitor
 
 
 class BotManager:
@@ -35,10 +35,7 @@ class BotManager:
         logger.add(
             sys.stderr,
             level=config.log_level,
-            format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
-            "<level>{level: <8}</level> | "
-            "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
-            "<level>{message}</level>",
+            format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | <level>{message}</level>",
             colorize=True,
             backtrace=True,
             diagnose=True,
@@ -112,7 +109,6 @@ class BotManager:
             await asyncio.sleep(5)  # Give bot time to initialize and connect
 
             # Get the bot instance and initialize health monitor
-            from discord_voice_bot.bot import DiscordVoiceTTSBot
             # The health monitor is already initialized in the bot's _on_ready method
             logger.info("🩺 Health monitoring system is active")
 

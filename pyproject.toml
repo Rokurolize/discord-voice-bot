@@ -9,21 +9,21 @@ description = "Discord voice channel text-to-speech bot with Zundamon voice"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 classifiers = [
-   "Development Status :: 3 - Alpha",
-   "Intended Audience :: Developers",
-   "License :: OSI Approved :: MIT License",
-   "Programming Language :: Python :: 3",
-   "Programming Language :: Python :: 3.12",
-   "Topic :: Multimedia :: Sound/Audio :: Speech",
-   "Topic :: Communications :: Chat",
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Multimedia :: Sound/Audio :: Speech",
+  "Topic :: Communications :: Chat",
 ]
 license = { file = "LICENSE" }
 dependencies = [
-    "discord.py[voice]>=2.6.0,<3.0.0",
-    "python-dotenv~=1.0",
-    "aiofiles~=23.2",
-    "loguru~=0.7",
-    "zstandard>=0.23.0; platform_python_implementation == 'CPython'",
+  "discord.py[voice]>=2.6.0,<3.0.0",
+  "python-dotenv~=1.0",
+  "aiofiles~=23.2",
+  "loguru~=0.7",
+  "zstandard>=0.23.0; platform_python_implementation == 'CPython'",
 ]
 
 [[project.authors]]
@@ -35,8 +35,6 @@ dev = [
   "pyright>=1.1.402",
   "poethepoet>=0.26",
   "ruff~=0.12",
-  "black~=24.10",
-  "mypy~=1.11",
   "pytest~=8.3",
   "pytest-asyncio~=0.23",
 ]
@@ -50,40 +48,28 @@ packages = ["src/discord_voice_bot"]
 [tool.uv]
 package = true
 
-[tool.black]
-line-length = 200
-target-version = ["py312"]
-
-[tool.mypy]
-allow_redefinition = true
-check_untyped_defs = true
-disallow_incomplete_defs = true
-disallow_untyped_defs = true
-ignore_missing_imports = true
-no_implicit_optional = true
-pretty = true
-show_error_codes = true
-show_error_context = true
-show_traceback = true
-strict_equality = true
-strict_optional = true
-warn_no_return = true
-warn_redundant_casts = true
-warn_unreachable = true
-warn_unused_configs = true
-warn_unused_ignores = false
-
 [tool.poe.tasks]
-test = "pytest tests -vv"
-_black_check = "black --check src/discord_voice_bot tests"
-_ruff_check = "ruff check src/discord_voice_bot tests"
-_black_format = "black src/discord_voice_bot tests"
-_ruff_format = "ruff check --fix src/discord_voice_bot tests"
-lint = ["_black_check", "_ruff_check"]
-format = ["_ruff_format", "_black_format"]
-_mypy = "mypy src/discord_voice_bot"
-_pyright = "pyright src/discord_voice_bot"
-type-check = ["_mypy", "_pyright"]
+
+# ---- tests ----------------------------------------------------
+test = "uv run pytest -q"
+
+# ---- primitives ----------------------------------------------
+_ruff_check = "uv run ruff check ."
+_ruff_fix = "uv run ruff check . --fix"
+_sort_imports = "uv run ruff check . --select I --fix"
+_ruff_format = "uv run ruff format ."
+_pyright = "uv run pyright ."
+
+# ---- composited tasks -----------------------------------------
+format = ["_sort_imports", "_ruff_format"] # 整形のみ
+lint = ["_ruff_check"]                     # 検査のみ（非破壊）
+type-check = ["_pyright"]                  # 型
+
+# すべての検査（整形はしない）
+check = ["lint", "type-check", "test"]
+
+# 自動修正フロー（Ruff → import整列 → Ruff Format）
+fix = ["_ruff_fix", "_sort_imports", "_ruff_format"]
 
 [tool.ruff]
 target-version = "py312"
@@ -124,16 +110,17 @@ select = [
   "W",
   "YTT",
 ]
+fixable = ["ALL"]
 ignore = [
   "PLC0415",
-  "RUF001",  # Allow fullwidth characters in Japanese strings
+  "RUF001",   # Allow fullwidth characters in Japanese strings
   "RUF002",
-  "RUF003",  # Allow fullwidth characters in comments
+  "RUF003",   # Allow fullwidth characters in comments
   "RUF005",
-  "RUF006",  # Store asyncio.create_task result not always needed
-  "RUF013",  # Implicit Optional is acceptable
-  "ASYNC110",  # asyncio.sleep in while loop is acceptable for simple cases
-  "ASYNC221",  # subprocess.run in async function is acceptable for debugging
+  "RUF006",   # Store asyncio.create_task result not always needed
+  "RUF013",   # Implicit Optional is acceptable
+  "ASYNC110", # asyncio.sleep in while loop is acceptable for simple cases
+  "ASYNC221", # subprocess.run in async function is acceptable for debugging
   "SIM118",
   "SIM108",
   "E501",
@@ -155,7 +142,6 @@ ignore = [
   "D402",
   "DTZ005",
   "E402",
-  "E501",
   "E701",
   "E731",
   "C408",
@@ -206,17 +192,22 @@ ignore = [
   "UP045",
 ]
 unfixable = ["F841", "F601", "F602", "B018"]
-extend-fixable = ["F401", "B905", "W291"]
+extend-fixable = ["F401", "B905"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 20
 
-[tool.ruff.lint.per-file-ignores]
-"tests/**" = ["D103"]
-
 [tool.pyright]
-include = [ "src",]
-exclude = [ "**/__pycache__", ".git", ".venv", "venv", "node_modules", ".mypy_cache", ".pytest_cache",]
+include = ["src"]
+exclude = [
+  "**/__pycache__",
+  ".git",
+  ".venv",
+  "venv",
+  "node_modules",
+  ".mypy_cache",
+  ".pytest_cache",
+]
 pythonVersion = "3.12"
 typeCheckingMode = "strict"
 venvPath = "."
@@ -225,6 +216,7 @@ venv = ".venv"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+addopts = "-ra -q"
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

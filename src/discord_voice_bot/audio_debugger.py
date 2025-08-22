@@ -255,13 +255,13 @@ class AudioDebugger:
 
         report = f"""
 # Audio Debugging Session Report
-Session ID: {summary['session_id']}
-Session Directory: {summary['session_dir']}
+Session ID: {summary["session_id"]}
+Session Directory: {summary["session_dir"]}
 
 ## Summary
-- Total audio files saved: {summary['total_files']}
-- Pipeline stages tested: {', '.join(summary['stages_tested'])}
-- Debug log entries: {summary['total_log_entries']}
+- Total audio files saved: {summary["total_files"]}
+- Pipeline stages tested: {", ".join(summary["stages_tested"])}
+- Debug log entries: {summary["total_log_entries"]}
 
 ## Audio Files Analysis
 """
@@ -270,13 +270,13 @@ Session Directory: {summary['session_dir']}
             if "audio_info" in entry:
                 info = entry["audio_info"]
                 report += f"""
-### {entry['stage']} - {entry['filename']}
-- Size: {entry['size_bytes']} bytes
-- Duration: {info.get('duration', 'unknown')}s
-- Sample Rate: {info.get('sample_rate', 'unknown')}Hz
-- Channels: {info.get('channels', 'unknown')}
-- Codec: {info.get('codec_name', 'unknown')}
-- Text: "{entry['text']}"
+### {entry["stage"]} - {entry["filename"]}
+- Size: {entry["size_bytes"]} bytes
+- Duration: {info.get("duration", "unknown")}s
+- Sample Rate: {info.get("sample_rate", "unknown")}Hz
+- Channels: {info.get("channels", "unknown")}
+- Codec: {info.get("codec_name", "unknown")}
+- Text: "{entry["text"]}"
 """
 
         return report

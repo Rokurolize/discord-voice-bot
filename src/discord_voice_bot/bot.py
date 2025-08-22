@@ -8,7 +8,6 @@ from typing import Any
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
-
 from loguru import logger
 
 from .config import config
