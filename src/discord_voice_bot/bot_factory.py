@@ -105,6 +105,7 @@ class BotFactory:
 
         Args:
             bot: Bot instance to setup components for
+            config: Configuration object used by components during initialization.
 
         """
         logger.info("Setting up bot components...")

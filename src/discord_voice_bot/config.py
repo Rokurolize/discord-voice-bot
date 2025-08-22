@@ -1,6 +1,7 @@
 """Configuration management for Discord Voice TTS Bot."""
 
 import os
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -149,16 +150,10 @@ class Config:
             raise ValueError("Message queue size must be positive")
 
 
-# Global configuration instance - created lazily
-_config: Config | None = None
-
-
+@lru_cache(maxsize=1)
 def get_config() -> Config:
-    """Get the global configuration instance, creating it if necessary."""
-    global _config
-    if _config is None:
-        _config = Config()
-    return _config
+    """Return a process-wide singleton Config without using globals."""
+    return Config()
 
 
 # For backward compatibility, provide config instance

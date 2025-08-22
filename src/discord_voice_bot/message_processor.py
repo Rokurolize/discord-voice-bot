@@ -3,6 +3,7 @@
 import re
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
+from functools import lru_cache
 from typing import Any
 
 from loguru import logger
@@ -350,16 +351,10 @@ class MessageProcessor:
         }
 
 
-# Global message processor instance - created lazily
-_message_processor: MessageProcessor | None = None
-
-
+@lru_cache(maxsize=1)
 def get_message_processor() -> MessageProcessor:
-    """Get the global message processor instance, creating it if necessary."""
-    global _message_processor
-    if _message_processor is None:
-        _message_processor = MessageProcessor()
-    return _message_processor
+    """Return a process-wide singleton MessageProcessor without globals."""
+    return MessageProcessor()
 
 
 # For backward compatibility, provide message_processor instance

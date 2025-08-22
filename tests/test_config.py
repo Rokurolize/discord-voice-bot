@@ -195,7 +195,7 @@ class TestConfig:
         """Test Config loads from .env files."""
         with patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "test_token", "PYTEST_CURRENT_TEST": "1"}, clear=True):
             with patch("discord_voice_bot.config.Path.exists", return_value=True), patch("discord_voice_bot.config.load_dotenv") as mock_load_dotenv:
-                config = Config()
+                Config()
 
                 # Should try to load from both secrets file and local .env
                 assert mock_load_dotenv.call_count == 2

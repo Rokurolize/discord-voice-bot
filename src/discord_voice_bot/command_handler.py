@@ -184,70 +184,66 @@ class CommandHandler:
         """
         return [name for name, cmd in self._commands.items() if "alias_for" not in cmd]
 
+    def get_command_info(self, command_name: str) -> dict[str, Any] | None:
+        """Get detailed information about a command.
 
-def get_command_info(self, command_name: str) -> dict[str, Any] | None:
-    """Get detailed information about a command.
+        Args:
+            command_name: Name of the command
 
-    Args:
-        command_name: Name of the command
+        Returns:
+            Dictionary with command information, or None if not found
 
-    Returns:
-        Dictionary with command information, or None if not found
+        """
+        command = self._commands.get(command_name)
+        if not command or "alias_for" in command:
+            return None
 
-    """
-    command = self._commands.get(command_name)
-    if not command or "alias_for" in command:
-        return None
+        return {
+            "name": command_name,
+            "aliases": command.get("aliases", []),
+            "help_text": command.get("help_text", ""),
+            "usage": command.get("usage", ""),
+            "permissions": command.get("permissions", []),
+        }
 
-    return {
-        "name": command_name,
-        "aliases": command.get("aliases", []),
-        "help_text": command.get("help_text", ""),
-        "usage": command.get("usage", ""),
-        "permissions": command.get("permissions", []),
-    }
+    def unregister_command(self, name: str) -> bool:
+        """Unregister a command.
 
+        Args:
+            name: Command name to unregister
 
-def unregister_command(self, name: str) -> bool:
-    """Unregister a command.
+        Returns:
+            True if command was unregistered, False otherwise
 
-    Args:
-        name: Command name to unregister
+        """
+        if name not in self._commands:
+            return False
 
-    Returns:
-        True if command was unregistered, False otherwise
+        # Remove command and its aliases
+        command = self._commands[name]
+        if "alias_for" not in command:  # Not an alias
+            aliases = command.get("aliases", [])
+            for alias in aliases:
+                if alias in self._commands:
+                    del self._commands[alias]
 
-    """
-    if name not in self._commands:
-        return False
+        del self._commands[name]
+        logger.info(f"Unregistered command: {name}")
+        return True
 
-    # Remove command and its aliases
-    command = self._commands[name]
-    if "alias_for" not in command:  # Not an alias
-        aliases = command.get("aliases", [])
-        for alias in aliases:
-            if alias in self._commands:
-                del self._commands[alias]
+    def clear_commands(self) -> None:
+        """Clear all registered commands."""
+        self._commands.clear()
+        logger.info("Cleared all commands")
 
-    del self._commands[name]
-    logger.info(f"Unregistered command: {name}")
-    return True
+    def has_command(self, name: str) -> bool:
+        """Check if a command exists.
 
+        Args:
+            name: Command name to check
 
-def clear_commands(self) -> None:
-    """Clear all registered commands."""
-    self._commands.clear()
-    logger.info("Cleared all commands")
+        Returns:
+            True if command exists, False otherwise
 
-
-def has_command(self, name: str) -> bool:
-    """Check if a command exists.
-
-    Args:
-        name: Command name to check
-
-    Returns:
-        True if command exists, False otherwise
-
-    """
-    return name in self._commands and "alias_for" not in self._commands[name]
+        """
+        return name in self._commands and "alias_for" not in self._commands[name]
