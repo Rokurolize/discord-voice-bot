@@ -161,7 +161,7 @@ class BotFactory:
         """
         from .event_handler import EventHandler
 
-        handler = EventHandler(bot, config_manager)  # type: ignore[arg-type]
+        handler = EventHandler(bot, config_manager)
         return handler
 
     async def _create_command_handler(self, bot: "DiscordVoiceTTSBot") -> "CommandHandler":

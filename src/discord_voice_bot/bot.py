@@ -77,11 +77,11 @@ class DiscordVoiceTTSBot(DiscordVoiceBotTTS, commands.Bot):
         from .slash.registry import SlashCommandRegistry as SlashCommandHandler
 
         # Type ignore needed due to discord.py inheritance complexities
-        self.event_handler = EventHandler(self, self.config_manager)  # type: ignore[arg-type]
+        self.event_handler = EventHandler(self, self.config_manager)
         self.command_handler = CommandHandler(self)
         self.slash_handler = SlashCommandHandler(self)
-        self.voice_handler = VoiceHandler(self, self.config_manager)  # type: ignore[arg-type]
-        self.health_monitor = HealthMonitor(self, self.config_manager)  # type: ignore[arg-type]
+        self.voice_handler = VoiceHandler(self, self.config_manager)
+        self.health_monitor = HealthMonitor(self, self.config_manager)
 
         self._setup_events()
         self._setup_commands()
