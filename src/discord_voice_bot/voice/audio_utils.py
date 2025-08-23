@@ -68,7 +68,8 @@ def calculate_message_priority(item: dict[str, Any]) -> int:
 async def create_temp_audio_file(audio_data: bytes, suffix: str = ".wav") -> str:
     """Create a temporary audio file with the given data."""
     with tempfile.NamedTemporaryFile(mode="wb", suffix=suffix, delete=False) as f:
-        f.write(audio_data)
+        result = f.write(audio_data)
+        _ = result  # Handle unused result
         return f.name
 
 

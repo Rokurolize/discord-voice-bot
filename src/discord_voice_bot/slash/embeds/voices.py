@@ -7,8 +7,15 @@ async def create_voices_embed() -> discord.Embed:
     """Create voices embed showing available speakers."""
     try:
         from ...config import config
-        from ...tts_engine import tts_engine
-        from ...user_settings import user_settings
+
+        # Create TTS engine instance
+        from ...config_manager import ConfigManagerImpl
+        from ...tts_engine import get_tts_engine
+        from ...user_settings import get_user_settings
+
+        config_manager = ConfigManagerImpl()
+        tts_engine = get_tts_engine(config_manager)
+        user_settings = get_user_settings()
 
         speakers = await tts_engine.get_available_speakers()
 
@@ -39,13 +46,13 @@ async def create_voices_embed() -> discord.Embed:
                 marker = "🔹" if name == current_speaker else "▫️"
                 field_lines.append(f"{marker} `{name}` ({speaker_id})")
 
-            embed.add_field(name=base_name.title(), value="\n".join(field_lines), inline=True)
+            _ = embed.add_field(name=base_name.title(), value="\n".join(field_lines), inline=True)
 
         # Add current setting info
         if current_speaker:
-            embed.set_footer(text=f"Your current voice: {current_speaker}")
+            _ = embed.set_footer(text=f"Your current voice: {current_speaker}")
         else:
-            embed.set_footer(text="You're using the default voice")
+            _ = embed.set_footer(text="You're using the default voice")
 
         return embed
 

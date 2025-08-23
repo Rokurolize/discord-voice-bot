@@ -7,7 +7,7 @@ import discord
 from loguru import logger
 
 if TYPE_CHECKING:
-    from ..handler import VoiceHandler
+    from ..handler import VoiceHandlerInterface
 
 from ..audio_utils import cleanup_file
 
@@ -15,7 +15,8 @@ from ..audio_utils import cleanup_file
 class PlayerWorker:
     """Worker for processing audio playback requests."""
 
-    def __init__(self, voice_handler: "VoiceHandler"):
+    def __init__(self, voice_handler: "VoiceHandlerInterface"):
+        super().__init__()
         self.voice_handler = voice_handler
 
     async def run(self) -> None:

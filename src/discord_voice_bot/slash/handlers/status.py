@@ -17,8 +17,8 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
             # Fallback to basic status
             embed = await create_basic_status_embed()
 
-        await interaction.response.send_message(embed=embed)
+        _ = await interaction.response.send_message(embed=embed)
 
     except Exception as e:
         logger.error(f"Error in status slash command: {e}")
-        await interaction.response.send_message("❌ Error retrieving status", ephemeral=True)
+        _ = await interaction.response.send_message("❌ Error retrieving status", ephemeral=True)

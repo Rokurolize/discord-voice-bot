@@ -10,6 +10,7 @@ class VoiceGatewayManager:
     """Manages voice gateway connections following Discord's official steps."""
 
     def __init__(self, voice_client: discord.VoiceClient):
+        super().__init__()
         self.voice_client = voice_client
         self._session_id: str | None = None
         self._token: str | None = None

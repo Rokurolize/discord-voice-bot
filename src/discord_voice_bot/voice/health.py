@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING, Any
 from loguru import logger
 
 if TYPE_CHECKING:
-    from .handler import VoiceHandler
+    from .handler import VoiceHandlerInterface
 
 
-async def health_check(voice_handler: "VoiceHandler") -> dict[str, Any]:
+async def health_check(voice_handler: "VoiceHandlerInterface") -> dict[str, Any]:
     """Perform comprehensive voice connection health check."""
     logger.debug("🔍 Performing voice connection health check...")
 
@@ -62,7 +62,11 @@ async def health_check(voice_handler: "VoiceHandler") -> dict[str, Any]:
 
     # Check TTS synthesis capability
     try:
-        from ..tts_engine import tts_engine
+        from ..config_manager import ConfigManagerImpl
+        from ..tts_engine import get_tts_engine
+
+        config_manager = ConfigManagerImpl()
+        tts_engine = get_tts_engine(config_manager)
 
         if await tts_engine.health_check():
             health_status["can_synthesize"] = True

@@ -1,19 +1,18 @@
 """Voice slash command handler."""
 
-from typing import Optional
-
 import discord
 from loguru import logger
 
 from ...bot import DiscordVoiceTTSBot
 
 
-async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, speaker: Optional[str] = None) -> None:
+async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, speaker: str | None = None) -> None:
     """Handle voice slash command."""
     try:
-        from ...user_settings import user_settings
+        from ...user_settings import get_user_settings
 
         user_id = str(interaction.user.id)
+        user_settings = get_user_settings()
 
         # If no speaker specified, show current setting
         if speaker is None:
@@ -30,25 +29,28 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, spea
                     color=discord.Color.greyple(),
                     description="No custom voice set. Using default voice.",
                 )
-            embed.add_field(
+            _ = embed.add_field(
                 name="Commands",
                 value="`/voice <name>` - Set voice\n`/voice reset` - Reset to default\n`/voices` - List available",
                 inline=False,
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            _ = await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
         # Handle reset
         if speaker.lower() == "reset":
             if user_settings.remove_user_speaker(user_id):
-                await interaction.response.send_message("✅ Voice preference reset to default", ephemeral=True)
+                _ = await interaction.response.send_message("✅ Voice preference reset to default", ephemeral=True)
             else:
-                await interaction.response.send_message("ℹ️ You don't have a custom voice set", ephemeral=True)
+                _ = await interaction.response.send_message("ℹ️ You don't have a custom voice set", ephemeral=True)
             return
 
         # Get available speakers
-        from ...tts_engine import tts_engine
+        from ...config_manager import ConfigManagerImpl
+        from ...tts_engine import get_tts_engine
 
+        config_manager = ConfigManagerImpl()
+        tts_engine = get_tts_engine(config_manager)
         speakers = await tts_engine.get_available_speakers()
         from ...config import config
 
@@ -66,7 +68,7 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, spea
         if matched_speaker and matched_id is not None:
             # Pass current engine to ensure proper mapping
             if user_settings.set_user_speaker(user_id, matched_id, matched_speaker, config.tts_engine):
-                await interaction.response.send_message(f"✅ Voice set to **{matched_speaker}** (ID: {matched_id}) on {config.tts_engine.upper()}", ephemeral=True)
+                _ = await interaction.response.send_message(f"✅ Voice set to **{matched_speaker}** (ID: {matched_id}) on {config.tts_engine.upper()}", ephemeral=True)
                 # Test the new voice
                 test_text = f"{matched_speaker}の声です"
                 if hasattr(bot, "voice_handler") and bot.voice_handler:
@@ -80,12 +82,12 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, spea
                         "chunks": chunks,
                         "group_id": f"slash_voice_test_{interaction.id}",
                     }
-                    await bot.voice_handler.add_to_queue(processed_message)
+                    _ = await bot.voice_handler.add_to_queue(processed_message)
             else:
-                await interaction.response.send_message("❌ Failed to save voice preference", ephemeral=True)
+                _ = await interaction.response.send_message("❌ Failed to save voice preference", ephemeral=True)
         else:
-            await interaction.response.send_message(f"❌ Voice '{speaker}' not found. Use `/voices` to see available options.", ephemeral=True)
+            _ = await interaction.response.send_message(f"❌ Voice '{speaker}' not found. Use `/voices` to see available options.", ephemeral=True)
 
     except Exception as e:
         logger.error(f"Error in voice slash command: {e}")
-        await interaction.response.send_message("❌ Error setting voice preference", ephemeral=True)
+        _ = await interaction.response.send_message("❌ Error setting voice preference", ephemeral=True)

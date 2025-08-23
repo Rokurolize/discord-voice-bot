@@ -84,15 +84,15 @@ async def run_minimal_tests():
     print("🧪 MINIMAL AIVISPEECH API PITCH TEST")
     print("🎯 Testing raw API calls to isolate high-pitch issue\n")
 
-    test_text = "Pitch test: Please check the pitch of this audio."
-    generated_files = []
+    test_text: str = "Pitch test: Please check the pitch of this audio."
+    generated_files: list[str] = []
 
     OUTPUT_DIR.mkdir(exist_ok=True)
 
     for i, config in enumerate(TEST_CONFIGS, 1):
-        speaker = config["speaker"]
-        pitch_scale = config["pitchScale"]
-        file_name = config["name"]
+        speaker: int = int(config["speaker"])
+        pitch_scale: float = float(config["pitchScale"])
+        file_name: str = str(config["name"])
 
         print(f"🎤 Test {i}/{len(TEST_CONFIGS)}: {file_name}")
 
@@ -103,7 +103,7 @@ async def run_minimal_tests():
             # Save audio file
             output_path = OUTPUT_DIR / f"{file_name}.wav"
             with open(output_path, "wb") as f:
-                f.write(audio_data)
+                _ = f.write(audio_data)
 
             file_size = len(audio_data)
             print(f"  ✅ Generated: {output_path} ({file_size} bytes)")
@@ -128,7 +128,7 @@ async def run_minimal_tests():
     print("   - Compare Zundamon vs Anneli speakers")
 
     print("\n🎯 KEY FILES TO CHECK:")
-    key_files = [f for f in generated_files if "raw" in f or "aggressive" in f]
+    key_files: list[str] = [f for f in generated_files if "raw" in f or "aggressive" in f]
     for file_path in key_files:
         print(f"   {file_path}")
 

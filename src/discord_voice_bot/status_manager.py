@@ -4,7 +4,7 @@ import asyncio
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 import discord
 from loguru import logger
@@ -17,8 +17,8 @@ class BotStats:
     messages_processed: int = 0
     tts_messages_played: int = 0
     connection_errors: int = 0
-    uptime_start: Optional[float] = None
-    command_usage: dict[str, int] = field(default_factory=dict)
+    uptime_start: float | None = None
+    command_usage: dict[str, int] = field(default_factory=dict)  # type: ignore[misc]
     voice_connections: int = 0
     voice_disconnections: int = 0
     failed_tts_requests: int = 0
@@ -32,13 +32,13 @@ class VoiceStatus:
     """Voice connection status."""
 
     connected: bool = False
-    channel_name: Optional[str] = None
-    channel_id: Optional[int] = None
+    channel_name: str | None = None
+    channel_id: int | None = None
     is_playing: bool = False
     queue_size: int = 0
-    current_group: Optional[str] = None
-    connection_time: Optional[float] = None
-    last_activity: Optional[float] = None
+    current_group: str | None = None
+    connection_time: float | None = None
+    last_activity: float | None = None
 
 
 @dataclass
@@ -49,7 +49,7 @@ class SystemHealth:
     voice_system_healthy: bool = True
     memory_usage: float = 0.0
     cpu_usage: float = 0.0
-    last_health_check: Optional[float] = None
+    last_health_check: float | None = None
     health_check_failures: int = 0
 
 
@@ -58,6 +58,7 @@ class StatusManager:
 
     def __init__(self) -> None:
         """Initialize status manager."""
+        super().__init__()
         self.stats = BotStats()
         self.voice_status = VoiceStatus()
         self.health = SystemHealth()
@@ -126,7 +127,7 @@ class StatusManager:
 
         # Keep only last 100 response times
         if len(self._response_times) > 100:
-            self._response_times.pop(0)
+            _ = self._response_times.pop(0)
 
         # Update average response time
         if self._response_times:
@@ -134,12 +135,12 @@ class StatusManager:
 
     def update_voice_status(
         self,
-        connected: Optional[bool] = None,
-        channel_name: Optional[str] = None,
-        channel_id: Optional[int] = None,
-        is_playing: Optional[bool] = None,
-        queue_size: Optional[int] = None,
-        current_group: Optional[str] = None,
+        connected: bool | None = None,
+        channel_name: str | None = None,
+        channel_id: int | None = None,
+        is_playing: bool | None = None,
+        queue_size: int | None = None,
+        current_group: str | None = None,
     ) -> None:
         """Update voice connection status.
 
@@ -176,10 +177,10 @@ class StatusManager:
 
     def update_system_health(
         self,
-        tts_engine_healthy: Optional[bool] = None,
-        voice_system_healthy: Optional[bool] = None,
-        memory_usage: Optional[float] = None,
-        cpu_usage: Optional[float] = None,
+        tts_engine_healthy: bool | None = None,
+        voice_system_healthy: bool | None = None,
+        memory_usage: float | None = None,
+        cpu_usage: float | None = None,
     ) -> None:
         """Update system health metrics.
 
@@ -369,8 +370,44 @@ class StatusManager:
         for callback in self._status_update_callbacks:
             try:
                 if asyncio.iscoroutinefunction(callback):
-                    asyncio.create_task(callback())
+                    _ = asyncio.create_task(callback())
                 else:
                     callback()
             except Exception as e:
                 logger.error(f"Error in status callback: {e}")
+
+    # Test access methods
+    def get_command_timings(self) -> dict[str, list[float]]:
+        """Get command timings for testing.
+
+        Returns:
+            Dictionary of command timings
+
+        """
+        return self._command_timings.copy()
+
+    def get_response_times(self) -> list[float]:
+        """Get response times for testing.
+
+        Returns:
+            List of response times
+
+        """
+        return self._response_times.copy()
+
+    def get_status_update_callbacks(self) -> list[Callable[[], Any]]:
+        """Get status update callbacks for testing.
+
+        Returns:
+            List of status update callbacks
+
+        """
+        return self._status_update_callbacks.copy()
+
+    def notify_status_callbacks_for_testing(self) -> None:
+        """Notify all status update callbacks for testing purposes.
+
+        This is a public method to allow tests to trigger callback notifications
+        without accessing private methods.
+        """
+        self._notify_status_callbacks()

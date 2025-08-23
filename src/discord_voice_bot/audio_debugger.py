@@ -21,6 +21,7 @@ class AudioDebugger:
             debug_dir: Directory to save debug audio files
 
         """
+        super().__init__()
         self.debug_dir = Path(debug_dir)
         self.debug_dir.mkdir(exist_ok=True)
         self.session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -58,7 +59,7 @@ class AudioDebugger:
 
         # Save audio data
         with open(filepath, "wb") as f:
-            f.write(audio_data)
+            _ = f.write(audio_data)
 
         # Create metadata
         debug_entry = {

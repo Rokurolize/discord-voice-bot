@@ -4,12 +4,16 @@ import discord
 from discord import app_commands
 from loguru import logger
 
-from ...tts_engine import tts_engine
+from ...config_manager import ConfigManagerImpl
+from ...tts_engine import get_tts_engine
 
 
 async def voice_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     """Provide autocomplete suggestions for voice selection."""
     try:
+        # Create TTS engine instance for autocomplete
+        config_manager = ConfigManagerImpl()
+        tts_engine = get_tts_engine(config_manager)
         speakers = await tts_engine.get_available_speakers()
 
         # Filter speakers based on current input

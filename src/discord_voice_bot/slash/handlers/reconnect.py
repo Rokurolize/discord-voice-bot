@@ -11,12 +11,12 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
     try:
         if not hasattr(bot, "voice_handler") or not bot.voice_handler:
             embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.red(), description="❌ Voice handler not initialized")
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            _ = await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
         embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.orange(), description="Attempting to reconnect to voice channel...")
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        _ = await interaction.response.send_message(embed=embed, ephemeral=True)
 
         try:
             # Attempt reconnection
@@ -31,21 +31,21 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
             if success and new_status["connected"]:
                 embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.green(), description="✅ Successfully reconnected to voice channel!")
 
-                embed.add_field(name="📍 Channel Info", value=f"Name: {new_status['voice_channel_name']}\nID: {new_status['voice_channel_id']}", inline=True)
+                _ = embed.add_field(name="📍 Channel Info", value=f"Name: {new_status['voice_channel_name']}\nID: {new_status['voice_channel_id']}", inline=True)
 
-                embed.add_field(name="📊 Queue Status", value=f"Ready: {new_status['audio_queue_size']} chunks\nSynthesizing: {new_status['synthesis_queue_size']} chunks", inline=True)
+                _ = embed.add_field(name="📊 Queue Status", value=f"Ready: {new_status['audio_queue_size']} chunks\nSynthesizing: {new_status['synthesis_queue_size']} chunks", inline=True)
 
                 logger.info(f"✅ MANUAL RECONNECTION SUCCESSFUL - Connected to {new_status['voice_channel_name']}")
             else:
                 embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.red(), description="❌ Reconnection failed")
 
-                embed.add_field(
+                _ = embed.add_field(
                     name="🔍 Troubleshooting",
                     value="Check the bot logs for detailed error information.\nCommon issues:\n• Bot lacks 'Connect' permission\n• Channel is full\n• Network connectivity issues",
                     inline=False,
                 )
 
-                embed.add_field(name="🔧 Next Steps", value="Use `/voicecheck` for detailed diagnostics\nContact bot administrator if issues persist", inline=False)
+                _ = embed.add_field(name="🔧 Next Steps", value="Use `/voicecheck` for detailed diagnostics\nContact bot administrator if issues persist", inline=False)
 
                 logger.error("❌ MANUAL RECONNECTION FAILED - Check logs for detailed error information")
 
@@ -53,8 +53,8 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
             embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.red(), description=f"❌ Error during reconnection: {e}")
             logger.error(f"💥 CRITICAL ERROR during manual reconnection: {e}")
 
-        await interaction.edit_original_response(embed=embed)
+        _ = await interaction.edit_original_response(embed=embed)
 
     except Exception as e:
         logger.error(f"Error in reconnect slash command: {e}")
-        await interaction.response.send_message("❌ Error during reconnection", ephemeral=True)
+        _ = await interaction.response.send_message("❌ Error during reconnection", ephemeral=True)

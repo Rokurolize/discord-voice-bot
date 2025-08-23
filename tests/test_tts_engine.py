@@ -4,7 +4,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from discord_voice_bot.tts_engine import tts_engine  # Use the singleton
+from discord_voice_bot.config_manager import ConfigManagerImpl
+from discord_voice_bot.tts_engine import TTSEngine
 
 
 class TestHealthCheck:
@@ -14,6 +15,8 @@ class TestHealthCheck:
     async def test_health_check_returns_bool(self):
         """Health check should return a boolean."""
         # We can't easily mock the internal session, so just test the interface
+        config_manager = ConfigManagerImpl()
+        tts_engine = TTSEngine(config_manager)
         result = await tts_engine.health_check()
         assert isinstance(result, bool)
 
@@ -24,12 +27,16 @@ class TestSynthesizeAudio:
     @pytest.mark.asyncio
     async def test_synthesize_audio_with_empty_text(self):
         """Empty text should return None."""
+        config_manager = ConfigManagerImpl()
+        tts_engine = TTSEngine(config_manager)
         result = await tts_engine.synthesize_audio("")
         assert result is None
 
     @pytest.mark.asyncio
     async def test_synthesize_audio_interface(self):
         """Test synthesize_audio interface."""
+        config_manager = ConfigManagerImpl()
+        tts_engine = TTSEngine(config_manager)
         # Mock the internal API call
         with patch.object(tts_engine, "_session") as mock_session:
             mock_response = AsyncMock()
@@ -41,7 +48,7 @@ class TestSynthesizeAudio:
             mock_session.get.return_value.__aenter__.return_value = mock_response
 
             # This might still fail due to actual API calls, but tests the interface
-            await tts_engine.synthesize_audio("Test", speaker_id=3)
+            _ = await tts_engine.synthesize_audio("Test", speaker_id=3)
             # Can't guarantee result without full mocking
 
 
@@ -51,6 +58,8 @@ class TestEngineLifecycle:
     @pytest.mark.asyncio
     async def test_close_method_exists(self):
         """Close method should exist and be callable."""
+        config_manager = ConfigManagerImpl()
+        tts_engine = TTSEngine(config_manager)
         # Just test that the method exists and doesn't raise
         try:
             await tts_engine.close()

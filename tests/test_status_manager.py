@@ -1,7 +1,8 @@
 """Tests for StatusManager component - TDD Approach (Red-Green-Refactor)."""
 
 import unittest
-from unittest.mock import patch
+from typing import override
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -12,6 +13,9 @@ from .base_test import BaseTestCase
 
 class TestBotStats(BaseTestCase):
     """Test cases for BotStats data class."""
+
+    def runTest(self) -> None:
+        """Default test method for unittest compatibility."""
 
     def test_bot_stats_initialization(self) -> None:
         """Test BotStats initializes with correct default values."""
@@ -33,6 +37,9 @@ class TestBotStats(BaseTestCase):
 class TestVoiceStatus(BaseTestCase):
     """Test cases for VoiceStatus data class."""
 
+    def runTest(self) -> None:
+        """Default test method for unittest compatibility."""
+
     def test_voice_status_initialization(self) -> None:
         """Test VoiceStatus initializes with correct default values."""
         voice_status = VoiceStatus()
@@ -50,6 +57,9 @@ class TestVoiceStatus(BaseTestCase):
 class TestSystemHealth(BaseTestCase):
     """Test cases for SystemHealth data class."""
 
+    def runTest(self) -> None:
+        """Default test method for unittest compatibility."""
+
     def test_system_health_initialization(self) -> None:
         """Test SystemHealth initializes with correct default values."""
         health = SystemHealth()
@@ -62,11 +72,22 @@ class TestSystemHealth(BaseTestCase):
         self.assertEqual(health.health_check_failures, 0)
 
 
-class TestStatusManager:
+class TestStatusManager(BaseTestCase):
     """Test cases for StatusManager - Main component."""
 
-    def setup_method(self) -> None:
+    def __init__(self, methodName: str = "runTest") -> None:
+        """Initialize test case."""
+        super().__init__(methodName)
+        self.status_manager: StatusManager
+
+    def runTest(self) -> None:
+        """Default test method for unittest compatibility."""
+        # This method is needed when no specific test method is provided
+
+    @override
+    def setUp(self) -> None:
         """Set up test fixtures."""
+        super().setUp()
         self.status_manager = StatusManager()
 
     def test_initialization(self) -> None:
@@ -75,9 +96,9 @@ class TestStatusManager:
         assert isinstance(self.status_manager.voice_status, VoiceStatus)
         assert isinstance(self.status_manager.health, SystemHealth)
         assert self.status_manager.stats.uptime_start is not None
-        assert self.status_manager._command_timings == {}
-        assert self.status_manager._response_times == []
-        assert self.status_manager._status_update_callbacks == []
+        assert self.status_manager.get_command_timings() == {}
+        assert self.status_manager.get_response_times() == []
+        assert self.status_manager.get_status_update_callbacks() == []
 
     def test_record_message_processed(self) -> None:
         """Test recording a processed message."""
@@ -110,8 +131,9 @@ class TestStatusManager:
         self.status_manager.record_command_usage(command_name)
 
         assert self.status_manager.stats.command_usage[command_name] == 1
-        assert command_name in self.status_manager._command_timings
-        assert len(self.status_manager._command_timings[command_name]) == 1
+        command_timings = self.status_manager.get_command_timings()
+        assert command_name in command_timings
+        assert len(command_timings[command_name]) == 1
 
     def test_record_voice_connection(self) -> None:
         """Test recording voice connection."""
@@ -151,8 +173,9 @@ class TestStatusManager:
 
         self.status_manager.record_response_time(response_time)
 
-        self.assertEqual(len(self.status_manager._response_times), 1)
-        self.assertEqual(self.status_manager._response_times[0], response_time)
+        response_times = self.status_manager.get_response_times()
+        self.assertEqual(len(response_times), 1)
+        self.assertEqual(response_times[0], response_time)
         self.assertAlmostEqual(self.status_manager.stats.average_response_time, response_time)
 
     def test_record_multiple_response_times(self) -> None:
@@ -163,16 +186,18 @@ class TestStatusManager:
         for rt in response_times:
             self.status_manager.record_response_time(rt)
 
-        self.assertEqual(len(self.status_manager._response_times), 3)
+        response_times = self.status_manager.get_response_times()
+        self.assertEqual(len(response_times), 3)
         self.assertAlmostEqual(self.status_manager.stats.average_response_time, expected_average)
 
     def test_response_time_limit(self) -> None:
         """Test that response times are limited to 100 entries."""
         # Add 101 response times
-        for i in range(101):
+        for _ in range(101):
             self.status_manager.record_response_time(0.1)
 
-        self.assertEqual(len(self.status_manager._response_times), 100)
+        response_times = self.status_manager.get_response_times()
+        self.assertEqual(len(response_times), 100)
 
     def test_update_voice_status_connected(self) -> None:
         """Test updating voice status connected state."""
@@ -309,8 +334,8 @@ class TestStatusManager:
         # Check reset
         self.assertEqual(self.status_manager.stats.messages_processed, 0)
         self.assertEqual(self.status_manager.stats.command_usage, {})
-        self.assertEqual(self.status_manager._command_timings, {})
-        self.assertEqual(self.status_manager._response_times, [])
+        self.assertEqual(self.status_manager.get_command_timings(), {})
+        self.assertEqual(self.status_manager.get_response_times(), [])
         self.assertIsNotNone(self.status_manager.stats.uptime_start)  # Should be reset
 
     def test_status_callbacks(self) -> None:
@@ -325,7 +350,7 @@ class TestStatusManager:
         self.status_manager.add_status_callback(test_callback)
 
         # Notify callbacks
-        self.status_manager._notify_status_callbacks()
+        self.status_manager.notify_status_callbacks_for_testing()
 
         self.assertTrue(callback_called)
 
@@ -342,14 +367,14 @@ class TestStatusManager:
         self.status_manager.remove_status_callback(test_callback)
 
         # Notify callbacks
-        self.status_manager._notify_status_callbacks()
+        self.status_manager.notify_status_callbacks_for_testing()
 
         self.assertFalse(callback_called)
 
     @patch("asyncio.iscoroutinefunction", return_value=True)
     @patch("asyncio.create_task")
     @pytest.mark.asyncio
-    async def test_async_status_callback(self, mock_create_task, mock_iscoroutine) -> None:
+    async def test_async_status_callback(self, mock_create_task: MagicMock, mock_iscoroutine: MagicMock) -> None:
         """Test async status update callbacks."""
         from unittest.mock import AsyncMock
 
@@ -364,7 +389,7 @@ class TestStatusManager:
         self.status_manager.add_status_callback(async_callback)
 
         # Notify callbacks
-        self.status_manager._notify_status_callbacks()
+        self.status_manager.notify_status_callbacks_for_testing()
 
         # Verify create_task was called once
         assert mock_create_task.call_count == 1
@@ -382,10 +407,10 @@ class TestStatusManager:
 
         # Should not raise exception
         try:
-            self.status_manager._notify_status_callbacks()
+            self.status_manager.notify_status_callbacks_for_testing()
         except Exception:
             self.fail("Callback error should be handled gracefully")
 
 
 if __name__ == "__main__":
-    unittest.main()
+    _ = unittest.main()

@@ -8,6 +8,7 @@ class SimpleRateLimiter:
     """Simple rate limiter that respects Discord's global limit."""
 
     def __init__(self) -> None:
+        super().__init__()
         self.last_request_time = 0.0
 
     async def wait_if_needed(self) -> None:
@@ -31,6 +32,7 @@ class CircuitBreaker:
     """Circuit breaker pattern for API failure handling."""
 
     def __init__(self, failure_threshold: int = 5, recovery_timeout: float = 60.0) -> None:
+        super().__init__()
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
         self.failure_count = 0
@@ -77,3 +79,12 @@ class CircuitBreaker:
     def get_state(self) -> dict[str, Any]:
         """Get current circuit breaker state."""
         return {"state": self.state, "failure_count": self.failure_count, "last_failure_time": self.last_failure_time}
+
+    def reset(self) -> None:
+        """Reset the circuit breaker to closed state."""
+        self.state = "CLOSED"
+        self.failure_count = 0
+        self.last_failure_time = 0.0
+        from loguru import logger
+
+        logger.info("Circuit breaker manually reset to CLOSED state")

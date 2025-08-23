@@ -3,12 +3,12 @@
 import asyncio
 import time
 from dataclasses import dataclass, field
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 import discord
 from loguru import logger
 
-from .config import config
+from .protocols import ConfigManager, DiscordBotClient
 
 
 @dataclass
@@ -19,7 +19,7 @@ class FailureRecord:
     failure_type: str
     details: str
     resolved: bool = False
-    resolution_time: Optional[float] = None
+    resolution_time: float | None = None
 
 
 @dataclass
@@ -37,12 +37,14 @@ class HealthStatus:
 class HealthMonitor:
     """Comprehensive health monitoring system with automatic termination."""
 
-    def __init__(self, bot_client: discord.Client):
+    def __init__(self, bot_client: discord.Client | DiscordBotClient, config_manager: ConfigManager):
         """Initialize health monitor."""
+        super().__init__()
         self.bot = bot_client
+        self._config_manager = config_manager
         self.status = HealthStatus()
-        self._monitoring_task: Optional[asyncio.Task[None]] = None
-        self._permission_check_task: Optional[asyncio.Task[None]] = None
+        self._monitoring_task: asyncio.Task[None] | None = None
+        self._permission_check_task: asyncio.Task[None] | None = None
         self._termination_conditions: dict[str, dict[str, Any]] = {
             "voice_disconnections_10min": {"max": 5, "window": 600, "count": 0, "last_reset": time.time()},
             "voice_disconnections_30min": {"max": 10, "window": 1800, "count": 0, "last_reset": time.time()},
@@ -50,7 +52,7 @@ class HealthMonitor:
             "api_unavailable_duration": {"max": 900, "window": None, "count": 0, "last_reset": time.time()},  # 15 minutes
         }
         self._graceful_shutdown = False
-        self._shutdown_reason: Optional[str] = None
+        self._shutdown_reason: str | None = None
 
     async def start(self) -> None:
         """Start health monitoring tasks."""
@@ -65,14 +67,14 @@ class HealthMonitor:
     async def stop(self) -> None:
         """Stop health monitoring tasks."""
         if self._monitoring_task:
-            self._monitoring_task.cancel()
+            _ = self._monitoring_task.cancel()
             try:
                 await self._monitoring_task
             except asyncio.CancelledError:
                 pass
 
         if self._permission_check_task:
-            self._permission_check_task.cancel()
+            _ = self._permission_check_task.cancel()
             try:
                 await self._permission_check_task
             except asyncio.CancelledError:
@@ -155,8 +157,9 @@ class HealthMonitor:
 
         # Check TTS API health
         try:
-            from .tts_engine import tts_engine
+            from .tts_engine import get_tts_engine
 
+            tts_engine = get_tts_engine(self._config_manager)
             api_healthy = await tts_engine.health_check()
             if not api_healthy:
                 issues.append("TTS API health check failed")
@@ -188,8 +191,8 @@ class HealthMonitor:
 
         # Update health status
         self.status.healthy = len(issues) == 0
-        self.status.issues = issues  # type: ignore[assignment]
-        self.status.recommendations = recommendations  # type: ignore[assignment]
+        self.status.issues = issues
+        self.status.recommendations = recommendations
         self.status.last_check = time.time()
 
         if not self.status.healthy:
@@ -256,7 +259,7 @@ class HealthMonitor:
                         logger.warning(f"⚠️ Missing permissions in {guild.name}: {', '.join(missing_perms)}")
 
                         # Check if this affects our target channel
-                        target_channel = self.bot.get_channel(config.target_voice_channel_id)
+                        target_channel = self.bot.get_channel(self._config_manager.get_target_voice_channel_id())
                         if target_channel and hasattr(target_channel, "guild") and target_channel.guild == guild:  # type: ignore[attr-defined]
                             logger.error(f"🚨 Critical permissions missing in target guild {guild.name}")
                             self._trigger_termination(f"Missing critical permissions: {', '.join(missing_perms)}")
@@ -271,9 +274,10 @@ class HealthMonitor:
         issues: list[str] = []
 
         try:
-            target_channel = self.bot.get_channel(config.target_voice_channel_id)
+            target_channel_id = self._config_manager.get_target_voice_channel_id()
+            target_channel = self.bot.get_channel(target_channel_id)
             if not target_channel:
-                issues.append(f"Target voice channel {config.target_voice_channel_id} not found")
+                issues.append(f"Target voice channel {target_channel_id} not found")
                 return False, issues
 
             if not isinstance(target_channel, (discord.VoiceChannel, discord.StageChannel)):
@@ -343,7 +347,7 @@ class HealthMonitor:
                 logger.error(f"   • {failure.failure_type} ({age:.0f}s ago): {failure.details}")
 
         # Force shutdown
-        asyncio.create_task(self._perform_shutdown())
+        _ = asyncio.create_task(self._perform_shutdown())
 
     async def _perform_shutdown(self) -> None:
         """Perform graceful shutdown."""
@@ -356,9 +360,10 @@ class HealthMonitor:
                 await cast(Any, voice_handler).cleanup()  # type: ignore[attr-defined]
 
             # Stop TTS engine
-            from .tts_engine import tts_engine  # type: ignore[import, attr-defined]
+            from .tts_engine import get_tts_engine
 
-            await tts_engine.close()  # type: ignore[attr-defined]
+            tts_engine = get_tts_engine(self._config_manager)
+            await tts_engine.close()
 
             # Close Discord connection
             if not self.bot.is_closed():
@@ -390,6 +395,15 @@ class HealthMonitor:
             "graceful_shutdown": self._graceful_shutdown,
         }
 
+    # Test access method
+    async def perform_health_checks_for_testing(self) -> None:
+        """Perform health checks for testing purposes.
+
+        This is a public method to allow tests to trigger health checks
+        without accessing private methods.
+        """
+        await self._perform_health_checks()
+
 
 # Global health monitor instance
-health_monitor: Optional[HealthMonitor] = None
+health_monitor: HealthMonitor | None = None

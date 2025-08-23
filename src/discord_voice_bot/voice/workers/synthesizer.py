@@ -7,20 +7,27 @@ from typing import TYPE_CHECKING
 from loguru import logger
 
 if TYPE_CHECKING:
-    from ..handler import VoiceHandler
+    from ..handler import VoiceHandlerInterface
 
-from ...tts_engine import tts_engine
-from ...user_settings import user_settings
+from ...protocols import ConfigManager
+from ...tts_engine import get_tts_engine
+from ...user_settings import get_user_settings
 from ..audio_utils import calculate_message_priority, get_audio_size, validate_wav_format
 
 
 class SynthesizerWorker:
     """Worker for processing TTS synthesis requests."""
 
-    def __init__(self, voice_handler: "VoiceHandler"):
+    def __init__(self, voice_handler: "VoiceHandlerInterface", config_manager: ConfigManager):
+        super().__init__()
         self.voice_handler = voice_handler
+        self._config_manager = config_manager
         self.max_buffer_size = 50 * 1024 * 1024  # 50MB limit
         self.buffer_size = 0
+
+        # Initialize TTS engine and user settings with config manager
+        self._tts_engine = get_tts_engine(config_manager)
+        self._user_settings = get_user_settings()
 
     async def run(self) -> None:
         """Run the synthesis worker loop."""
@@ -37,13 +44,13 @@ class SynthesizerWorker:
                 speaker_id = None
                 engine_name = None
                 if item.get("user_id"):
-                    settings = user_settings.get_user_settings(str(item["user_id"]))
+                    settings = self._user_settings.get_user_settings(str(item["user_id"]))
                     if settings:
                         speaker_id = settings.get("speaker_id")
                         engine_name = settings.get("engine")
 
                 # Synthesize audio with format validation
-                audio_data = await tts_engine.synthesize_audio(item["text"], speaker_id=speaker_id, engine_name=engine_name)
+                audio_data = await self._tts_engine.synthesize_audio(item["text"], speaker_id=speaker_id, engine_name=engine_name)
 
                 if audio_data:
                     # Validate audio format
@@ -80,5 +87,6 @@ class SynthesizerWorker:
     async def _create_temp_audio_file(self, audio_data: bytes) -> str:
         """Create a temporary audio file with the given data."""
         with tempfile.NamedTemporaryFile(mode="wb", suffix=".wav", delete=False) as f:
-            f.write(audio_data)
+            result = f.write(audio_data)
+            _ = result  # Handle unused result
             return f.name

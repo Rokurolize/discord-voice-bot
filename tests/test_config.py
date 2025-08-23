@@ -32,7 +32,7 @@ class TestConfig:
         """Test Config raises error when required env var is missing."""
         with patch.dict(os.environ, {}, clear=True):
             with pytest.raises(ValueError, match="Required environment variable DISCORD_BOT_TOKEN is not set"):
-                Config()
+                _ = Config()
 
     def test_config_default_values(self) -> None:
         """Test Config uses proper default values."""
@@ -195,7 +195,7 @@ class TestConfig:
         """Test Config loads from .env files."""
         with patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "test_token", "PYTEST_CURRENT_TEST": "1"}, clear=True):
             with patch("discord_voice_bot.config.Path.exists", return_value=True), patch("discord_voice_bot.config.load_dotenv") as mock_load_dotenv:
-                Config()
+                _ = Config()
 
                 # Should try to load from both secrets file and local .env
                 assert mock_load_dotenv.call_count == 2

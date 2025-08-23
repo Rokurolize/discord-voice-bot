@@ -10,12 +10,12 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, text
     """Handle test slash command."""
     try:
         if not hasattr(bot, "voice_handler") or not bot.voice_handler:
-            await interaction.response.send_message("❌ Voice handler not available", ephemeral=True)
+            _ = await interaction.response.send_message("❌ Voice handler not available", ephemeral=True)
             return
 
         status = bot.voice_handler.get_status()
         if not status["connected"]:
-            await interaction.response.send_message("❌ Not connected to voice channel", ephemeral=True)
+            _ = await interaction.response.send_message("❌ Not connected to voice channel", ephemeral=True)
             return
 
         # Process and queue the test message
@@ -32,14 +32,27 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, text
             "group_id": f"slash_test_{interaction.id}",
         }
 
-        await bot.voice_handler.add_to_queue(processed_message)
-        await interaction.response.send_message(f"🎤 Test TTS queued: `{processed_text[:50]}...`")
+        if bot.voice_handler:
+            await bot.voice_handler.add_to_queue(processed_message)
+        else:
+            _ = await interaction.response.send_message("❌ Voice handler not available", ephemeral=True)
+            return
+        _ = await interaction.response.send_message(f"🎤 Test TTS queued: `{processed_text[:50]}...`")
 
         # Update stats
         if hasattr(bot, "status_manager") and bot.status_manager:
-            await bot.status_manager.record_command_usage("slash_test")
-            bot.status_manager.record_tts_played()
+            # record_command_usage might not be async, so handle both cases
+            record_usage_method = getattr(bot.status_manager, "record_command_usage", None)
+            if record_usage_method:
+                try:
+                    result = await record_usage_method("slash_test")
+                    _ = result  # Handle unused result
+                except TypeError:
+                    result = record_usage_method("slash_test")
+                    _ = result  # Handle unused result
+            result = bot.status_manager.record_tts_played()
+            _ = result  # Handle unused result
 
     except Exception as e:
         logger.error(f"Error in test slash command: {e}")
-        await interaction.response.send_message("❌ Error testing TTS", ephemeral=True)
+        _ = await interaction.response.send_message("❌ Error testing TTS", ephemeral=True)

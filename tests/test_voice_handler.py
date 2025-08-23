@@ -7,7 +7,8 @@ from unittest.mock import MagicMock, Mock
 import discord
 import pytest
 
-from discord_voice_bot.voice_handler import SimpleRateLimiter, VoiceHandler
+from discord_voice_bot.voice.ratelimit import SimpleRateLimiter
+from discord_voice_bot.voice_handler import VoiceHandler
 
 # Type aliases for better readability
 MockBotClient = MagicMock
@@ -225,9 +226,9 @@ class TestComplianceTDD:
     async def test_none_arithmetic_safe_operations(self, voice_handler: VoiceHandler) -> None:
         """Test that None arithmetic operations are handled safely."""
         # Test with None values in stats - should not raise TypeError
-        voice_handler.stats["messages_processed"] = None  # type: ignore[assignment]
-        voice_handler.stats["connection_errors"] = None  # type: ignore[assignment]
-        voice_handler.stats["tts_messages_played"] = None  # type: ignore[assignment]
+        voice_handler.stats["messages_processed"] = None
+        voice_handler.stats["connection_errors"] = None
+        voice_handler.stats["tts_messages_played"] = None
 
         # These operations should not raise TypeError: unsupported operand type(s) for +: 'NoneType' and 'int'
         current_count: Any = voice_handler.stats.get("messages_processed", 0)
@@ -251,7 +252,7 @@ class TestComplianceTDD:
         mock_voice_client: MagicMock = MagicMock()
         mock_voice_client.is_connected.return_value = True
         voice_handler.voice_client = mock_voice_client
-        from discord_voice_bot.voice_handler import VoiceGatewayManager
+        from discord_voice_bot.voice.gateway import VoiceGatewayManager
 
         voice_handler.voice_gateway = VoiceGatewayManager(mock_voice_client)
 
@@ -340,12 +341,12 @@ class TestComplianceTDD:
     def test_voice_connection_state_tracking(self, voice_handler: VoiceHandler) -> None:
         """Test proper tracking of voice connection state."""
         # Test initial state
-        assert voice_handler._connection_state == "DISCONNECTED"  # type: ignore[attr-defined]
+        assert voice_handler.connection_state == "DISCONNECTED"
         assert voice_handler._last_connection_attempt == 0.0  # type: ignore[attr-defined]
 
         # Test state changes
-        voice_handler._connection_state = "CONNECTING"  # type: ignore[attr-defined]
-        assert voice_handler._connection_state == "CONNECTING"  # type: ignore[attr-defined]
+        voice_handler.connection_state = "CONNECTING"
+        assert voice_handler.connection_state == "CONNECTING"
 
         # Test connection attempt tracking
         import time

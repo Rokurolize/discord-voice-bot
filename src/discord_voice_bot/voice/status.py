@@ -3,10 +3,10 @@
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from .handler import VoiceHandler
+    from .handler import VoiceHandlerInterface
 
 
-def build_status(voice_handler: "VoiceHandler") -> dict[str, Any]:
+def build_status(voice_handler: "VoiceHandlerInterface") -> dict[str, Any]:
     """Build status information for voice handler."""
     connected = bool(voice_handler.voice_client and voice_handler.voice_client.is_connected())
     channel_name = None
@@ -37,7 +37,7 @@ def build_status(voice_handler: "VoiceHandler") -> dict[str, Any]:
         "messages_played": voice_handler.stats["messages_played"],
         "messages_skipped": voice_handler.stats["messages_skipped"],
         "errors": voice_handler.stats["errors"],
-        "connection_state": voice_handler._connection_state,
+        "connection_state": voice_handler.connection_state,
         "is_playing": voice_handler.is_playing,
         "max_queue_size": 50,  # Add max queue size for UI
     }

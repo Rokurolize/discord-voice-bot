@@ -1,6 +1,7 @@
 """Tests for MessageValidator component - TDD Approach (Red-Green-Refactor)."""
 
 import unittest
+from typing import override
 from unittest.mock import MagicMock
 
 import pytest
@@ -34,23 +35,30 @@ class TestValidationResult(BaseTestCase):
         self.assertEqual(result.metadata, {"key": "value"})
 
 
-class TestMessageValidator:
+class TestMessageValidator(BaseTestCase):
     """Test cases for MessageValidator - Main component."""
 
-    def setup_method(self) -> None:
+    def __init__(self, methodName: str = "runTest") -> None:
+        """Initialize test case."""
+        super().__init__(methodName)
+        self.validator: MessageValidator
+
+    @override
+    def setUp(self) -> None:
         """Set up test fixtures."""
+        super().setUp()
         self.validator = MessageValidator()
 
     def test_initialization(self) -> None:
         """Test MessageValidator initializes correctly."""
         assert isinstance(self.validator, MessageValidator)
-        assert self.validator._blocked_words == set()
-        assert self.validator._blocked_users == set()
-        assert self.validator._blocked_channels == set()
-        assert self.validator._allowed_domains == set()
-        assert self.validator._url_pattern is not None
-        assert self.validator._mention_pattern is not None
-        assert self.validator._suspicious_patterns is not None
+        assert self.validator.get_blocked_words() == set()
+        assert self.validator.get_blocked_users() == set()
+        assert self.validator.get_blocked_channels() == set()
+        assert self.validator.get_allowed_domains() == set()
+        assert self.validator.get_url_pattern() is not None
+        assert self.validator.get_mention_pattern() is not None
+        assert self.validator.get_suspicious_patterns() is not None
 
     def test_should_process_message_valid(self) -> None:
         """Test should_process_message with valid message."""
@@ -269,4 +277,4 @@ class TestMessageValidator:
 
 
 if __name__ == "__main__":
-    unittest.main()
+    _ = unittest.main()

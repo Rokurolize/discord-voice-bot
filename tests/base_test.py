@@ -1,18 +1,25 @@
 """Base test infrastructure for Discord Voice TTS Bot tests."""
 
 import unittest
-from typing import Any
+from typing import Any, override
 from unittest.mock import MagicMock
 
 
 class BaseTestCase(unittest.TestCase):
     """Base test case with common utilities."""
 
+    def __init__(self, methodName: str = "runTest", *args: Any, **kwargs: Any) -> None:
+        """Initialize test case."""
+        super().__init__(*args, **kwargs)
+        self.mock_logger: MagicMock = MagicMock()
+
+    @override
     def setUp(self) -> None:
         """Set up test fixtures."""
         super().setUp()
         self.mock_logger = MagicMock()
 
+    @override
     def tearDown(self) -> None:
         """Clean up test fixtures."""
         super().tearDown()
@@ -27,10 +34,12 @@ class BaseTestCase(unittest.TestCase):
 class AsyncTestCase(BaseTestCase):
     """Base test case for async tests."""
 
+    @override
     def setUp(self) -> None:
         """Set up async test fixtures."""
         super().setUp()
 
+    @override
     def tearDown(self) -> None:
         """Clean up async test fixtures."""
         super().tearDown()

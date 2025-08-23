@@ -43,6 +43,7 @@ class UserSettings:
             settings_file: Path to JSON file for persistent storage
 
         """
+        super().__init__()
         self.settings_file = Path(settings_file)
         self.settings: dict[str, dict[str, Any]] = {}
         self._lock = Lock()
@@ -209,10 +210,8 @@ class UserSettings:
                 elif speaker_id >= 100000:  # Typically AIVIS IDs are large numbers
                     engine = "aivis"
                 else:
-                    # Import here to avoid circular imports
-                    from .config import config
-
-                    engine = config.tts_engine  # Use current engine as fallback
+                    # Engine will be determined by caller - fallback to voicevox for compatibility
+                    engine = "voicevox"  # Use voicevox as fallback
 
             self.settings[user_id] = {
                 "speaker_id": speaker_id,
@@ -342,5 +341,6 @@ class UserSettings:
         }
 
 
-# Global user settings instance
-user_settings = UserSettings()
+def get_user_settings() -> UserSettings:
+    """Create new user settings instance."""
+    return UserSettings()

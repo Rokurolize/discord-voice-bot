@@ -11,8 +11,8 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
     """Handle voices slash command."""
     try:
         embed = await create_voices_embed()
-        await interaction.response.send_message(embed=embed)
+        _ = await interaction.response.send_message(embed=embed)
 
     except Exception as e:
         logger.error(f"Error in voices slash command: {e}")
-        await interaction.response.send_message("❌ Error retrieving voices", ephemeral=True)
+        _ = await interaction.response.send_message("❌ Error retrieving voices", ephemeral=True)

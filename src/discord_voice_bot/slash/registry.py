@@ -1,28 +1,42 @@
 """Slash command registry for Discord Voice TTS Bot."""
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Any
 
 import discord
 from discord import app_commands
+from discord.ext import commands
 from loguru import logger
 
-if TYPE_CHECKING:
-    from ..bot import DiscordVoiceTTSBot
-
+# TYPE_CHECKING import removed to avoid circular import
 from .autocomplete.voice import voice_autocomplete
-from .handlers import clear, reconnect, skip, status, test_tts, voice, voicecheck, voices
+
+
+# Lazy import handlers to avoid circular import
+def _get_handler(name: str):
+    """Get handler function by name."""
+    handlers = {"clear": "clear", "reconnect": "reconnect", "skip": "skip", "status": "status", "test_tts": "test_tts", "voice": "voice", "voicecheck": "voicecheck", "voices": "voices"}
+    if name not in handlers:
+        raise ValueError(f"Unknown handler: {name}")
+
+    # Import the handler module
+    module_name = f".handlers.{handlers[name]}"
+    import importlib
+
+    module = importlib.import_module(module_name, package=__name__.rpartition(".")[0])
+    return module.handle
 
 
 class SlashCommandRegistry:
     """Manages Discord slash command registration and synchronization."""
 
-    def __init__(self, bot: "DiscordVoiceTTSBot"):
+    def __init__(self, bot: commands.Bot):
         """Initialize slash command registry.
 
         Args:
             bot: The Discord bot instance
 
         """
+        super().__init__()
         self.bot = bot
         self._registered: dict[str, dict[str, Any]] = {}
         logger.info("Slash command registry initialized")
@@ -55,30 +69,30 @@ class SlashCommandRegistry:
 
     async def _register_core(self) -> None:
         """Register core bot commands."""
-
         # Status command
-        @self.bot.tree.command(name="status", description="Show bot status and statistics")
-        async def status_slash(interaction: discord.Interaction):
-            """Show bot status via slash command."""
-            await status.handle(interaction, self.bot)
+        status_handler = _get_handler("status")
+        self._registered["status"] = {"handler": status_handler}
 
-        self._registered["status"] = {"handler": status.handle}
+        @self.bot.tree.command(name="status", description="Show bot status and statistics")
+        async def _status_slash(interaction: discord.Interaction):  # type: ignore[reportUnusedFunction]
+            """Show bot status via slash command."""
+            await status_handler(interaction, self.bot)
 
         # Skip command
         @self.bot.tree.command(name="skip", description="Skip current TTS playback")
-        async def skip_slash(interaction: discord.Interaction):
+        async def _skip_slash(interaction: discord.Interaction):  # type: ignore[reportUnusedFunction]
             """Skip current TTS playback via slash command."""
-            await skip.handle(interaction, self.bot)
+            await _get_handler("skip")(interaction, self.bot)
 
-        self._registered["skip"] = {"handler": skip.handle}
+        self._registered["skip"] = {"handler": _get_handler("skip")}
 
         # Clear command
         @self.bot.tree.command(name="clear", description="Clear TTS queue")
-        async def clear_slash(interaction: discord.Interaction):
+        async def _clear_slash(interaction: discord.Interaction):  # type: ignore[reportUnusedFunction]
             """Clear TTS queue via slash command."""
-            await clear.handle(interaction, self.bot)
+            await _get_handler("clear")(interaction, self.bot)
 
-        self._registered["clear"] = {"handler": clear.handle}
+        self._registered["clear"] = {"handler": _get_handler("clear")}
 
     async def _register_voice(self) -> None:
         """Register voice-related commands."""
@@ -86,35 +100,35 @@ class SlashCommandRegistry:
         # Voice command with autocomplete
         @self.bot.tree.command(name="voice", description="Set or show personal voice preference")
         @app_commands.autocomplete(speaker=voice_autocomplete)
-        async def voice_slash(interaction: discord.Interaction, speaker: Optional[str] = None):
+        async def _voice_slash(interaction: discord.Interaction, speaker: str | None = None):  # type: ignore[reportUnusedFunction]
             """Set or show personal voice preference via slash command."""
-            await voice.handle(interaction, self.bot, speaker)
+            await _get_handler("voice")(interaction, self.bot, speaker)
 
-        self._registered["voice"] = {"handler": voice.handle, "autocomplete": voice_autocomplete}
+        self._registered["voice"] = {"handler": _get_handler("voice"), "autocomplete": voice_autocomplete}
 
         # Voices command
         @self.bot.tree.command(name="voices", description="List all available voices")
-        async def voices_slash(interaction: discord.Interaction):
+        async def _voices_slash(interaction: discord.Interaction):  # type: ignore[reportUnusedFunction]
             """List all available voices via slash command."""
-            await voices.handle(interaction, self.bot)
+            await _get_handler("voices")(interaction, self.bot)
 
-        self._registered["voices"] = {"handler": voices.handle}
+        self._registered["voices"] = {"handler": _get_handler("voices")}
 
         # Voice check command
         @self.bot.tree.command(name="voicecheck", description="Perform voice connection health check")
-        async def voicecheck_slash(interaction: discord.Interaction):
+        async def _voicecheck_slash(interaction: discord.Interaction):  # type: ignore[reportUnusedFunction]
             """Perform voice connection health check via slash command."""
-            await voicecheck.handle(interaction, self.bot)
+            await _get_handler("voicecheck")(interaction, self.bot)
 
-        self._registered["voicecheck"] = {"handler": voicecheck.handle}
+        self._registered["voicecheck"] = {"handler": _get_handler("voicecheck")}
 
         # Reconnect command
         @self.bot.tree.command(name="reconnect", description="Manually attempt to reconnect to voice channel")
-        async def reconnect_slash(interaction: discord.Interaction):
+        async def _reconnect_slash(interaction: discord.Interaction):  # type: ignore[reportUnusedFunction]
             """Manually attempt to reconnect to voice channel via slash command."""
-            await reconnect.handle(interaction, self.bot)
+            await _get_handler("reconnect")(interaction, self.bot)
 
-        self._registered["reconnect"] = {"handler": reconnect.handle}
+        self._registered["reconnect"] = {"handler": _get_handler("reconnect")}
 
     async def _register_util(self) -> None:
         """Register utility commands."""
@@ -122,13 +136,13 @@ class SlashCommandRegistry:
         # Test command
         @self.bot.tree.command(name="test", description="Test TTS with custom text")
         @app_commands.describe(text="Text to convert to speech")
-        async def test_slash(interaction: discord.Interaction, text: str = "テストメッセージです"):
+        async def _test_slash(interaction: discord.Interaction, text: str = "テストメッセージです"):  # type: ignore[reportUnusedFunction]
             """Test TTS with custom text via slash command."""
-            await test_tts.handle(interaction, self.bot, text)
+            await _get_handler("test_tts")(interaction, self.bot, text)
 
-        self._registered["test"] = {"handler": test_tts.handle}
+        self._registered["test"] = {"handler": _get_handler("test_tts")}
 
-    async def _sync(self, guild: Optional[discord.Guild] = None) -> None:
+    async def _sync(self, guild: discord.Guild | None = None) -> None:
         """Sync slash commands with Discord.
 
         Args:
@@ -171,12 +185,14 @@ class SlashCommandRegistry:
             # Check if command is registered
             if command_name not in self._registered:
                 logger.warning(f"Unknown slash command: {command_name}")
-                await interaction.response.send_message(f"❌ Unknown command: `{command_name}`", ephemeral=True)
+                _ = await interaction.response.send_message(f"❌ Unknown command: `{command_name}`", ephemeral=True)
                 return
 
             # Update command statistics
-            if hasattr(self.bot, "status_manager") and self.bot.status_manager:
-                await self.bot.status_manager.record_command_usage(f"slash_{command_name}")
+            if hasattr(self.bot, "status_manager") and getattr(self.bot, "status_manager", None):
+                status_manager = getattr(self.bot, "status_manager")
+                if status_manager:
+                    await status_manager.record_command_usage(f"slash_{command_name}")
 
             # Command is handled by the registered decorator function
             # The actual response is handled by the individual command handlers
@@ -185,7 +201,7 @@ class SlashCommandRegistry:
             logger.error(f"Error handling slash command interaction: {e}")
             try:
                 if not interaction.response.is_done():
-                    await interaction.response.send_message("❌ An error occurred processing this command", ephemeral=True)
+                    _ = await interaction.response.send_message("❌ An error occurred processing this command", ephemeral=True)
             except Exception:
                 pass  # Interaction already responded to or failed
 

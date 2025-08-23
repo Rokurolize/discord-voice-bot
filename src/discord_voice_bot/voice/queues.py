@@ -9,7 +9,9 @@ class SynthesisQueue:
     """Priority queue for TTS synthesis requests."""
 
     def __init__(self, maxsize: int = 100):
+        super().__init__()
         self._queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=maxsize)
+        self.maxsize = maxsize
 
     async def put(self, item: dict[str, Any]) -> None:
         """Add item to synthesis queue."""
@@ -32,17 +34,23 @@ class SynthesisQueue:
         count = 0
         while not self._queue.empty():
             try:
-                self._queue.get_nowait()
+                result = self._queue.get_nowait()
+                _ = result  # Handle unused result
                 count += 1
             except asyncio.QueueEmpty:
                 break
         return count
+
+    def get_nowait(self) -> dict[str, Any]:
+        """Get item from queue without waiting (synchronous)."""
+        return self._queue.get_nowait()
 
 
 class PriorityAudioQueue:
     """Priority queue for audio playback with proper ordering."""
 
     def __init__(self):
+        super().__init__()
         self._heap: list[tuple[int, int, str, str, int, int]] = []
         self._lock = asyncio.Lock()
         self._counter = 0  # For FIFO ordering with same priority
