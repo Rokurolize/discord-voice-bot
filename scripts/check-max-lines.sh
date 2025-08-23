@@ -4,11 +4,21 @@ set -euo pipefail
 LIMIT=500
 FAILED=0
 
+# 例外ファイルリスト（行数制限のチェックから除外するファイル）
+EXCEPTIONS=("uv.lock")
+
 # pre-commit から渡されたステージ対象ファイルをチェック
 #（types: [text] によりテキストのみが渡される想定）
 for file in "$@"; do
   # ファイルが存在しない（削除など）場合はスキップ
   [[ -f "$file" ]] || continue
+
+  # 例外ファイルの場合はチェックをスキップ
+  filename=$(basename "$file")
+  if [[ " ${EXCEPTIONS[*]} " =~ " ${filename} " ]]; then
+    echo "⏭️ ${file}: 例外ファイルのためチェックをスキップします。"
+    continue
+  fi
 
   # 行数カウント（CRLFも問題なく数えられる）
   # 空ファイルは 0 行
