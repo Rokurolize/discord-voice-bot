@@ -7,25 +7,28 @@ import discord
 from discord.ext import commands
 from loguru import logger
 
+from .protocols import HasStatusManager
+
 if TYPE_CHECKING:
-    from .bot import DiscordVoiceTTSBot
+    pass
 
 
 class CommandHandler:
     """Handles prefix-based commands with registration and execution."""
 
-    def __init__(self, bot: "DiscordVoiceTTSBot"):
+    def __init__(self, bot: HasStatusManager):
         """Initialize command handler.
 
         Args:
-            bot: The Discord bot instance
+            bot: The Discord bot instance with status manager
 
         """
+        super().__init__()
         self.bot = bot
         self._commands: dict[str, dict[str, Any]] = {}
         logger.info("Command handler initialized")
 
-    def register_command(self, name: str, func: Callable, aliases: list[str] | None = None, help_text: str = "", usage: str = "", permissions: list[str] | None = None) -> None:
+    def register_command(self, name: str, func: Callable[..., Any], aliases: list[str] | None = None, help_text: str = "", usage: str = "", permissions: list[str] | None = None) -> None:
         """Register a new command.
 
         Args:
@@ -60,19 +63,24 @@ class CommandHandler:
             True if command was processed, False otherwise
 
         """
+        command_name = "<unknown>"  # Initialize for error handling
         try:
             # Extract command and arguments
             content = message.content.strip()
-            if not content.startswith(self.bot.command_prefix):
+            prefix = str(self.bot.command_prefix)  # type: ignore[arg-type]
+            if not content.startswith(prefix):
                 return False
 
             # Remove command prefix
-            content = content[len(self.bot.command_prefix) :].strip()
+            content = content[len(prefix) :].strip()
             if not content:
                 return False
 
             # Split command and arguments
             parts = content.split()
+            if not parts:
+                return False
+
             command_name = parts[0].lower()
             args = parts[1:]
 
@@ -93,11 +101,17 @@ class CommandHandler:
             ctx = await self._create_context(message, command_name, args)
 
             # Execute the command
-            await command_func(ctx, *args)
+            if command_func:
+                await command_func(ctx, *args)
 
             # Update command statistics
-            if hasattr(self.bot, "status_manager") and self.bot.status_manager:
-                await self.bot.status_manager.record_command_usage(command_name)
+            try:
+                status_manager = self.bot.status_manager
+                if status_manager and hasattr(status_manager, "record_command_usage"):
+                    _ = status_manager.record_command_usage(command_name)
+            except AttributeError:
+                # Status manager not available, ignore
+                pass
 
             logger.debug(f"Executed command: {command_name}")
             return True
@@ -106,7 +120,7 @@ class CommandHandler:
             logger.error(f"Error processing command '{command_name}': {e}")
             return False
 
-    async def _create_context(self, message: discord.Message, command_name: str, args: list[str]) -> commands.Context:
+    async def _create_context(self, message: discord.Message, command_name: str, args: list[str]) -> commands.Context[Any]:
         """Create a command context for the message.
 
         Args:
@@ -135,20 +149,20 @@ class CommandHandler:
             },
         )()
 
-        return ctx
+        return ctx  # type: ignore[return-value]
 
-    def _create_send_func(self, message: discord.Message) -> Callable:
+    def _create_send_func(self, message: discord.Message) -> Callable[..., Any]:
         """Create a send function for the context."""
 
-        async def send(content=None, **kwargs):
+        async def send(content: Any = None, **kwargs: Any) -> Any:
             return await message.channel.send(content, **kwargs)
 
         return send
 
-    def _create_reply_func(self, message: discord.Message) -> Callable:
+    def _create_reply_func(self, message: discord.Message) -> Callable[..., Any]:
         """Create a reply function for the context."""
 
-        async def reply(content=None, **kwargs):
+        async def reply(content: Any = None, **kwargs: Any) -> Any:
             return await message.reply(content, **kwargs)
 
         return reply
@@ -171,7 +185,8 @@ class CommandHandler:
         usage = command.get("usage", "")
 
         if usage:
-            help_text += f"\nUsage: {self.bot.command_prefix}{command_name} {usage}"
+            prefix = str(self.bot.command_prefix)  # type: ignore[arg-type]
+            help_text += f"\nUsage: {prefix}{command_name} {usage}"
 
         return help_text
 

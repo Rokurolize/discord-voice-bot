@@ -8,7 +8,7 @@ from typing import Any
 
 from loguru import logger
 
-from .config import config
+from .protocols import ConfigManager
 
 
 class RateLimiter:
@@ -61,10 +61,11 @@ class RateLimiter:
 class MessageProcessor:
     """Process and filter messages for TTS synthesis."""
 
-    def __init__(self) -> None:
+    def __init__(self, config_manager: ConfigManager) -> None:
         """Initialize message processor."""
         super().__init__()
-        self.rate_limiter = RateLimiter(config.rate_limit_messages, config.rate_limit_period)
+        self._config_manager = config_manager
+        self.rate_limiter = RateLimiter(self._config_manager.get_rate_limit_messages(), self._config_manager.get_rate_limit_period())
         self.blocked_users: set[int] = set()
         self.ignored_prefixes = ["!", "/", ".", ">", "<"]  # Common bot/command prefixes
 
@@ -79,8 +80,10 @@ class MessageProcessor:
         # Japanese text patterns for better processing
         self.japanese_emoticon_pattern = re.compile(r"[（）()（）\(\)]")
 
-        if config.rate_limit_messages > 0 and config.rate_limit_messages < 1000:
-            logger.info(f"Message processor initialized with rate limiting: {config.rate_limit_messages} messages per {config.rate_limit_period}s")
+        rate_limit_messages = self._config_manager.get_rate_limit_messages()
+        if rate_limit_messages > 0 and rate_limit_messages < 1000:
+            rate_limit_period = self._config_manager.get_rate_limit_period()
+            logger.info(f"Message processor initialized with rate limiting: {rate_limit_messages} messages per {rate_limit_period}s")
         else:
             logger.info("Message processor initialized without rate limiting")
 
@@ -95,7 +98,7 @@ class MessageProcessor:
 
         """
         # Check if message is in target voice channel
-        if message.channel.id != config.target_voice_channel_id:
+        if message.channel.id != self._config_manager.get_target_voice_channel_id():
             return False
 
         # Skip bot messages
@@ -125,7 +128,8 @@ class MessageProcessor:
             return False
 
         # Check rate limiting (skip if set to 0 or very high)
-        if config.rate_limit_messages > 0 and config.rate_limit_messages < 1000:
+        rate_limit_messages = self._config_manager.get_rate_limit_messages()
+        if rate_limit_messages > 0 and rate_limit_messages < 1000:
             if not self.rate_limiter.is_allowed(message.author.id):
                 remaining = self.rate_limiter.get_remaining_time(message.author.id)
                 logger.info(f"Rate limited user {message.author.name}, remaining cooldown: {remaining}s")
@@ -159,7 +163,7 @@ class MessageProcessor:
 
         # For very long messages, we'll chunk them later in the voice handler
         # No truncation here anymore - let the voice handler handle chunking
-        if len(content) > config.max_message_length:
+        if len(content) > self._config_manager.get_max_message_length():
             logger.info(f"Long message ({len(content)} chars) will be chunked for playback")
 
         # Final validation
@@ -354,9 +358,9 @@ class MessageProcessor:
 
 
 @lru_cache(maxsize=1)
-def get_message_processor() -> MessageProcessor:
+def get_message_processor(config_manager: ConfigManager) -> MessageProcessor:
     """Return a process-wide singleton MessageProcessor without globals."""
-    return MessageProcessor()
+    return MessageProcessor(config_manager)
 
 
 # For backward compatibility, provide message_processor instance

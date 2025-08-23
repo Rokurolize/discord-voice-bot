@@ -1,4 +1,4 @@
-"""Message validation and filtering for Discord Voice TTS Bot."""
+"""Core message validation for Discord Voice TTS Bot."""
 
 import re
 from dataclasses import dataclass, field
@@ -8,6 +8,8 @@ import discord
 from loguru import logger
 
 from .config import config
+from .content_filter import ContentFilter
+from .permission_manager import PermissionManager
 
 
 @dataclass
@@ -17,28 +19,19 @@ class ValidationResult:
     is_valid: bool
     reason: str = ""
     filtered_content: str = ""
-    warnings: list[str] = field(default_factory=list)
-    metadata: dict[str, Any] = field(default_factory=dict)
+    warnings: list[str] = field(default_factory=list)  # type: ignore[misc]
+    metadata: dict[str, Any] = field(default_factory=dict)  # type: ignore[misc]
 
 
 class MessageValidator:
-    """Validates and filters messages for TTS processing."""
+    """Core validation logic for Discord messages."""
 
     def __init__(self) -> None:
         """Initialize message validator."""
-        # Content filters
-        self._blocked_words: set[str] = set()
-        self._allowed_domains: set[str] = set()
-        self._blocked_users: set[int] = set()
-        self._blocked_channels: set[int] = set()
-
-        # Pattern filters
-        self._url_pattern = re.compile(r"https?://[^\s]+")
-        self._mention_pattern = re.compile(r"<@!?[0-9]+>")
-        self._channel_mention_pattern = re.compile(r"<#[0-9]+>")
-        self._role_mention_pattern = re.compile(r"<@&[0-9]+>")
-        self._emoji_pattern = re.compile(r"<:[a-zA-Z0-9_]+:[0-9]+>")
-        self._animated_emoji_pattern = re.compile(r"<a:[a-zA-Z0-9_]+:[0-9]+>")
+        super().__init__()
+        # Initialize components
+        self.content_filter = ContentFilter()
+        self.permission_manager = PermissionManager()
 
         # Suspicious content patterns
         self._suspicious_patterns = [
@@ -57,6 +50,9 @@ class MessageValidator:
         # Content limits
         self._max_message_length = config.max_message_length
         self._max_special_chars_ratio = 0.8  # Max ratio of special chars to total chars
+
+        # Set content filter limits
+        self.content_filter.set_max_length(self._max_message_length)
 
         logger.info("Message validator initialized")
 
@@ -89,19 +85,25 @@ class MessageValidator:
             return result
 
         # Content filtering and sanitization
-        filtered_content = await self._filter_content(message)
+        filtered_content = await self.content_filter.filter_content(message)
         result.filtered_content = filtered_content
 
         # Content length validation
-        if not self._validate_content_length(filtered_content, result):
+        is_valid, reason = self.content_filter.validate_content_length(filtered_content)
+        if not is_valid:
+            result.is_valid = False
+            result.reason = reason
             return result
+
+        if reason:  # Warning message
+            result.warnings.append(reason)
 
         result.metadata.update(
             {
                 "original_length": len(message.content),
                 "filtered_length": len(filtered_content),
-                "mentions_removed": len(self._mention_pattern.findall(message.content)),
-                "urls_removed": len(self._url_pattern.findall(message.content)),
+                "mentions_removed": len(self.content_filter.get_mention_pattern().findall(message.content)),
+                "urls_removed": len(self.content_filter.get_url_pattern().findall(message.content)),
             }
         )
 
@@ -163,16 +165,15 @@ class MessageValidator:
             True if content is safe, False otherwise
 
         """
-        content_lower = message.content.lower()
-
-        # Check for blocked words
-        for word in self._blocked_words:
-            if word.lower() in content_lower:
-                result.is_valid = False
-                result.reason = f"Blocked word detected: {word}"
-                return False
+        # Check for blocked words via permission manager
+        is_safe, reason = self.permission_manager.check_content_safety(message)
+        if not is_safe:
+            result.is_valid = False
+            result.reason = reason
+            return False
 
         # Check for suspicious patterns
+        content_lower = message.content.lower()
         for pattern in self._suspicious_patterns:
             if re.search(pattern, content_lower, re.IGNORECASE):
                 result.is_valid = False
@@ -193,20 +194,11 @@ class MessageValidator:
             True if user has permission, False otherwise
 
         """
-        # Check blocked users
-        if message.author.id in self._blocked_users:
+        has_permission, reason = await self.permission_manager.check_user_permission(message)
+        if not has_permission:
             result.is_valid = False
-            result.reason = "User is blocked from TTS"
+            result.reason = reason
             return False
-
-        # Check blocked channels
-        if message.channel.id in self._blocked_channels:
-            result.is_valid = False
-            result.reason = "Channel is blocked from TTS"
-            return False
-
-        # Additional permission checks can be added here
-        # e.g., role-based permissions, server-specific rules
 
         return True
 
@@ -221,114 +213,11 @@ class MessageValidator:
             True if within limits, False otherwise
 
         """
-        # This would integrate with a rate limiter
-        # For now, we'll assume it's handled elsewhere
-        # but this provides the interface for future implementation
-
-        # Placeholder for rate limiting logic
-        # if self.rate_limiter.is_rate_limited(message.author.id):
-        #     result.is_valid = False
-        #     result.reason = "Rate limit exceeded"
-        #     return False
-
-        return True
-
-    async def _filter_content(self, message: discord.Message) -> str:
-        """Filter and clean message content for TTS.
-
-        Args:
-            message: Discord message
-
-        Returns:
-            Filtered content suitable for TTS
-
-        """
-        content = message.content
-
-        # Remove URLs
-        content = self._url_pattern.sub("link", content)
-
-        # Replace mentions
-        content = self._mention_pattern.sub("someone", content)
-        content = self._channel_mention_pattern.sub("channel", content)
-        content = self._role_mention_pattern.sub("role", content)
-
-        # Replace emojis
-        content = self._emoji_pattern.sub("emoji", content)
-        content = self._animated_emoji_pattern.sub("emoji", content)
-
-        # Clean markdown formatting
-        content = self._clean_markdown(content)
-
-        # Clean whitespace
-        content = self._clean_whitespace(content)
-
-        return content.strip()
-
-    def _clean_markdown(self, content: str) -> str:
-        """Remove markdown formatting from content.
-
-        Args:
-            content: Content with markdown
-
-        Returns:
-            Content without markdown
-
-        """
-        # Remove common markdown patterns
-        replacements = {
-            "**": "",  # Bold
-            "*": "",  # Italic
-            "_": "",  # Underline
-            "~~": "",  # Strikethrough
-            "||": "",  # Spoiler
-            "`": "",  # Code
-            ">>>": "",  # Block quotes
-            ">": "",  # Quotes
-        }
-
-        for old, new in replacements.items():
-            content = content.replace(old, new)
-
-        return content
-
-    def _clean_whitespace(self, content: str) -> str:
-        """Clean excessive whitespace.
-
-        Args:
-            content: Content to clean
-
-        Returns:
-            Content with normalized whitespace
-
-        """
-        # Replace multiple spaces with single space
-        content = re.sub(r"\s+", " ", content)
-
-        # Remove excessive newlines
-        content = re.sub(r"\n{3,}", "\n\n", content)
-
-        return content.strip()
-
-    def _validate_content_length(self, content: str, result: ValidationResult) -> bool:
-        """Validate content length for TTS processing.
-
-        Args:
-            content: Filtered content
-            result: Validation result to update
-
-        Returns:
-            True if length is valid, False otherwise
-
-        """
-        if not content:
+        within_limits, reason = await self.permission_manager.check_rate_limit(message)
+        if not within_limits:
             result.is_valid = False
-            result.reason = "Content is empty after filtering"
+            result.reason = reason
             return False
-
-        if len(content) > 500:  # Reasonable TTS limit
-            result.warnings.append(f"Content length {len(content)} may be too long for TTS")
-            # Don't fail validation, just warn
 
         return True
 
@@ -357,7 +246,20 @@ class MessageValidator:
 
         return True
 
-    # Configuration methods
+    def get_stats(self) -> dict[str, Any]:
+        """Get validation statistics.
+
+        Returns:
+            Dictionary with validation statistics
+
+        """
+        permission_stats = self.permission_manager.get_statistics()
+        return {
+            **permission_stats,
+            "max_message_length": self._max_message_length,
+        }
+
+    # Delegation methods for backward compatibility
     def add_blocked_word(self, word: str) -> None:
         """Add a word to the blocked list.
 
@@ -365,8 +267,7 @@ class MessageValidator:
             word: Word to block
 
         """
-        self._blocked_words.add(word.lower())
-        logger.info(f"Added blocked word: {word}")
+        self.permission_manager.add_blocked_word(word)
 
     def remove_blocked_word(self, word: str) -> None:
         """Remove a word from the blocked list.
@@ -375,8 +276,7 @@ class MessageValidator:
             word: Word to unblock
 
         """
-        self._blocked_words.discard(word.lower())
-        logger.info(f"Removed blocked word: {word}")
+        self.permission_manager.remove_blocked_word(word)
 
     def add_blocked_user(self, user_id: int) -> None:
         """Add a user to the blocked list.
@@ -385,8 +285,7 @@ class MessageValidator:
             user_id: Discord user ID to block
 
         """
-        self._blocked_users.add(user_id)
-        logger.info(f"Added blocked user: {user_id}")
+        self.permission_manager.add_blocked_user(user_id)
 
     def remove_blocked_user(self, user_id: int) -> None:
         """Remove a user from the blocked list.
@@ -395,8 +294,7 @@ class MessageValidator:
             user_id: Discord user ID to unblock
 
         """
-        self._blocked_users.discard(user_id)
-        logger.info(f"Removed blocked user: {user_id}")
+        self.permission_manager.remove_blocked_user(user_id)
 
     def add_blocked_channel(self, channel_id: int) -> None:
         """Add a channel to the blocked list.
@@ -405,8 +303,7 @@ class MessageValidator:
             channel_id: Discord channel ID to block
 
         """
-        self._blocked_channels.add(channel_id)
-        logger.info(f"Added blocked channel: {channel_id}")
+        self.permission_manager.add_blocked_channel(channel_id)
 
     def remove_blocked_channel(self, channel_id: int) -> None:
         """Remove a channel from the blocked list.
@@ -415,28 +312,72 @@ class MessageValidator:
             channel_id: Discord channel ID to unblock
 
         """
-        self._blocked_channels.discard(channel_id)
-        logger.info(f"Removed blocked channel: {channel_id}")
-
-    def get_stats(self) -> dict[str, Any]:
-        """Get validation statistics.
-
-        Returns:
-            Dictionary with validation statistics
-
-        """
-        return {
-            "blocked_words": len(self._blocked_words),
-            "blocked_users": len(self._blocked_users),
-            "blocked_channels": len(self._blocked_channels),
-            "allowed_domains": len(self._allowed_domains),
-            "max_message_length": self._max_message_length,
-        }
+        self.permission_manager.remove_blocked_channel(channel_id)
 
     def reset_filters(self) -> None:
         """Reset all filters to default state."""
-        self._blocked_words.clear()
-        self._blocked_users.clear()
-        self._blocked_channels.clear()
-        self._allowed_domains.clear()
-        logger.info("Reset all message filters")
+        self.permission_manager.reset_filters()
+
+    # Test access methods
+    def get_blocked_words(self) -> set[str]:
+        """Get blocked words for testing.
+
+        Returns:
+            Set of blocked words
+
+        """
+        return self.permission_manager.get_blocked_words()
+
+    def get_blocked_users(self) -> set[int]:
+        """Get blocked users for testing.
+
+        Returns:
+            Set of blocked user IDs
+
+        """
+        return self.permission_manager.get_blocked_users()
+
+    def get_blocked_channels(self) -> set[int]:
+        """Get blocked channels for testing.
+
+        Returns:
+            Set of blocked channel IDs
+
+        """
+        return self.permission_manager.get_blocked_channels()
+
+    def get_allowed_domains(self) -> set[str]:
+        """Get allowed domains for testing.
+
+        Returns:
+            Set of allowed domains
+
+        """
+        return self.permission_manager.get_allowed_domains()
+
+    def get_url_pattern(self) -> re.Pattern[str]:
+        """Get URL pattern for testing.
+
+        Returns:
+            Compiled URL regex pattern
+
+        """
+        return self.content_filter.get_url_pattern()
+
+    def get_mention_pattern(self) -> re.Pattern[str]:
+        """Get mention pattern for testing.
+
+        Returns:
+            Compiled mention regex pattern
+
+        """
+        return self.content_filter.get_mention_pattern()
+
+    def get_suspicious_patterns(self) -> list[str]:
+        """Get suspicious patterns for testing.
+
+        Returns:
+            List of suspicious regex patterns
+
+        """
+        return self._suspicious_patterns.copy()
