@@ -105,7 +105,6 @@ class ConnectionHandler:
 
     async def handle_error(self, event: str, *args: Any, **kwargs: Any) -> None:
         """Handle general errors with full stack trace."""
-        import os
         import sys
         import traceback
 
@@ -114,15 +113,14 @@ class ConnectionHandler:
 
         logger.error(f"Discord event error in {event}: {args} {kwargs}")
 
-        # Show full stack trace if debug mode is enabled
-        if os.environ.get("DEBUG") == "1":
-            logger.error(f"🔍 FULL STACK TRACE for {event}:")
-            logger.error(f"{stack_trace}")
-        else:
-            # In production, just log the exception info
-            exc_info = traceback.format_exception(*sys.exc_info())
-            if exc_info:
-                logger.error(f"💥 Exception details: {exc_info[-1].strip()}")
+        # Always show full stack trace for better debugging
+        logger.error(f"🔍 FULL STACK TRACE for {event}:")
+        logger.error(f"{stack_trace}")
+
+        # Also log simplified exception info
+        exc_info = traceback.format_exception(*sys.exc_info())
+        if exc_info:
+            logger.error(f"💥 Exception details: {exc_info[-1].strip()}")
 
         # Also log to file for debugging
         try:
