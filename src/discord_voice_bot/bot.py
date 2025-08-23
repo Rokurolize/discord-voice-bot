@@ -198,8 +198,32 @@ class DiscordVoiceTTSBot(commands.Bot):
         _ = cmd
 
     async def shutdown(self) -> None:
-        """Graceful shutdown."""
+        """Graceful shutdown with proper voice channel cleanup."""
         logger.info("Shutting down bot...")
+
+        # First, ensure proper voice channel cleanup before closing Discord connection
+        if hasattr(self, "voice_handler") and self.voice_handler:
+            try:
+                logger.info("🧹 Cleaning up voice connection before shutdown...")
+                if self.voice_handler.is_connected():
+                    # Get voice channel info before cleanup for logging
+                    voice_channel_name = "Unknown"
+                    try:
+                        if self.voice_handler.voice_client and self.voice_handler.voice_client.channel:
+                            voice_channel_name = self.voice_handler.voice_client.channel.name
+                    except Exception:
+                        pass
+
+                    logger.info(f"🎤 Leaving voice channel: {voice_channel_name}")
+                    await self.voice_handler.cleanup_voice_client()
+                    logger.info("✅ Voice channel cleanup completed")
+                else:
+                    logger.debug("No active voice connection to clean up")
+            except Exception as e:
+                logger.error(f"⚠️ Error during voice cleanup: {e}")
+                # Continue with shutdown even if voice cleanup fails
+
+        # Now close the Discord connection
         await self.close()
         logger.info("Bot shutdown complete")
 
