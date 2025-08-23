@@ -2,19 +2,6 @@
 
 A Discord voice channel text-to-speech bot with Zundamon voice.
 
-## Features
-
-- Text-to-speech functionality for Discord voice channels
-- Message validation and filtering
-- Voice channel management
-- Status monitoring and health checks
-
-## Installation
-
-```bash
-uv install
-```
-
 ## Usage
 
 ```bash

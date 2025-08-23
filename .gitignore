@@ -58,7 +58,6 @@ test_output/
 # Package managers
 node_modules/
 package-lock.json
-uv.lock
 
 # Temporary files
 *.tmp
