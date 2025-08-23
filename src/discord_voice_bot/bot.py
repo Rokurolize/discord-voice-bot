@@ -12,19 +12,24 @@ from .config_manager import ConfigManagerImpl
 from .event_handler import EventHandler
 from .health_monitor import HealthMonitor
 from .message_validator import MessageValidator
-from .protocols import DiscordVoiceBotTTS
+from .protocols import ConfigManager
 from .status_manager import StatusManager
 from .voice.handler import VoiceHandler
+from .voice.stats_tracker import StatsTracker
 
 if TYPE_CHECKING:
     from .slash.registry import SlashCommandRegistry as SlashCommandHandler
 
 
-class DiscordVoiceTTSBot(DiscordVoiceBotTTS, commands.Bot):
+# DiscordVoiceBotTTS protocol is used for structural subtyping, no explicit import needed
+
+
+class DiscordVoiceTTSBot(commands.Bot):
     """Truly minimal bot that delegates everything to modular handlers."""
 
-    stats: dict[str, Any]
+    stats: "StatsTracker"
     config: ConfigManagerImpl | None
+    config_manager: ConfigManager
     monitor_task: asyncio.Task[None] | None
     event_handler: EventHandler | None
     command_handler: CommandHandler | None
@@ -37,6 +42,10 @@ class DiscordVoiceTTSBot(DiscordVoiceBotTTS, commands.Bot):
 
     def __init__(self, config: ConfigManagerImpl | None = None) -> None:
         """Initialize with modular components."""
+        # Store config first to avoid issues with super().__init__
+        self.config = config
+        self.config_manager = ConfigManagerImpl()
+
         super().__init__(
             command_prefix=config.get_command_prefix() if config else "!",
             intents=config.get_intents() if config else discord.Intents.default(),
@@ -44,18 +53,42 @@ class DiscordVoiceTTSBot(DiscordVoiceBotTTS, commands.Bot):
             case_insensitive=True,
         )
 
-        # Store config and initialize components
-        self.config = config
-        self.config_manager = ConfigManagerImpl()
-        self.stats = {}
+        # Initialize remaining attributes after super().__init__
+        self.stats = StatsTracker()
         self.monitor_task = None
-        # Initialize attributes that are accessed by handlers
         self.startup_connection_failures = 0
+
+        logger.debug("Discord.py v2.x initialization completed successfully")
+
+        # Initialize attributes that need to be set before _init_components
+        self.event_handler = None
+        self.command_handler = None
+        self.slash_handler = None
+        self.status_manager = None
+        self.message_validator = None
+        self.voice_handler = None
+        self.health_monitor = None
+        self.startup_complete = False
 
         self._init_components()
         self._setup_handlers()
 
         logger.info("Discord Voice TTS Bot - Truly Minimal Modular")
+
+    async def setup_hook(self) -> None:  # type: ignore[override]
+        """Discord.py v2.x setup hook - called after login but before connecting to gateway."""
+        logger.info("Running setup_hook for Discord.py v2.x compatibility")
+
+        # Initialize slash commands after bot is logged in
+        if self.slash_handler:
+            try:
+                await self.slash_handler.register_slash_commands()
+                logger.info("Slash commands registered successfully via setup_hook")
+            except Exception as e:
+                logger.error(f"Failed to register slash commands in setup_hook: {e}")
+
+        # Start any background tasks here if needed
+        logger.debug("setup_hook completed successfully")
 
     def _init_components(self) -> None:
         """Initialize modular components."""
@@ -96,24 +129,44 @@ class DiscordVoiceTTSBot(DiscordVoiceBotTTS, commands.Bot):
         event_handler = self.event_handler
 
         @self.event
-        async def on_ready() -> None:  # type: ignore[reportUnusedFunction]
+        async def on_ready() -> None:
+            """Handle bot ready event - registered by Discord.py automatically."""
             await event_handler.handle_ready()
 
+        # Mark function as used by Discord.py event system
+        _ = on_ready
+
         @self.event
-        async def on_message(*, message: discord.Message) -> None:  # type: ignore[reportUnusedFunction]
+        async def on_message(*, message: discord.Message) -> None:
+            """Handle message events - registered by Discord.py automatically."""
             await event_handler.handle_message(message)
 
+        # Mark function as used by Discord.py event system
+        _ = on_message
+
         @self.event
-        async def on_voice_state_update(member: discord.Member, before: discord.VoiceState, after: discord.VoiceState) -> None:  # type: ignore[reportUnusedFunction]
+        async def on_voice_state_update(member: discord.Member, before: discord.VoiceState, after: discord.VoiceState) -> None:
+            """Handle voice state update events - registered by Discord.py automatically."""
             await event_handler.handle_voice_state_update(member, before, after)
 
-        @self.event
-        async def on_disconnect() -> None:  # type: ignore[reportUnusedFunction]
-            await event_handler.handle_disconnect()
+        # Mark function as used by Discord.py event system
+        _ = on_voice_state_update
 
         @self.event
-        async def on_error(event: str, *args: Any, **kwargs: Any) -> None:  # type: ignore[reportUnusedFunction]
+        async def on_disconnect() -> None:
+            """Handle bot disconnect events - registered by Discord.py automatically."""
+            await event_handler.handle_disconnect()
+
+        # Mark function as used by Discord.py event system
+        _ = on_disconnect
+
+        @self.event
+        async def on_error(event: str, *args: Any, **kwargs: Any) -> None:
+            """Handle error events - registered by Discord.py automatically."""
             await event_handler.handle_error(event, *args, **kwargs)
+
+        # Mark function as used by Discord.py event system
+        _ = on_error
 
     def _setup_commands(self) -> None:
         """Setup commands - all delegated to command handlers."""
@@ -123,21 +176,26 @@ class DiscordVoiceTTSBot(DiscordVoiceBotTTS, commands.Bot):
 
         # Type assertion for mypy since we just checked it's not None
         command_handler = self.command_handler
-        slash_handler = self.slash_handler
+        _ = self.slash_handler  # Keep reference for type checking
 
         # Register simple prefix commands that delegate to command handler
         for name in ["status", "skip", "clear", "test", "voices", "voicecheck", "reconnect"]:
             self._add_simple_command(name, command_handler)
 
-        # Register slash commands
-        _ = asyncio.create_task(slash_handler.register_slash_commands())
+        # Note: Slash commands will be registered in setup_hook instead of here
+        # to ensure proper Discord.py v2.x initialization timing
+        logger.debug("Deferring slash command registration to setup_hook")
 
     def _add_simple_command(self, name: str, command_handler: CommandHandler) -> None:
         """Add a simple command that delegates to command handler."""
 
         @self.command(name=name)
-        async def cmd(ctx: commands.Context[Any], *, text: str = "") -> None:  # type: ignore[reportUnusedFunction]
+        async def cmd(ctx: commands.Context[Any], *, text: str = "") -> None:
+            """Handle prefix commands - registered by Discord.py automatically."""
             _ = await command_handler.process_command(ctx.message)
+
+        # Mark function as used by Discord.py command system
+        _ = cmd
 
     async def shutdown(self) -> None:
         """Graceful shutdown."""

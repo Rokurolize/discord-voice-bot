@@ -53,13 +53,13 @@ class PlayerWorker:
                         logger.warning(f"Audio playback timeout for {audio_path}")
                         self.voice_handler.voice_client.stop()
 
-                    self.voice_handler.stats["messages_played"] += 1
+                    self.voice_handler.stats.increment_messages_played()
                     logger.debug(f"Played audio: {audio_path} (priority: {priority})")
 
                 except Exception as e:
                     logger.error(f"Playback error: {e}")
                     cleanup_file(audio_path)
-                    self.voice_handler.stats["errors"] += 1
+                    self.voice_handler.stats.increment_errors()
 
             except asyncio.CancelledError:
                 break
@@ -73,4 +73,4 @@ class PlayerWorker:
 
         if error:
             logger.error(f"Playback error: {error}")
-            self.voice_handler.stats["errors"] += 1
+            self.voice_handler.stats.increment_errors()

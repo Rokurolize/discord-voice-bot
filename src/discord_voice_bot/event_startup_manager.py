@@ -7,13 +7,16 @@ import discord
 from loguru import logger
 
 if TYPE_CHECKING:
-    from .protocols import ConfigManager, DiscordVoiceBotTTS
+    from .protocols import ConfigManager, StartupBot
+
+# Use StartupBot protocol for type checking to allow attribute access on the bot
+# at type-check time without importing runtime discord classes.
 
 
 class StartupManager:
     """Manages bot startup sequence and initialization."""
 
-    def __init__(self, bot: "DiscordVoiceBotTTS", config_manager: "ConfigManager"):
+    def __init__(self, bot: "StartupBot", config_manager: "ConfigManager"):
         """Initialize startup manager."""
         super().__init__()
         self.bot = bot
@@ -22,7 +25,7 @@ class StartupManager:
 
     async def handle_startup(self) -> None:
         """Handle complete bot startup sequence."""
-        if self.bot.startup_complete:
+        if getattr(self.bot, "startup_complete", False):
             logger.info("Bot reconnected and ready")
             return
 
@@ -68,17 +71,19 @@ class StartupManager:
                     logger.error("🔧 BOT WILL SHUTDOWN - Voice connection is required for TTS functionality")
                     self._log_troubleshooting_tips()
 
-                    # Count consecutive startup failures
-                    if not hasattr(self.bot, "startup_connection_failures"):
+                    # Count consecutive startup failures (use setattr/getattr to avoid attribute access issues)
+                    if getattr(self.bot, "startup_connection_failures", None) is None:
                         self.bot.startup_connection_failures = 0
-                    self.bot.startup_connection_failures += 1
+                    current_failures = getattr(self.bot, "startup_connection_failures", 0)
+                    self.bot.startup_connection_failures = current_failures + 1
 
-                    logger.error(f"❌ STARTUP CONNECTION FAILURE #{self.bot.startup_connection_failures}")
+                    current_failures = getattr(self.bot, "startup_connection_failures", 0)
+                    logger.error(f"❌ STARTUP CONNECTION FAILURE #{current_failures}")
 
-                    if self.bot.startup_connection_failures >= 3:
+                    if current_failures >= 3:
                         logger.error("🔧 BOT SHUTDOWN - Maximum startup connection failures reached")
                         raise RuntimeError("Voice connection failed during startup after 3 attempts - bot cannot function without voice channel access")
-                    logger.warning(f"⚠️ Connection failed {self.bot.startup_connection_failures}/3 times during startup")
+                    logger.warning(f"⚠️ Connection failed {current_failures}/3 times during startup")
             except Exception as e:
                 logger.error(f"💥 CRITICAL ERROR during connection attempt {attempt + 1}: {e}")
                 if attempt == max_retries - 1:
@@ -87,9 +92,10 @@ class StartupManager:
 
                     sys.exit(1)
 
-        # Start monitoring task
-        if hasattr(self.bot, "monitor_task"):
-            self.bot.monitor_task.start()
+        # Start monitoring task (defensive: task may be a custom object with start())
+        monitor_task = getattr(self.bot, "monitor_task", None)
+        if monitor_task and hasattr(monitor_task, "start"):
+            getattr(monitor_task, "start")()
 
         # Mark startup complete
         self.bot.startup_complete = True
@@ -103,9 +109,13 @@ class StartupManager:
 
     async def _initialize_components(self) -> None:
         """Initialize bot components."""
-        try:
-            await self.bot.voice_handler.start()
-        except AttributeError:
+        voice_handler = getattr(self.bot, "voice_handler", None)
+        if voice_handler is not None:
+            try:
+                await voice_handler.start()
+            except Exception as e:
+                logger.warning(f"Voice handler start failed during initialization: {e}")
+        else:
             logger.warning("Voice handler not available during startup")
 
         # Start TTS engine
@@ -115,22 +125,31 @@ class StartupManager:
         await tts_engine.start()
 
         # Start health monitor
-        try:
-            await self.bot.health_monitor.start()
-        except AttributeError:
+        health_monitor = getattr(self.bot, "health_monitor", None)
+        if health_monitor is not None:
+            try:
+                await health_monitor.start()
+            except Exception as e:
+                logger.warning(f"Health monitor start failed during initialization: {e}")
+        else:
             logger.warning("Health monitor not available during startup")
 
     async def _attempt_voice_connection(self) -> bool:
         """Attempt to connect to the target voice channel."""
         try:
-            success = await self.bot.voice_handler.connect_to_channel(self.target_channel_id)
+            voice_handler = getattr(self.bot, "voice_handler", None)
+            if not voice_handler:
+                logger.error("Voice handler not available for connection attempt")
+                return False
+            success = await voice_handler.connect_to_channel(self.target_channel_id)
 
             # Perform final health check for diagnostics
             if not success:
                 try:
                     health_status = await self.bot.voice_handler.health_check()
                     logger.error("🔍 FINAL DIAGNOSTICS:")
-                    for issue in health_status["issues"]:
+                    issues = health_status.get("issues", [])
+                    for issue in issues:
                         logger.error(f"   • {issue}")
                 except AttributeError:
                     logger.error("Voice handler not available for diagnostics")

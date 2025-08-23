@@ -7,13 +7,13 @@ import discord
 from loguru import logger
 
 if TYPE_CHECKING:
-    from .protocols import ConfigManager, DiscordVoiceBotTTS
+    from .protocols import ConfigManager
 
 
 class ConnectionHandler:
     """Handles voice connection events and reconnection logic."""
 
-    def __init__(self, bot: "DiscordVoiceBotTTS", config_manager: "ConfigManager"):
+    def __init__(self, bot: Any, config_manager: "ConfigManager"):
         """Initialize connection handler."""
         super().__init__()
         self.bot = bot
@@ -104,8 +104,36 @@ class ConnectionHandler:
             logger.warning("⚠️ Voice handler not initialized, cannot handle voice server update")
 
     async def handle_error(self, event: str, *args: Any, **kwargs: Any) -> None:
-        """Handle general errors."""
+        """Handle general errors with full stack trace."""
+        import os
+        import sys
+        import traceback
+
+        # Get the full stack trace
+        stack_trace = traceback.format_exc()
+
         logger.error(f"Discord event error in {event}: {args} {kwargs}")
+
+        # Show full stack trace if debug mode is enabled
+        if os.environ.get("DEBUG") == "1":
+            logger.error(f"🔍 FULL STACK TRACE for {event}:")
+            logger.error(f"{stack_trace}")
+        else:
+            # In production, just log the exception info
+            exc_info = traceback.format_exception(*sys.exc_info())
+            if exc_info:
+                logger.error(f"💥 Exception details: {exc_info[-1].strip()}")
+
+        # Also log to file for debugging
+        try:
+            with open("discord_bot_error.log", "a", encoding="utf-8") as f:
+                _ = f.write(f"\n=== ERROR in {event} at {asyncio.get_event_loop().time()} ===\n")
+                _ = f.write(f"Args: {args}\n")
+                _ = f.write(f"Kwargs: {kwargs}\n")
+                _ = f.write(f"Stack trace:\n{stack_trace}\n")
+                _ = f.write("=" * 50 + "\n")
+        except Exception as log_error:
+            logger.error(f"Failed to write to error log: {log_error}")
 
     def set_target_channel_id(self, channel_id: int) -> None:
         """Set the target voice channel ID."""

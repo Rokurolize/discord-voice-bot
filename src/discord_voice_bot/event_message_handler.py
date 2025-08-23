@@ -3,16 +3,20 @@
 from typing import TYPE_CHECKING, Any
 
 import discord
+from discord.ext import commands
 from loguru import logger
 
 if TYPE_CHECKING:
-    from .protocols import ConfigManager, DiscordVoiceBotTTS
+    from .protocols import ConfigManager
+
+# Type alias for Discord bot to avoid circular imports - use commands.Bot at runtime
+DiscordBot = commands.Bot
 
 
 class MessageHandler:
     """Handles Discord message events and processing."""
 
-    def __init__(self, bot: "DiscordVoiceBotTTS", config_manager: "ConfigManager"):
+    def __init__(self, bot: DiscordBot, config_manager: "ConfigManager"):
         """Initialize message handler."""
         super().__init__()
         self.bot = bot
@@ -26,10 +30,10 @@ class MessageHandler:
 
             # Process commands first (with rate limiting) - BEFORE TTS filtering
             logger.debug(f"Processing commands for message: {message.content}")
-            if hasattr(self.bot, "command_handler") and self.bot.command_handler:
-                await self.bot.command_handler.process_command(message)
-            elif hasattr(self.bot, "voice_handler") and self.bot.voice_handler:
-                await self.bot.voice_handler.make_rate_limited_request(self.bot.process_commands, message)
+            if hasattr(self.bot, "command_handler") and self.bot.command_handler:  # type: ignore
+                await self.bot.command_handler.process_command(message)  # type: ignore
+            elif hasattr(self.bot, "voice_handler") and self.bot.voice_handler:  # type: ignore
+                await self.bot.voice_handler.make_rate_limited_request(self.bot.process_commands, message)  # type: ignore
             else:
                 await self.bot.process_commands(message)
 
@@ -44,18 +48,18 @@ class MessageHandler:
                 return
 
             # Add to TTS queue with rate limiting
-            if hasattr(self.bot, "voice_handler") and self.bot.voice_handler:
-                await self.bot.voice_handler.add_to_queue(processed_message)
-                current_count = self.bot.stats.get("messages_processed", 0)
-                self.bot.stats["messages_processed"] = int(current_count if current_count is not None else 0) + 1
+            if hasattr(self.bot, "voice_handler") and self.bot.voice_handler:  # type: ignore
+                await self.bot.voice_handler.add_to_queue(processed_message)  # type: ignore
+                current_count = self.bot.stats.get("messages_processed", 0)  # type: ignore
+                self.bot.stats["messages_processed"] = int(current_count if current_count is not None else 0) + 1  # type: ignore
                 logger.debug(f"Queued TTS message from {message.author.display_name}")
             else:
                 logger.warning("Voice handler not initialized, cannot queue TTS message")
 
         except Exception as e:
             logger.error(f"Error processing message {message.id}: {e!s}")
-            current_errors = self.bot.stats.get("connection_errors", 0)
-            self.bot.stats["connection_errors"] = int(current_errors if current_errors is not None else 0) + 1
+            current_errors = self.bot.stats.get("connection_errors", 0)  # type: ignore
+            self.bot.stats["connection_errors"] = int(current_errors if current_errors is not None else 0) + 1  # type: ignore
 
     async def _should_process_message(self, message: discord.Message) -> bool:
         """Determine if a message should be processed following Discord's patterns."""
@@ -107,8 +111,8 @@ class MessageHandler:
                 processed_message["validation_passed"] = True
 
                 # Apply rate limiting to message processing
-                if hasattr(self.bot, "voice_handler") and self.bot.voice_handler:
-                    await self.bot.voice_handler.rate_limiter.wait_if_needed()
+                if hasattr(self.bot, "voice_handler") and self.bot.voice_handler:  # type: ignore
+                    await self.bot.voice_handler.rate_limiter.wait_if_needed()  # type: ignore
 
             return processed_message
 

@@ -34,9 +34,9 @@ def build_status(voice_handler: "VoiceHandlerInterface") -> dict[str, Any]:
         "audio_queue_size": voice_handler.audio_queue.qsize(),
         "total_queue_size": voice_handler.synthesis_queue.qsize() + voice_handler.audio_queue.qsize(),
         "current_group": voice_handler.current_group_id,
-        "messages_played": voice_handler.stats["messages_played"],
-        "messages_skipped": voice_handler.stats["messages_skipped"],
-        "errors": voice_handler.stats["errors"],
+        "messages_played": voice_handler.stats.get("messages_played", 0),
+        "messages_skipped": voice_handler.stats.get("messages_skipped", 0),
+        "errors": voice_handler.stats.get("errors", 0),
         "connection_state": voice_handler.connection_state,
         "is_playing": voice_handler.is_playing,
         "max_queue_size": 50,  # Add max queue size for UI

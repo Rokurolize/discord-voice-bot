@@ -30,3 +30,19 @@ class StatsTracker:
     def reset_stats(self) -> None:
         """Reset all statistics to zero."""
         self.stats = {"messages_played": 0, "messages_skipped": 0, "errors": 0}
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Get a stat value by key, maintaining dict-like access for backward compatibility."""
+        return self.stats.get(key, default)
+
+    def current_count(self) -> int:
+        """Get total count of processed messages for backward compatibility."""
+        return self.stats["messages_played"] + self.stats["messages_skipped"]
+
+    def __getitem__(self, key: str) -> Any:
+        """Dict-like access for backward compatibility."""
+        return self.stats[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        """Dict-like assignment for backward compatibility."""
+        self.stats[key] = value

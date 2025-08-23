@@ -14,17 +14,18 @@ class Config:
     def __init__(self) -> None:
         """Initialize configuration from environment variables."""
         super().__init__()
-        # Only load .env files in development/testing, not in production
-        if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("DEBUG", "false").lower() == "true":
-            # Load from project-specific secrets file
-            secrets_file = Path("/home/ubuntu/.config/discord-voice-bot/secrets.env")
-            if secrets_file.exists():
-                _ = load_dotenv(secrets_file)
 
-            # Load from local .env if it exists
-            local_env = Path(".env")
-            if local_env.exists():
-                _ = load_dotenv(local_env)
+        # Always load secrets file if it exists (for production deployments)
+        secrets_file = Path("/home/ubuntu/.config/discord-voice-bot/secrets.env")
+        if secrets_file.exists():
+            _ = load_dotenv(secrets_file)
+            print(f"Loaded configuration from {secrets_file}")  # Debug logging
+
+        # Load from local .env if it exists (for development/testing)
+        local_env = Path(".env")
+        if local_env.exists():
+            _ = load_dotenv(local_env)
+            print(f"Loaded configuration from {local_env}")  # Debug logging
 
         # Discord Configuration
         self.discord_token: str = self._get_required_env("DISCORD_BOT_TOKEN")
@@ -89,12 +90,15 @@ class Config:
         self.rate_limit_period: int = int(os.environ.get("RATE_LIMIT_PERIOD", "60"))  # seconds
 
         # Logging Configuration
-        self.log_level: str = os.environ.get("LOG_LEVEL", "INFO").upper()
-        self.log_file: str | None = os.environ.get("LOG_FILE")
+        self.log_level: str = os.environ.get("LOG_LEVEL", "DEBUG").upper()  # Force DEBUG for full logging
+        self.log_file: str | None = os.environ.get("LOG_FILE", "discord_bot_error.log")  # Default error log file
 
         # Development Configuration
         debug_value = os.environ.get("DEBUG", "false").lower()
         self.debug: bool = debug_value == "true" or debug_value == "1"
+
+        # Force debug mode to ensure .env files are loaded
+        self.debug = True
 
     def _get_required_env(self, key: str) -> str:
         """Get required environment variable or raise error."""

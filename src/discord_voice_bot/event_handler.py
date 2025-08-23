@@ -11,13 +11,13 @@ from .event_message_handler import MessageHandler
 from .event_startup_manager import StartupManager
 
 if TYPE_CHECKING:
-    from .protocols import ConfigManager, DiscordVoiceBotTTS
+    from .protocols import ConfigManager
 
 
 class EventHandler:
     """Handles Discord events using facade pattern with specialized managers."""
 
-    def __init__(self, bot: "DiscordVoiceBotTTS", config_manager: "ConfigManager"):
+    def __init__(self, bot: Any, config_manager: "ConfigManager"):
         """Initialize event handler with manager components.
 
         Args:

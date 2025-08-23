@@ -82,7 +82,7 @@ class SynthesizerWorker:
                 break
             except Exception as e:
                 logger.error(f"Synthesis error: {e}")
-                self.voice_handler.stats["errors"] += 1
+                self.voice_handler.stats.increment_errors()
 
     async def _create_temp_audio_file(self, audio_data: bytes) -> str:
         """Create a temporary audio file with the given data."""

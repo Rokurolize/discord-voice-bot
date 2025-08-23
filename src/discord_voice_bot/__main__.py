@@ -230,6 +230,12 @@ async def main() -> None:
             sys.exit(1)
     except Exception as e:
         logger.error(f"Unexpected error: {type(e).__name__} - {e!s}")
+        # Print full traceback to stderr for debugging
+        import traceback
+
+        logger.error("Full traceback:")
+        for line in traceback.format_exc().splitlines():
+            logger.error(line)
         sys.exit(1)
 
     logger.info("Goodbye! 👋")

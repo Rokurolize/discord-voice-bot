@@ -2,8 +2,6 @@
 
 from typing import Any, Protocol
 
-from discord.ext import commands
-
 
 class ConfigManager(Protocol):
     """Protocol for configuration management to avoid circular imports."""
@@ -147,18 +145,8 @@ class HasConfigManager(Protocol):
     config_manager: "ConfigManager"
 
 
-class DiscordVoiceBotTTS(commands.Bot, HasConfig, HasConfigManager, HasVoiceHandler, HasHealthMonitor, HasStatusManager, HasEventHandler, HasCommandHandler, HasSlashHandler, HasMessageValidator):
-    """Protocol defining the complete Discord Voice TTS Bot interface.
-
-    This protocol defines the interface that DiscordVoiceTTSBot should implement,
-    but does not inherit from commands.Bot as protocols cannot inherit from concrete classes.
-    """
-
-    # Bot state attributes
-    startup_connection_failures: int
-    startup_complete: bool
-    stats: dict[str, Any]
-    monitor_task: Any
+# DiscordVoiceBotTTS protocol removed - using structural subtyping instead
+# Classes with the required attributes will be compatible automatically
 
 
 class DiscordBotClient(Protocol):
@@ -185,3 +173,28 @@ class DiscordBotClient(Protocol):
     def __getattr__(self, name: str) -> Any:
         """Allow dynamic attribute access for optional components."""
         ...
+
+
+class StatsLike(Protocol):
+    """Minimal stats mapping used by StartupManager."""
+
+    def __getitem__(self, key: str) -> Any: ...
+    def __setitem__(self, key: str, value: Any) -> None: ...
+    def get(self, key: str, default: Any = ...) -> Any: ...
+
+
+class StartupBot(Protocol):
+    """Protocol capturing the attributes StartupManager needs to access on the bot."""
+
+    user: Any | None
+    tree: Any
+    guilds: Any
+    stats: StatsLike
+    startup_complete: bool
+    startup_connection_failures: int
+    monitor_task: Any | None
+
+    async def change_presence(self, *, status: Any, activity: Any) -> None: ...
+    def get_channel(self, channel_id: int) -> Any: ...
+    # Optional components accessed defensively at runtime
+    def __getattr__(self, name: str) -> Any: ...

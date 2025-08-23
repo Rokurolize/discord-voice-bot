@@ -30,8 +30,60 @@ class VoiceHandlerInterface(Protocol):
     target_channel: Any
     current_group_id: str | None
     is_playing: bool
-    stats: dict[str, Any]
+    stats: "StatsTracker"
     connection_state: str
+
+    async def start(self) -> None:
+        """Start the voice handler tasks."""
+        ...
+
+    def is_connected(self) -> bool:
+        """Check if the bot is connected to a voice channel."""
+        ...
+
+    async def connect_to_channel(self, channel_id: int) -> bool:
+        """Connect to a voice channel."""
+        ...
+
+    async def handle_voice_server_update(self, payload: dict[str, Any]) -> None:
+        """Handle VOICE_SERVER_UPDATE event."""
+        ...
+
+    async def handle_voice_state_update(self, payload: dict[str, Any]) -> None:
+        """Handle VOICE_STATE_UPDATE event."""
+        ...
+
+    async def make_rate_limited_request(self, api_call: Any, *args: Any, **kwargs: Any) -> Any:
+        """Make a rate-limited API request."""
+        ...
+
+    async def add_to_queue(self, message_data: dict[str, Any]) -> None:
+        """Add message to synthesis queue."""
+        ...
+
+    async def skip_current(self) -> int:
+        """Skip the current message group."""
+        ...
+
+    async def clear_all(self) -> int:
+        """Clear all queues."""
+        ...
+
+    def get_status(self) -> dict[str, Any]:
+        """Get current status information."""
+        ...
+
+    async def health_check(self) -> dict[str, Any]:
+        """Perform voice connection health check."""
+        ...
+
+    async def cleanup(self) -> None:
+        """Clean up resources."""
+        ...
+
+    async def cleanup_voice_client(self) -> None:
+        """Clean up voice client state."""
+        ...
 
 
 class VoiceHandler(VoiceHandlerInterface):
@@ -61,7 +113,7 @@ class VoiceHandler(VoiceHandlerInterface):
         self.synthesis_queue = self.queue_manager.synthesis_queue
         self.audio_queue = self.queue_manager.audio_queue
         self.current_group_id = self.queue_manager.current_group_id
-        self.stats = self.stats_tracker.stats
+        self.stats = self.stats_tracker
 
         # Backward compatibility for rate limiter
         self.rate_limiter = self.rate_limiter_manager.rate_limiter
@@ -84,7 +136,7 @@ class VoiceHandler(VoiceHandlerInterface):
         """Set voice gateway in connection manager."""
         self.connection_manager.voice_gateway = value
 
-    async def start(self) -> None:
+    async def start(self) -> None:  # type: ignore[override]
         """Start the voice handler tasks."""
         # Diagnostics: ensure opus is loaded; if not, voice playback will fail
         try:
@@ -110,31 +162,31 @@ class VoiceHandler(VoiceHandlerInterface):
         """Add a worker task to be managed by the handler."""
         self.task_manager.add_task(task)
 
-    def is_connected(self) -> bool:
+    def is_connected(self) -> bool:  # type: ignore[override]
         """Check if the bot is connected to a voice channel."""
         return self.connection_manager.is_connected()
 
-    async def connect_to_channel(self, channel_id: int) -> bool:
+    async def connect_to_channel(self, channel_id: int) -> bool:  # type: ignore[override]
         """Connect to a voice channel using connection manager."""
         return await self.connection_manager.connect_to_channel(channel_id)
 
-    async def handle_voice_server_update(self, payload: dict[str, Any]) -> None:
+    async def handle_voice_server_update(self, payload: dict[str, Any]) -> None:  # type: ignore[override]
         """Handle VOICE_SERVER_UPDATE event with proper Discord API compliance."""
         await self.connection_manager.handle_voice_server_update(payload)
 
-    async def handle_voice_state_update(self, payload: dict[str, Any]) -> None:
+    async def handle_voice_state_update(self, payload: dict[str, Any]) -> None:  # type: ignore[override]
         """Handle VOICE_STATE_UPDATE event with proper Discord API compliance."""
         await self.connection_manager.handle_voice_state_update(payload)
 
-    async def make_rate_limited_request(self, api_call: Any, *args: Any, **kwargs: Any) -> Any:
+    async def make_rate_limited_request(self, api_call: Any, *args: Any, **kwargs: Any) -> Any:  # type: ignore[override]
         """Make a rate-limited API request with circuit breaker pattern."""
         return await self.rate_limiter_manager.make_rate_limited_request(api_call, *args, **kwargs)
 
-    async def add_to_queue(self, message_data: dict[str, Any]) -> None:
+    async def add_to_queue(self, message_data: dict[str, Any]) -> None:  # type: ignore[override]
         """Add message to synthesis queue with deduplication."""
         await self.queue_manager.add_to_queue(message_data)
 
-    async def skip_current(self) -> int:
+    async def skip_current(self) -> int:  # type: ignore[override]
         """Skip the current message group."""
         if not self.current_group_id:
             return 0
@@ -154,7 +206,7 @@ class VoiceHandler(VoiceHandlerInterface):
         logger.info(f"Skipped {total_skipped} chunks from group {self.current_group_id}")
         return total_skipped
 
-    async def clear_all(self) -> int:
+    async def clear_all(self) -> int:  # type: ignore[override]
         """Clear all queues."""
         total = await self.queue_manager.clear_all()
 
@@ -164,7 +216,7 @@ class VoiceHandler(VoiceHandlerInterface):
         logger.info(f"Cleared {total} items from queues")
         return total
 
-    def get_status(self) -> dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:  # type: ignore[override]
         """Get current status information from all managers."""
         connection_info = self.connection_manager.get_connection_info()
         queue_sizes = self.queue_manager.get_queue_sizes()
@@ -188,11 +240,11 @@ class VoiceHandler(VoiceHandlerInterface):
             "max_queue_size": 50,
         }
 
-    async def health_check(self) -> dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:  # type: ignore[override]
         """Perform comprehensive voice connection health check."""
         return await self.health_monitor.perform_health_check()
 
-    async def cleanup(self) -> None:
+    async def cleanup(self) -> None:  # type: ignore[override]
         """Clean up resources."""
         await self.task_manager.cleanup()
 
@@ -203,6 +255,6 @@ class VoiceHandler(VoiceHandlerInterface):
 
         logger.info("Voice handler cleaned up")
 
-    async def cleanup_voice_client(self) -> None:
+    async def cleanup_voice_client(self) -> None:  # type: ignore[override]
         """Aggressively clean up voice client state."""
         await self.connection_manager.cleanup_voice_client()

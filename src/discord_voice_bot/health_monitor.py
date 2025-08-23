@@ -27,11 +27,11 @@ class HealthStatus:
     """Comprehensive health status information."""
 
     healthy: bool = True
-    issues: list[str] = field(default_factory=list)  # type: ignore[assignment]
-    recommendations: list[str] = field(default_factory=list)  # type: ignore[assignment]
+    issues: list[str] = field(default_factory=lambda: list[str]())
+    recommendations: list[str] = field(default_factory=lambda: list[str]())
     last_check: float = field(default_factory=time.time)
     failure_count: int = 0
-    recent_failures: list[FailureRecord] = field(default_factory=list)  # type: ignore[assignment]
+    recent_failures: list[FailureRecord] = field(default_factory=lambda: list[FailureRecord]())
 
 
 class HealthMonitor:
@@ -53,6 +53,7 @@ class HealthMonitor:
         }
         self._graceful_shutdown = False
         self._shutdown_reason: str | None = None
+        self._shutdown_task: asyncio.Task[None] | None = None
 
     async def start(self) -> None:
         """Start health monitoring tasks."""
@@ -152,8 +153,8 @@ class HealthMonitor:
         """Perform comprehensive health checks."""
         logger.debug("🔍 Performing comprehensive health checks...")
 
-        issues: list[str] = []
-        recommendations: list[str] = []
+        issues: list[str] = list[str]()
+        recommendations: list[str] = list[str]()
 
         # Check TTS API health
         try:
@@ -168,17 +169,19 @@ class HealthMonitor:
             else:
                 self.record_api_success()
         except Exception as e:
-            issues.append(f"TTS API check error: {e}")
+            issues.append("TTS API check error: " + str(e))
             recommendations.append("Verify TTS engine configuration")
 
         # Check voice connection health
         try:
             voice_healthy, voice_issues = await self._check_voice_connection_health()
+            # Ensure issues list is fully typed as list[str]
+            voice_issues = [str(x) for x in (voice_issues or [])]
             if not voice_healthy:
                 issues.extend(voice_issues)
                 recommendations.append("Check voice channel permissions and network connectivity")
         except Exception as e:
-            issues.append(f"Voice connection check error: {e}")
+            issues.append("Voice connection check error: " + str(e))
 
         # Check bot permissions
         try:
@@ -187,13 +190,14 @@ class HealthMonitor:
                 issues.extend(perm_issues)
                 recommendations.append("Review and fix bot permissions in Discord server")
         except Exception as e:
-            issues.append(f"Permission check error: {e}")
+            issues.append("Permission check error: " + str(e))
 
         # Update health status
         self.status.healthy = len(issues) == 0
         self.status.issues = issues
         self.status.recommendations = recommendations
         self.status.last_check = time.time()
+        self.status.recent_failures = []
 
         if not self.status.healthy:
             logger.warning(f"⚠️ Health check detected {len(issues)} issues:")
@@ -215,7 +219,19 @@ class HealthMonitor:
             # Get voice handler status
             voice_handler = getattr(self.bot, "voice_handler", None)
             if voice_handler:
-                status = cast(Any, voice_handler).get_status()  # type: ignore[attr-defined]
+                # Obtain status defensively (support sync or async get_status implementations)
+                get_status = getattr(voice_handler, "get_status", None)
+                status: dict[str, Any] = {}
+                if callable(get_status):
+                    try:
+                        if asyncio.iscoroutinefunction(get_status):
+                            maybe = await get_status()
+                        else:
+                            maybe = get_status()
+                        if isinstance(maybe, dict):
+                            status = cast(dict[str, Any], maybe)
+                    except Exception:
+                        status = {}
                 if not status.get("connected", False):
                     issues.append("Voice connection lost")
                     self.record_disconnection("Health check detected disconnection")
@@ -227,7 +243,7 @@ class HealthMonitor:
             issues.append("Voice handler access error")
 
         except Exception as e:
-            issues.append(f"Voice health check error: {e}")
+            issues.append("Voice health check error: " + str(e))
 
         return len(issues) == 0, issues
 
@@ -260,7 +276,7 @@ class HealthMonitor:
 
                         # Check if this affects our target channel
                         target_channel = self.bot.get_channel(self._config_manager.get_target_voice_channel_id())
-                        if target_channel and hasattr(target_channel, "guild") and target_channel.guild == guild:  # type: ignore[attr-defined]
+                        if isinstance(target_channel, (discord.VoiceChannel, discord.StageChannel)) and target_channel.guild == guild:
                             logger.error(f"🚨 Critical permissions missing in target guild {guild.name}")
                             self._trigger_termination(f"Missing critical permissions: {', '.join(missing_perms)}")
                         else:
@@ -298,7 +314,7 @@ class HealthMonitor:
                 return False, issues
 
         except Exception as e:
-            issues.append(f"Critical permission check error: {e}")
+            issues.append("Critical permission check error: " + str(e))
 
         return len(issues) == 0, issues
 
@@ -347,7 +363,7 @@ class HealthMonitor:
                 logger.error(f"   • {failure.failure_type} ({age:.0f}s ago): {failure.details}")
 
         # Force shutdown
-        _ = asyncio.create_task(self._perform_shutdown())
+        self._shutdown_task = asyncio.create_task(self._perform_shutdown())
 
     async def _perform_shutdown(self) -> None:
         """Perform graceful shutdown."""
@@ -357,7 +373,15 @@ class HealthMonitor:
             # Stop voice handler if exists
             voice_handler = getattr(self.bot, "voice_handler", None)
             if voice_handler:
-                await cast(Any, voice_handler).cleanup()  # type: ignore[attr-defined]
+                cleanup = getattr(voice_handler, "cleanup", None)
+                if callable(cleanup):
+                    try:
+                        if asyncio.iscoroutinefunction(cleanup):
+                            await cleanup()
+                        else:
+                            _ = cleanup()
+                    except Exception as e:
+                        logger.warning(f"Voice handler cleanup failed: {e}")
 
             # Stop TTS engine
             from .tts_engine import get_tts_engine

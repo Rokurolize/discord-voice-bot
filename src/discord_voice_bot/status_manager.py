@@ -18,7 +18,7 @@ class BotStats:
     tts_messages_played: int = 0
     connection_errors: int = 0
     uptime_start: float | None = None
-    command_usage: dict[str, int] = field(default_factory=dict)  # type: ignore[misc]
+    command_usage: dict[str, int] = field(default_factory=dict)  # type: ignore
     voice_connections: int = 0
     voice_disconnections: int = 0
     failed_tts_requests: int = 0

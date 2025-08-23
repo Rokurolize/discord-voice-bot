@@ -19,8 +19,8 @@ class ValidationResult:
     is_valid: bool
     reason: str = ""
     filtered_content: str = ""
-    warnings: list[str] = field(default_factory=list)  # type: ignore[misc]
-    metadata: dict[str, Any] = field(default_factory=dict)  # type: ignore[misc]
+    warnings: list[str] = field(default_factory=list)  # type: ignore
+    metadata: dict[str, Any] = field(default_factory=dict)  # type: ignore
 
 
 class MessageValidator:
