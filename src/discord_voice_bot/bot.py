@@ -137,7 +137,7 @@ class DiscordVoiceTTSBot(commands.Bot):
         _ = on_ready
 
         @self.event
-        async def on_message(*, message: discord.Message) -> None:
+        async def on_message(message: discord.Message) -> None:
             """Handle message events - registered by Discord.py automatically."""
             await event_handler.handle_message(message)
 
