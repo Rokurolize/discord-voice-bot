@@ -12,7 +12,7 @@ from loguru import logger
 from .bot import run_bot
 
 # Import our bot modules
-from .config import config
+from .config_manager import ConfigManagerImpl
 from .health_monitor import HealthMonitor
 
 
@@ -21,10 +21,12 @@ class BotManager:
 
     def __init__(self) -> None:
         """Initialize bot manager."""
+        super().__init__()
         self.bot_task: asyncio.Task[None] | None = None
         self.shutdown_event = asyncio.Event()
         self.is_shutting_down = False
         self.health_monitor: HealthMonitor | None = None
+        self.config_manager = ConfigManagerImpl()
 
     def setup_logging(self) -> None:
         """Set up structured logging."""
@@ -32,9 +34,9 @@ class BotManager:
         logger.remove()
 
         # Console logging with colors and formatting
-        logger.add(
+        _ = logger.add(
             sys.stderr,
-            level=config.log_level,
+            level=self.config_manager.get_log_level(),
             format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | <level>{message}</level>",
             colorize=True,
             backtrace=True,
@@ -42,13 +44,14 @@ class BotManager:
         )
 
         # File logging if configured
-        if config.log_file:
-            log_path = Path(config.log_file)
+        log_file = self.config_manager.get_log_file()
+        if log_file:
+            log_path = Path(log_file)
             log_path.parent.mkdir(parents=True, exist_ok=True)
 
-            logger.add(
+            _ = logger.add(
                 log_path,
-                level=config.log_level,
+                level=self.config_manager.get_log_level(),
                 format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} | {message}",
                 rotation="10 MB",
                 retention="1 week",
@@ -80,8 +83,8 @@ class BotManager:
             self.shutdown_event.set()
 
         # Set up signal handlers
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
+        _ = signal.signal(signal.SIGINT, signal_handler)
+        _ = signal.signal(signal.SIGTERM, signal_handler)
 
         logger.info("Signal handlers set up for graceful shutdown")
 
@@ -92,15 +95,15 @@ class BotManager:
         try:
             # Validate configuration
             logger.info("Validating configuration...")
-            config.validate()
+            self.config_manager.validate()
             logger.info("Configuration validated successfully")
 
             # Log configuration summary
-            logger.info(f"Target voice channel ID: {config.target_voice_channel_id}")
-            logger.info(f"TTS Engine: {config.tts_engine.upper()}")
-            logger.info(f"TTS API URL: {config.api_url}")
-            logger.info(f"Speaker: {config.tts_speaker} (ID: {config.speaker_id})")
-            logger.info(f"Command prefix: {config.command_prefix}")
+            logger.info(f"Target voice channel ID: {self.config_manager.get_target_voice_channel_id()}")
+            logger.info(f"TTS Engine: {self.config_manager.get_tts_engine().upper()}")
+            logger.info(f"TTS API URL: {self.config_manager.get_api_url()}")
+            logger.info(f"Speaker: {self.config_manager.get('tts_speaker')} (ID: {self.config_manager.get_speaker_id()})")
+            logger.info(f"Command prefix: {self.config_manager.get_command_prefix()}")
 
             # Start bot
             self.bot_task = asyncio.create_task(run_bot())
@@ -120,7 +123,7 @@ class BotManager:
 
             # Cancel remaining tasks
             for task in pending:
-                task.cancel()
+                _ = task.cancel()
                 try:
                     await task
                 except asyncio.CancelledError:
@@ -129,7 +132,7 @@ class BotManager:
             # If bot task completed, check for exceptions
             if self.bot_task in done:
                 try:
-                    await self.bot_task
+                    _ = await self.bot_task
                 except Exception as e:
                     logger.error(f"Bot task failed: {type(e).__name__} - {e!s}")
                     raise
@@ -150,7 +153,10 @@ class BotManager:
 
         try:
             # Import TTS engine for health check
-            from .tts_engine import tts_engine
+            from .tts_engine import get_tts_engine
+
+            # Initialize TTS engine with config manager
+            tts_engine = get_tts_engine(self.config_manager)
 
             # Check TTS API availability
             logger.info("Checking TTS API availability...")
@@ -159,7 +165,9 @@ class BotManager:
             is_available, error_detail = await tts_engine.check_api_availability()
             if not is_available:
                 logger.error(f"TTS API health check failed: {error_detail}")
-                logger.error(f"Please ensure {config.tts_engine.upper()} server is running at {config.api_url}")
+                engine_name = self.config_manager.get_tts_engine().upper()
+                api_url = self.config_manager.get_api_url()
+                logger.error(f"Please ensure {engine_name} server is running at {api_url}")
                 return False
 
             logger.info("TTS API health check passed")

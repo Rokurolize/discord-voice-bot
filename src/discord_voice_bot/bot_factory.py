@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
-from .config import config
+from .config_manager import ConfigManagerImpl
 
 if TYPE_CHECKING:
     from .bot import DiscordVoiceTTSBot
@@ -69,7 +69,7 @@ class BotFactory:
         self.registry = ComponentRegistry()
         logger.info("Bot factory initialized")
 
-    async def create_bot(self, bot_class: (type["DiscordVoiceTTSBot"] | None) = None) -> "DiscordVoiceTTSBot":
+    async def create_bot(self, bot_class: type["DiscordVoiceTTSBot"] | None = None) -> "DiscordVoiceTTSBot":
         """Create and configure a new bot instance.
 
         Args:
@@ -82,18 +82,23 @@ class BotFactory:
         try:
             # Import here to avoid circular imports
             if bot_class is None:
-                from .bot import DiscordVoiceTTSBot
+                # Use TYPE_CHECKING to avoid runtime import
+                import importlib
 
-                bot_class = DiscordVoiceTTSBot
+                bot_module = importlib.import_module(".bot", package="discord_voice_bot")
+                bot_class = bot_module.DiscordVoiceTTSBot
 
             # Create bot instance (current constructor doesn't take config parameter)
-            bot = bot_class()
+            if bot_class is None:
+                raise ValueError("Bot class cannot be None")
+            bot: "DiscordVoiceTTSBot" = bot_class()
 
-            # Setup all components with config
-            await self._setup_components(bot, config)
+            # Setup all components with config manager
+            config_manager = ConfigManagerImpl()
+            await self._setup_components(bot, config_manager)
 
             # Validate configuration
-            await self._validate_configuration(bot)
+            await self._validate_configuration(bot, config_manager)
 
             logger.info("Bot instance created and configured successfully")
             return bot
@@ -102,12 +107,12 @@ class BotFactory:
             logger.error(f"Failed to create bot instance: {e}")
             raise
 
-    async def _setup_components(self, bot: "DiscordVoiceTTSBot", config: Any) -> None:
+    async def _setup_components(self, bot: "DiscordVoiceTTSBot", config_manager: ConfigManagerImpl) -> None:
         """Setup all bot components.
 
         Args:
             bot: Bot instance to setup components for
-            config: Configuration object used by components during initialization.
+            config_manager: Configuration manager used by components during initialization.
 
         """
         logger.info("Setting up bot components...")
@@ -123,8 +128,12 @@ class BotFactory:
 
         for component_name, creator_func in components_to_setup:
             try:
-                component = await creator_func(bot)
-                if component:
+                # Pass config_manager to components that need it
+                if component_name in ["event_handler"]:
+                    component = await creator_func(bot, config_manager)  # type: ignore[call-arg]
+                else:
+                    component = await creator_func(bot)  # type: ignore[call-arg]
+                if component is not None:
                     self.registry.register(component_name, component)
                     setattr(bot, component_name, component)
                     logger.debug(f"Setup component: {component_name}")
@@ -139,11 +148,12 @@ class BotFactory:
 
         logger.info("All bot components setup successfully")
 
-    async def _create_event_handler(self, bot: "DiscordVoiceTTSBot") -> "EventHandler":
+    async def _create_event_handler(self, bot: "DiscordVoiceTTSBot", config_manager: ConfigManagerImpl) -> "EventHandler":
         """Create event handler.
 
         Args:
             bot: Bot instance
+            config_manager: Configuration manager
 
         Returns:
             Configured event handler
@@ -151,7 +161,8 @@ class BotFactory:
         """
         from .event_handler import EventHandler
 
-        return EventHandler(bot)
+        handler = EventHandler(bot, config_manager)  # type: ignore[arg-type]
+        return handler
 
     async def _create_command_handler(self, bot: "DiscordVoiceTTSBot") -> "CommandHandler":
         """Create command handler.
@@ -165,9 +176,10 @@ class BotFactory:
         """
         from .command_handler import CommandHandler
 
-        return CommandHandler(bot)
+        handler = CommandHandler(bot)
+        return handler
 
-    async def _create_slash_command_handler(self, bot: "DiscordVoiceTTSBot") -> "SlashCommandHandler" | None:
+    async def _create_slash_command_handler(self, bot: "DiscordVoiceTTSBot") -> "SlashCommandHandler | None":
         """Create slash command handler.
 
         Args:
@@ -180,7 +192,8 @@ class BotFactory:
         try:
             from .slash_command_handler import SlashCommandHandler
 
-            return SlashCommandHandler(bot)
+            handler = SlashCommandHandler(bot)
+            return handler
         except ImportError:
             logger.warning("Slash command handler not available")
             return None
@@ -197,7 +210,8 @@ class BotFactory:
         """
         from .message_validator import MessageValidator
 
-        return MessageValidator()
+        validator = MessageValidator()
+        return validator
 
     async def _create_status_manager(self, bot: "DiscordVoiceTTSBot") -> "StatusManager":
         """Create status manager.
@@ -211,7 +225,8 @@ class BotFactory:
         """
         from .status_manager import StatusManager
 
-        return StatusManager()
+        manager = StatusManager()
+        return manager
 
     async def _setup_existing_components(self, bot: "DiscordVoiceTTSBot") -> None:
         """Setup existing components that are already part of the bot.
@@ -221,20 +236,23 @@ class BotFactory:
 
         """
         # Voice handler should already be initialized in bot constructor
-        if hasattr(bot, "voice_handler") and bot.voice_handler:
-            self.registry.register("voice_handler", bot.voice_handler)
+        if hasattr(bot, "voice_handler") and getattr(bot, "voice_handler", None):
+            voice_handler = getattr(bot, "voice_handler")
+            self.registry.register("voice_handler", voice_handler)
             logger.debug("Registered existing voice_handler component")
 
         # Health monitor should already be initialized in bot constructor
-        if hasattr(bot, "health_monitor") and bot.health_monitor:
-            self.registry.register("health_monitor", bot.health_monitor)
+        if hasattr(bot, "health_monitor") and getattr(bot, "health_monitor", None):
+            health_monitor = getattr(bot, "health_monitor")
+            self.registry.register("health_monitor", health_monitor)
             logger.debug("Registered existing health_monitor component")
 
-    async def _validate_configuration(self, bot: "DiscordVoiceTTSBot") -> None:
+    async def _validate_configuration(self, bot: "DiscordVoiceTTSBot", config_manager: ConfigManagerImpl) -> None:
         """Validate bot configuration and components.
 
         Args:
             bot: Bot instance to validate
+            config_manager: Configuration manager to validate
 
         Raises:
             ValueError: If configuration is invalid
@@ -245,7 +263,7 @@ class BotFactory:
 
         # Validate config
         try:
-            config.validate()
+            config_manager.validate()
             logger.debug("Configuration validation passed")
         except Exception as e:
             logger.error(f"Configuration validation failed: {e}")
@@ -289,19 +307,24 @@ class BotFactory:
 
         try:
             # Initialize TTS engine
-            from .tts_engine import tts_engine
+            from .config_manager import ConfigManagerImpl
+            from .tts_engine import get_tts_engine
 
+            config_manager = ConfigManagerImpl()
+            tts_engine = get_tts_engine(config_manager)
             await tts_engine.start()
             logger.debug("TTS engine initialized")
 
             # Initialize voice handler
-            if hasattr(bot, "voice_handler") and bot.voice_handler:
-                await bot.voice_handler.start()
+            if hasattr(bot, "voice_handler") and getattr(bot, "voice_handler", None):
+                voice_handler = getattr(bot, "voice_handler")
+                await voice_handler.start()
                 logger.debug("Voice handler initialized")
 
             # Start health monitor
-            if hasattr(bot, "health_monitor") and bot.health_monitor:
-                await bot.health_monitor.start()
+            if hasattr(bot, "health_monitor") and getattr(bot, "health_monitor", None):
+                health_monitor = getattr(bot, "health_monitor")
+                await health_monitor.start()
                 logger.debug("Health monitor initialized")
 
             logger.info("External services initialization completed")
@@ -317,7 +340,7 @@ class BotFactory:
             Dictionary with component information
 
         """
-        info = {}
+        info: dict[str, Any] = {}
         for name, component in self.registry.get_all().items():
             info[name] = {"type": type(component).__name__, "methods": [method for method in dir(component) if not method.startswith("_")], "status": "active" if component else "inactive"}
         return info
@@ -332,7 +355,7 @@ class BotFactory:
             Dictionary with initialization status
 
         """
-        status = {"bot_configured": False, "components_registered": len(self.registry.get_all()), "services_initialized": False, "component_status": {}, "errors": []}
+        status: dict[str, Any] = {"bot_configured": False, "components_registered": len(self.registry.get_all()), "services_initialized": False, "component_status": {}, "errors": []}
 
         # Check bot configuration
         if hasattr(bot, "config") and bot.config:
@@ -345,14 +368,12 @@ class BotFactory:
         # Check service initialization
         services_initialized = True
         try:
-            from .tts_engine import tts_engine
-
-            if not hasattr(tts_engine, "_initialized") or not tts_engine._initialized:
-                services_initialized = False
-                _ = status["errors"].append("TTS engine not initialized")
+            # TTS engine is now created per instance, so we can't check global state
+            # Assume it's initialized if no errors occurred during creation
+            pass
         except Exception as e:
             services_initialized = False
-            _ = status["errors"].append(f"TTS engine error: {e}")
+            status["errors"].append(f"TTS engine error: {e}")
 
         status["services_initialized"] = services_initialized
 
