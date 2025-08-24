@@ -7,7 +7,6 @@ from loguru import logger
 from .config_manager import ConfigManagerImpl
 
 if TYPE_CHECKING:
-    from .bot import DiscordVoiceTTSBot
     from .command_handler import CommandHandler
     from .event_handler import EventHandler
     from .message_validator import MessageValidator
