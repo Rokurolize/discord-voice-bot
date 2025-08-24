@@ -221,7 +221,7 @@ extend-fixable = ["F401", "B905"]
 max-complexity = 20
 
 [tool.pyright]
-include = ["src"]
+include = ["src", "test_discord_api"]
 ignore = ["tests/**"]
 pythonVersion = "3.12"
 pythonPlatform = "Linux"
