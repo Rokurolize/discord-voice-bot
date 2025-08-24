@@ -211,6 +211,7 @@ max-complexity = 20
 
 [tool.pyright]
 include = ["src"]
+ignore = ["tests/**"]
 pythonVersion = "3.12"
 pythonPlatform = "Linux"
 venvPath = "."
