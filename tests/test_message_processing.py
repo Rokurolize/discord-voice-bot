@@ -4,7 +4,6 @@
 import asyncio
 
 import discord
-
 from src.discord_voice_bot.config_manager import ConfigManagerImpl
 
 

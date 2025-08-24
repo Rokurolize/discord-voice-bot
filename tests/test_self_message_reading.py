@@ -22,6 +22,7 @@ from src.discord_voice_bot.event_message_handler import MessageHandler
 from src.discord_voice_bot.message_processor import MessageProcessor
 from src.discord_voice_bot.message_validator import MessageValidator
 from src.discord_voice_bot.voice.handler import VoiceHandler
+
 from tests.base_test import AsyncTestCase, MockDiscordObjects
 
 
