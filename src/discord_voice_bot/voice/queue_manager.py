@@ -19,12 +19,22 @@ class QueueManager:
 
     async def add_to_queue(self, message_data: dict[str, Any]) -> None:
         """Add message to synthesis queue with deduplication."""
+        from loguru import logger
+
+        logger.debug(f"🎤 QUEUE: add_to_queue called with message_data keys: {list(message_data.keys())}")
+        logger.debug(f"🎤 QUEUE: message_data content preview: {str(message_data.get('original_content', ''))[:100]}")
+
         if not message_data.get("chunks"):
+            logger.warning("🎤 QUEUE: No 'chunks' key found in message_data - message will not be queued")
+            logger.warning(f"🎤 QUEUE: Available keys: {list(message_data.keys())}")
             return
+
+        logger.debug(f"🎤 QUEUE: Found {len(message_data['chunks'])} chunks to process")
 
         # Check for message deduplication
         message_hash = hash(message_data.get("original_content", ""))
         if message_hash in self._recent_messages:
+            logger.debug("🎤 QUEUE: Message is duplicate - skipping")
             return
 
         # Keep only last 100 message hashes
@@ -34,7 +44,10 @@ class QueueManager:
 
         # Check queue size limits
         if self.synthesis_queue.qsize() >= 100:
+            logger.warning(f"🎤 QUEUE: Synthesis queue is full ({self.synthesis_queue.qsize()}/100) - skipping message")
             return
+
+        logger.debug(f"🎤 QUEUE: Adding {len(message_data['chunks'])} chunks to synthesis queue")
 
         for i, chunk in enumerate(message_data["chunks"]):
             item = {
@@ -47,6 +60,9 @@ class QueueManager:
                 "message_hash": message_hash,
             }
             await self.synthesis_queue.put(item)
+            logger.debug(f"🎤 QUEUE: Added chunk {i + 1}/{len(message_data['chunks'])} to queue")
+
+        logger.info(f"🎤 QUEUE: Successfully queued message with {len(message_data['chunks'])} chunks from {message_data.get('username', 'Unknown')}")
 
     async def skip_current(self) -> int:
         """Skip the current message group."""

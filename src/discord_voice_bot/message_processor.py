@@ -362,20 +362,33 @@ class MessageProcessor:
             Dictionary with processed message data, or None if shouldn't be processed
 
         """
+        logger.debug(f"📝 PROCESSOR: process_message called for {message.author.display_name}: '{message.content[:50]}'")
+        logger.debug(f"📝 PROCESSOR: Message ID: {message.id}, Channel ID: {message.channel.id}")
+
         tts_text = await self.create_tts_message(message, bot_user_id)
         if not tts_text:
+            logger.debug("📝 PROCESSOR: create_tts_message returned None - message filtered out")
             return None
+
+        logger.debug(f"📝 PROCESSOR: TTS text created: '{tts_text[:50]}...'")
 
         # Chunk the message
         chunks = self.chunk_message(tts_text)
+        logger.debug(f"📝 PROCESSOR: Message chunked into {len(chunks)} pieces")
+        for i, chunk in enumerate(chunks):
+            logger.debug(f"📝 PROCESSOR: Chunk {i + 1}: '{chunk[:30]}...'")
 
-        return {
+        result = {
             "text": tts_text,
             "user_id": message.author.id,
             "username": message.author.display_name,
             "chunks": chunks,
             "group_id": f"msg_{message.id}",
         }
+
+        logger.debug(f"📝 PROCESSOR: Returning processed message with keys: {list(result.keys())}")
+        logger.info(f"📝 PROCESSOR: Successfully processed message from {message.author.display_name} into {len(chunks)} chunks")
+        return result
 
 
 @lru_cache(maxsize=1)

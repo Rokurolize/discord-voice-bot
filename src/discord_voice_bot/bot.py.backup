@@ -195,19 +195,20 @@ class DiscordVoiceTTSBot(commands.Bot):
             logger.debug(f"🔍 DEEP DEBUG: message.content type: {type(message.content)}")
             logger.debug(f"🔍 DEEP DEBUG: message.content bool: {bool(message.content)}")
             logger.debug(f"🔍 DEEP DEBUG: hasattr clean_content: {hasattr(message, 'clean_content')}")
-            if hasattr(message, "clean_content"):
+            if hasattr(message, 'clean_content'):
                 logger.debug(f"🔍 DEEP DEBUG: clean_content: '{message.clean_content}' (len: {len(message.clean_content)})")
             logger.debug(f"🔍 DEEP DEBUG: hasattr system_content: {hasattr(message, 'system_content')}")
-            if hasattr(message, "system_content"):
+            if hasattr(message, 'system_content'):
                 logger.debug(f"🔍 DEEP DEBUG: system_content: '{message.system_content}' (len: {len(message.system_content) if message.system_content else 0})")
 
             # Check raw message data
             try:
-                raw_data = {k: v for k, v in vars(message).items() if not k.startswith("_") and not callable(v)}
+                import json
+                raw_data = {k: v for k, v in vars(message).items() if not k.startswith('_') and not callable(v)}
                 logger.debug(f"🔍 DEEP DEBUG: Raw message data keys: {list(raw_data.keys())}")
                 for key, value in raw_data.items():
-                    if key in ["content", "clean_content", "system_content", "embeds", "attachments"]:
-                        logger.debug(f"🔍 DEEP DEBUG: {key} = {value!r}")
+                    if key in ['content', 'clean_content', 'system_content', 'embeds', 'attachments']:
+                        logger.debug(f"🔍 DEEP DEBUG: {key} = {repr(value)}")
             except Exception as raw_error:
                 logger.debug(f"🔍 DEEP DEBUG: Error getting raw data: {raw_error}")
 
@@ -216,6 +217,7 @@ class DiscordVoiceTTSBot(commands.Bot):
             logger.debug(f"🔍 DEEP DEBUG: Message flags: {message.flags}")
             logger.debug(f"🔍 DEEP DEBUG: Message is_system: {message.is_system}")
             logger.debug(f"🔍 DEEP DEBUG: Message tts: {message.tts}")
+
 
             # CRITICAL: Immediate content validation - Phase 1 Fix
             if not message.content or not message.content.strip():
@@ -281,6 +283,10 @@ class DiscordVoiceTTSBot(commands.Bot):
                 import traceback
 
                 logger.error(f"💬 EVENT ERROR: Traceback: {traceback.format_exc()}")
+</search>
+</search_and_replace>
+</search>
+</search_and_replace>
                 logger.error("🚨 CRITICAL: Empty message content detected - detailed analysis")
                 logger.error(f"🚨 CRITICAL: Message ID: {message.id}")
                 logger.error(f"🚨 CRITICAL: Author: {message.author.name} (ID: {message.author.id}, bot: {message.author.bot})")
