@@ -68,7 +68,7 @@ class BotFactory:
         self.registry = ComponentRegistry()
         logger.info("Bot factory initialized")
 
-    async def create_bot(self, bot_class: type["DiscordVoiceTTSBot"] | None = None) -> "DiscordVoiceTTSBot":
+    async def create_bot(self, bot_class: type[Any] | None = None) -> Any:
         """Create and configure a new bot instance.
 
         Args:
@@ -90,7 +90,7 @@ class BotFactory:
             # Create bot instance (current constructor doesn't take config parameter)
             if bot_class is None:
                 raise ValueError("Bot class cannot be None")
-            bot: "DiscordVoiceTTSBot" = bot_class()
+            bot: Any = bot_class()
 
             # Setup all components with config manager
             config_manager = ConfigManagerImpl()
@@ -106,7 +106,7 @@ class BotFactory:
             logger.error(f"Failed to create bot instance: {e}")
             raise
 
-    async def _setup_components(self, bot: "DiscordVoiceTTSBot", config_manager: ConfigManagerImpl) -> None:
+    async def _setup_components(self, bot: Any, config_manager: ConfigManagerImpl) -> None:
         """Setup all bot components.
 
         Args:
@@ -147,7 +147,7 @@ class BotFactory:
 
         logger.info("All bot components setup successfully")
 
-    async def _create_event_handler(self, bot: "DiscordVoiceTTSBot", config_manager: ConfigManagerImpl) -> "EventHandler":
+    async def _create_event_handler(self, bot: Any, config_manager: ConfigManagerImpl) -> "EventHandler":
         """Create event handler.
 
         Args:
@@ -163,7 +163,7 @@ class BotFactory:
         handler = EventHandler(bot, config_manager)
         return handler
 
-    async def _create_command_handler(self, bot: "DiscordVoiceTTSBot") -> "CommandHandler":
+    async def _create_command_handler(self, bot: Any) -> "CommandHandler":
         """Create command handler.
 
         Args:
@@ -178,7 +178,7 @@ class BotFactory:
         handler = CommandHandler(bot)
         return handler
 
-    async def _create_slash_command_handler(self, bot: "DiscordVoiceTTSBot") -> "SlashCommandHandler | None":
+    async def _create_slash_command_handler(self, bot: Any) -> "SlashCommandHandler | None":
         """Create slash command handler.
 
         Args:
@@ -197,7 +197,7 @@ class BotFactory:
             logger.warning("Slash command handler not available")
             return None
 
-    async def _create_message_validator(self, bot: "DiscordVoiceTTSBot") -> "MessageValidator":
+    async def _create_message_validator(self, bot: Any) -> "MessageValidator":
         """Create message validator.
 
         Args:
@@ -212,7 +212,7 @@ class BotFactory:
         validator = MessageValidator()
         return validator
 
-    async def _create_status_manager(self, bot: "DiscordVoiceTTSBot") -> "StatusManager":
+    async def _create_status_manager(self, bot: Any) -> "StatusManager":
         """Create status manager.
 
         Args:
@@ -227,7 +227,7 @@ class BotFactory:
         manager = StatusManager()
         return manager
 
-    async def _setup_existing_components(self, bot: "DiscordVoiceTTSBot") -> None:
+    async def _setup_existing_components(self, bot: Any) -> None:
         """Setup existing components that are already part of the bot.
 
         Args:
@@ -246,7 +246,7 @@ class BotFactory:
             self.registry.register("health_monitor", health_monitor)
             logger.debug("Registered existing health_monitor component")
 
-    async def _validate_configuration(self, bot: "DiscordVoiceTTSBot", config_manager: ConfigManagerImpl) -> None:
+    async def _validate_configuration(self, bot: Any, config_manager: ConfigManagerImpl) -> None:
         """Validate bot configuration and components.
 
         Args:
@@ -295,7 +295,7 @@ class BotFactory:
 
         logger.info("Bot configuration validation completed successfully")
 
-    async def initialize_services(self, bot: "DiscordVoiceTTSBot") -> None:
+    async def initialize_services(self, bot: Any) -> None:
         """Initialize external services and dependencies.
 
         Args:
@@ -344,7 +344,7 @@ class BotFactory:
             info[name] = {"type": type(component).__name__, "methods": [method for method in dir(component) if not method.startswith("_")], "status": "active" if component else "inactive"}
         return info
 
-    def get_initialization_status(self, bot: "DiscordVoiceTTSBot") -> dict[str, Any]:
+    def get_initialization_status(self, bot: Any) -> dict[str, Any]:
         """Get comprehensive initialization status.
 
         Args:
@@ -378,7 +378,7 @@ class BotFactory:
 
         return status
 
-    async def shutdown_bot(self, bot: "DiscordVoiceTTSBot") -> None:
+    async def shutdown_bot(self, bot: Any) -> None:
         """Gracefully shutdown bot and cleanup resources.
 
         Args:
