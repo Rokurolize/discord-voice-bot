@@ -74,6 +74,7 @@ fix = ["_ruff_fix", "_sort_imports", "_ruff_format"]
 
 [tool.ruff]
 target-version = "py312"
+src = ["src"]
 line-length = 200
 
 [tool.ruff.format]
@@ -205,6 +206,16 @@ ignore = [
 ]
 unfixable = ["F841", "F601", "F602", "B018"]
 extend-fixable = ["F401", "B905"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+  "D",       # pydocstyle 系（テストに docstring 強制しない）
+  "ANN",     # 署名の型ヒント必須を緩和
+  "S101",    # assert 許可（flake8-bandit）
+  "PLR2004", # マジックナンバー許可
+  "ARG",     # 未使用引数（fixture用）を許可
+  "PT011",   # pytest.raises に match 指定強制を緩める
+]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 20
