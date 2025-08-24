@@ -63,6 +63,7 @@ package-lock.json
 *.tmp
 *.bak
 *.orig
+*.backup
 
 # Documentation build
 docs/_build/
