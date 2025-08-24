@@ -72,8 +72,9 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, spea
                 # Test the new voice
                 test_text = f"{matched_speaker}の声です"
                 if hasattr(bot, "voice_handler") and bot.voice_handler:
-                    from ...message_processor import message_processor
+                    from ...message_processor import get_message_processor
 
+                    message_processor = get_message_processor(bot.config_manager)
                     chunks = message_processor.chunk_message(test_text)
                     processed_message = {
                         "text": test_text,

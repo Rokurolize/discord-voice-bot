@@ -42,6 +42,10 @@ class ConfigManager(Protocol):
         """Get Discord bot token."""
         ...
 
+    def get_target_guild_id(self) -> int:
+        """Get target guild ID."""
+        ...
+
     def get_target_voice_channel_id(self) -> int:
         """Get target voice channel ID."""
         ...
@@ -88,6 +92,10 @@ class ConfigManager(Protocol):
 
     def get_intents(self) -> Any:
         """Get Discord intents."""
+        ...
+
+    def get_enable_self_message_processing(self) -> bool:
+        """Check if self-message processing is enabled."""
         ...
 
 

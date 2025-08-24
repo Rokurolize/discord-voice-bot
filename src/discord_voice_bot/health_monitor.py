@@ -160,8 +160,12 @@ class HealthMonitor:
         try:
             from .tts_engine import get_tts_engine
 
+            logger.debug("🔍 Creating new TTS engine for health check")
             tts_engine = get_tts_engine(self._config_manager)
             api_healthy = await tts_engine.health_check()
+            logger.debug("🔍 TTS engine health check completed, closing engine")
+            await tts_engine.close()  # Close the engine after use
+            logger.debug("🔍 TTS engine closed successfully")
             if not api_healthy:
                 issues.append("TTS API health check failed")
                 recommendations.append("Check TTS server status and network connectivity")

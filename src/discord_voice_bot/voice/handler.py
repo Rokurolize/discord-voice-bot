@@ -140,19 +140,26 @@ class VoiceHandler(VoiceHandlerInterface):
         """Start the voice handler tasks."""
         # Diagnostics: ensure opus is loaded; if not, voice playback will fail
         try:
+            logger.debug("🔊 Checking Opus library availability...")
             import discord.opus as opus
 
             if not opus.is_loaded():
-                # Let discord.py attempt to locate the system opus library
+                logger.debug("🔊 Opus library not loaded, attempting to load 'opus'...")
                 try:
                     opus.load_opus("opus")
-                except Exception:
-                    pass
+                    logger.debug("✅ Opus library loaded successfully via 'opus'")
+                except Exception as e:
+                    logger.debug(f"❌ Failed to load Opus via 'opus': {e}")
+            else:
+                logger.debug("✅ Opus library already loaded")
+
             if not opus.is_loaded():
                 logger.warning("Opus library is not loaded. Audio playback may fail. Install system libopus or ensure discord.py[voice] is correctly installed.")
-        except Exception:
+            else:
+                logger.debug("✅ Opus library is available for audio playback")
+        except Exception as e:
+            logger.debug(f"❌ Error checking Opus library: {e}")
             # Best-effort only
-            pass
 
         # Workers are created externally to avoid import cycles
         # The tasks list will be populated by external components

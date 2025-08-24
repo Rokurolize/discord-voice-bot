@@ -29,6 +29,7 @@ class Config:
 
         # Discord Configuration
         self.discord_token: str = self._get_required_env("DISCORD_BOT_TOKEN")
+        self.target_guild_id: int = int(os.environ.get("TARGET_GUILD_ID") or os.environ.get("GUILD_ID") or "1141224103580274760")
         self.target_voice_channel_id: int = int(os.environ.get("TARGET_VOICE_CHANNEL_ID") or os.environ.get("VOICE_CHANNEL_ID") or "1350964414286921749")
 
         # TTS Configuration
@@ -96,6 +97,9 @@ class Config:
         # Development Configuration
         debug_value = os.environ.get("DEBUG", "false").lower()
         self.debug: bool = debug_value == "true" or debug_value == "1"
+
+        # Self-message Processing Configuration
+        self.enable_self_message_processing: bool = os.environ.get("ENABLE_SELF_MESSAGE_PROCESSING", "false").lower() == "true"
 
         # Force debug mode to ensure .env files are loaded
         self.debug = True

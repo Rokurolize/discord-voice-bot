@@ -19,8 +19,9 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, text
             return
 
         # Process and queue the test message
-        from ...message_processor import message_processor
+        from ...message_processor import get_message_processor
 
+        message_processor = get_message_processor(bot.config_manager)
         processed_text = message_processor.process_message_content(text, interaction.user.display_name)
         chunks = message_processor.chunk_message(processed_text)
 

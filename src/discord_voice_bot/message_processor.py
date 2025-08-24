@@ -94,11 +94,12 @@ class MessageProcessor:
         else:
             logger.info("Message processor initialized without rate limiting")
 
-    async def should_process_message(self, message: Any) -> bool:
+    async def should_process_message(self, message: Any, bot_user_id: int | None = None) -> bool:
         """Determine if message should be processed for TTS.
 
         Args:
             message: Discord message object
+            bot_user_id: Optional bot user ID for self-message processing
 
         Returns:
             True if message should be processed, False otherwise
@@ -108,10 +109,20 @@ class MessageProcessor:
         if message.channel.id != self._config_manager.get_target_voice_channel_id():
             return False
 
-        # Skip bot messages
+        # Handle bot messages - allow self-messages if configured
         if message.author.bot:
-            logger.debug(f"Skipping bot message from {message.author.name}")
-            return False
+            # Allow self-messages if enabled in configuration and bot_user_id is provided
+            if self._config_manager.get_enable_self_message_processing() and bot_user_id is not None:
+                # Check if this is a message from the bot itself
+                if message.author.id == bot_user_id:
+                    logger.debug(f"Allowing self-message from {message.author.name}")
+                    # Continue with other checks
+                else:
+                    logger.debug(f"Skipping other bot message from {message.author.name}")
+                    return False
+            else:
+                logger.debug(f"Skipping bot message from {message.author.name}")
+                return False
 
         # Skip system messages
         if message.type.name != "default":
@@ -317,17 +328,18 @@ class MessageProcessor:
 
         return chunks
 
-    async def create_tts_message(self, message: Any) -> str | None:
+    async def create_tts_message(self, message: Any, bot_user_id: int | None = None) -> str | None:
         """Create TTS message from Discord message.
 
         Args:
             message: Discord message object
+            bot_user_id: Optional bot user ID for self-message processing
 
         Returns:
             Processed message content for TTS, or None if shouldn't be processed
 
         """
-        if not await self.should_process_message(message):
+        if not await self.should_process_message(message, bot_user_id):
             return None
 
         processed_content = self.process_message_content(message.content, message.author.display_name)
@@ -339,17 +351,18 @@ class MessageProcessor:
         logger.info(f"Created TTS message from {message.author.display_name}: '{processed_content[:50]}...'")
         return processed_content
 
-    async def process_message(self, message: Any) -> dict[str, Any] | None:
+    async def process_message(self, message: Any, bot_user_id: int | None = None) -> dict[str, Any] | None:
         """Process Discord message for TTS with chunking support.
 
         Args:
             message: Discord message object
+            bot_user_id: Optional bot user ID for self-message processing
 
         Returns:
             Dictionary with processed message data, or None if shouldn't be processed
 
         """
-        tts_text = await self.create_tts_message(message)
+        tts_text = await self.create_tts_message(message, bot_user_id)
         if not tts_text:
             return None
 

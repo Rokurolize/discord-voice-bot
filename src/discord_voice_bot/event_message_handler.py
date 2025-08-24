@@ -64,9 +64,20 @@ class MessageHandler:
     async def _should_process_message(self, message: discord.Message) -> bool:
         """Determine if a message should be processed following Discord's patterns."""
         try:
-            # Skip bot messages
+            # Handle bot messages - allow self-messages if configured
             if message.author.bot:
-                return False
+                # Allow self-messages if enabled in configuration
+                if self._config_manager.get_enable_self_message_processing():
+                    # Check if this is a message from the bot itself
+                    if self.bot.user and message.author.id == self.bot.user.id:
+                        logger.debug(f"Allowing self-message from {message.author.name}")
+                        # Continue with other checks
+                    else:
+                        logger.debug(f"Skipping other bot message from {message.author.name}")
+                        return False
+                else:
+                    logger.debug(f"Skipping bot message from {message.author.name}")
+                    return False
 
             # Skip system messages
             if message.type != discord.MessageType.default:
@@ -102,7 +113,9 @@ class MessageHandler:
             from .message_processor import get_message_processor
 
             message_processor = get_message_processor(self._config_manager)
-            processed_message = await message_processor.process_message(message)
+            # Pass bot user ID for self-message processing
+            bot_user_id = self.bot.user.id if self.bot.user else None
+            processed_message = await message_processor.process_message(message, bot_user_id)
 
             if processed_message:
                 # Add additional validation and sanitization

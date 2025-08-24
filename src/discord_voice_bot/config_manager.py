@@ -69,6 +69,11 @@ class ConfigManagerImpl(ConfigManager):
         return self._get_config().discord_token
 
     @override
+    def get_target_guild_id(self) -> int:
+        """Get target guild ID."""
+        return self._get_config().target_guild_id
+
+    @override
     def get_target_voice_channel_id(self) -> int:
         """Get target voice channel ID."""
         return self._get_config().target_voice_channel_id
@@ -127,3 +132,8 @@ class ConfigManagerImpl(ConfigManager):
     def get_intents(self) -> Any:
         """Get Discord intents."""
         return self._get_config().get_intents()
+
+    @override
+    def get_enable_self_message_processing(self) -> bool:
+        """Check if self-message processing is enabled."""
+        return self._get_config().enable_self_message_processing

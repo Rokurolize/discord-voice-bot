@@ -42,14 +42,18 @@ class TTSClient:
     async def start_session(self) -> None:
         """Start the HTTP session for API communication."""
         if not self._session:
+            logger.debug("🔗 Creating new aiohttp ClientSession for TTS client")
             timeout = aiohttp.ClientTimeout(total=10, connect=2)
             self._session = aiohttp.ClientSession(timeout=timeout)
+            logger.debug("✅ aiohttp ClientSession created successfully")
 
     async def close_session(self) -> None:
         """Close the HTTP session."""
         if self._session:
+            logger.debug("🔗 Closing aiohttp ClientSession for TTS client")
             await self._session.close()
             self._session = None
+            logger.debug("✅ aiohttp ClientSession closed successfully")
 
     async def check_api_availability(self) -> tuple[bool, str]:
         """Check TTS API availability with detailed error information.
