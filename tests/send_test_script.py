@@ -22,7 +22,6 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 import discord
 from discord.ext import commands
 from loguru import logger
-
 from src.discord_voice_bot.config_manager import ConfigManagerImpl
 
 
@@ -227,7 +226,7 @@ async def run_test() -> dict[str, Any]:
         monitor.add_error(f"Test execution error: {e}")
 
     finally:
-        # Return test results
+        # Prepare test results
         summary = monitor.get_summary()
         print("\n📊 Test Results Summary")
         print("=" * 40)
@@ -249,7 +248,8 @@ async def run_test() -> dict[str, Any]:
                 timestamp = time.strftime("%H:%M:%S", time.localtime(event["timestamp"]))
                 print(f"  {timestamp}: {event['type']}")
 
-        return summary
+    # Return test results after try/except/finally block
+    return summary
 
 
 def main():
