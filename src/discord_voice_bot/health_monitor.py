@@ -242,7 +242,11 @@ class HealthMonitor:
                 elif not status.get("audio_playback_ready", True):
                     issues.append("Audio playback not ready")
             else:
-                issues.append("Voice handler not initialized")
+                # Only report as issue if bot is ready but voice handler is missing
+                if hasattr(self.bot, "is_ready") and self.bot.is_ready:
+                    issues.append("Voice handler not initialized")
+                else:
+                    logger.debug("Voice handler not yet available (bot not ready)")
         except AttributeError:
             issues.append("Voice handler access error")
 
