@@ -154,31 +154,31 @@ class VoiceChannelTestBot(discord.Client):
             wav_data = wav_header + pcm_data
 
             # 一時ファイルにWAVデータを書き込む
-            with tempfile.NamedTemporaryFile(mode='wb', suffix='.wav', delete=False) as temp_file:
+            with tempfile.NamedTemporaryFile(mode="wb", suffix=".wav", delete=False) as temp_file:
                 _ = temp_file.write(wav_data)
                 temp_file_path = temp_file.name
 
             try:
                 # Discord AudioSource作成 (ファイルパスを使用)
                 audio_source = discord.FFmpegPCMAudio(temp_file_path)
-                
+
                 # 音声を再生
                 self.voice_client.play(audio_source)
-                
+
                 # 再生完了まで待機
                 while self.voice_client.is_playing():
                     await asyncio.sleep(0.1)
-                
+
                 logger.info("✅ テスト音声再生成功")
                 self.record_test_result("audio_playback", True, "Successfully played test audio")
-            
+
             finally:
                 # 一時ファイルを削除
                 try:
                     os.unlink(temp_file_path)
                 except OSError:
                     pass  # ファイルが既に削除されている可能性がある
-        
+
         except Exception as e:
             logger.error(f"❌ テスト音声再生失敗: {e}")
             self.record_test_result("audio_playback", False, str(e))
@@ -208,21 +208,21 @@ class VoiceChannelTestBot(discord.Client):
             with tempfile.NamedTemporaryFile(mode="wb", suffix=".wav", delete=False) as tts_temp_file:
                 _ = tts_temp_file.write(tts_audio_data)
                 tts_temp_file_path = tts_temp_file.name
-            
+
             try:
                 # Discord AudioSource作成 (ファイルパスを使用)
                 audio_source = discord.FFmpegPCMAudio(tts_temp_file_path)
-                
+
                 # 音声を再生
                 self.voice_client.play(audio_source)
-                
+
                 # 再生完了まで待機
                 while self.voice_client.is_playing():
                     await asyncio.sleep(0.1)
-                
+
                 logger.info("✅ TTS音声再生成功")
                 self.record_test_result("tts_playback", True, "Successfully played TTS audio")
-            
+
             finally:
                 # 一時ファイルを削除
                 try:
@@ -468,6 +468,7 @@ async def main():
     except Exception as e:
         logger.error(f"❌ エラーが発生しました: {e}")
         import traceback
+
         logger.error(traceback.format_exc())
     finally:
         logger.info("🔌 Discordとの接続を閉じています...")

@@ -93,9 +93,7 @@ def mock_config_manager() -> MagicMock:
     config_manager = MagicMock()
     # Mock the required configuration methods
     config_manager.get_tts_engine.return_value = "voicevox"
-    config_manager.get_engines.return_value = {
-        "voicevox": {"url": "http://localhost:50021", "default_speaker": 1}
-    }
+    config_manager.get_engines.return_value = {"voicevox": {"url": "http://localhost:50021", "default_speaker": 1}}
     config_manager.get_audio_sample_rate.return_value = 24000
     config_manager.get_audio_channels.return_value = 1
     config_manager.get_log_level.return_value = "INFO"
@@ -104,9 +102,7 @@ def mock_config_manager() -> MagicMock:
     config_manager.get_target_voice_channel_id.return_value = 987654321
     config_manager.get_command_prefix.return_value = "!tts"
     config_manager.get_engine_config.return_value = {"speakers": {"test": 1}}
-    config_manager.get_engines.return_value = {
-        "voicevox": {"url": "http://localhost:50021", "default_speaker": 1}
-    }
+    config_manager.get_engines.return_value = {"voicevox": {"url": "http://localhost:50021", "default_speaker": 1}}
     config_manager.get_max_message_length.return_value = 200
     config_manager.get_message_queue_size.return_value = 10
     config_manager.get_reconnect_delay.return_value = 5
@@ -529,10 +525,11 @@ class TestWorkerInitialization:
                 voice_handler._config_manager = mock_config_manager
 
                 # Mock get_tts_engine, get_user_settings, and PlayerWorker to avoid real API calls and queue consumption
-                with patch('discord_voice_bot.voice.workers.synthesizer.get_tts_engine', return_value=mock_tts_engine), \
-                      patch('discord_voice_bot.voice.workers.synthesizer.get_user_settings') as mock_user_settings, \
-                      patch('discord_voice_bot.voice.workers.player.PlayerWorker.run'):
-
+                with (
+                    patch("discord_voice_bot.voice.workers.synthesizer.get_tts_engine", return_value=mock_tts_engine),
+                    patch("discord_voice_bot.voice.workers.synthesizer.get_user_settings") as mock_user_settings,
+                    patch("discord_voice_bot.voice.workers.player.PlayerWorker.run"),
+                ):
                     # Mock user settings
                     mock_user_settings_instance = MagicMock()
                     mock_user_settings_instance.get_user_settings.return_value = {"speaker_id": 1, "engine": "voicevox"}

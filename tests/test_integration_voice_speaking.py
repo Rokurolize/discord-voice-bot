@@ -162,7 +162,8 @@ class VoiceChannelTestBot(discord.Client):
 
             # 一時ファイルにWAVデータを書き込む
             import tempfile
-            with tempfile.NamedTemporaryFile(mode='wb', suffix='.wav', delete=False) as temp_file:
+
+            with tempfile.NamedTemporaryFile(mode="wb", suffix=".wav", delete=False) as temp_file:
                 temp_file.write(wav_data)
                 temp_file_path = temp_file.name
 
@@ -183,6 +184,7 @@ class VoiceChannelTestBot(discord.Client):
             finally:
                 # 一時ファイルを削除
                 import os
+
                 try:
                     os.unlink(temp_file_path)
                 except OSError:
@@ -215,6 +217,7 @@ class VoiceChannelTestBot(discord.Client):
 
             # TTS音声データを一時ファイルに書き込む
             import tempfile
+
             with tempfile.NamedTemporaryFile(mode="wb", suffix=".wav", delete=False) as tts_temp_file:
                 tts_temp_file.write(tts_audio_data)
                 tts_temp_file_path = tts_temp_file.name
@@ -236,6 +239,7 @@ class VoiceChannelTestBot(discord.Client):
             finally:
                 # 一時ファイルを削除
                 import os
+
                 try:
                     os.unlink(tts_temp_file_path)
                 except OSError:
@@ -268,6 +272,7 @@ class VoiceChannelTestBot(discord.Client):
                 if audio_data:
                     # 音声データを一時ファイルに書き込む
                     import tempfile
+
                     with tempfile.NamedTemporaryFile(mode="wb", suffix=".wav", delete=False) as quality_temp_file:
                         quality_temp_file.write(audio_data)
                         quality_temp_file_path = quality_temp_file.name
@@ -284,6 +289,7 @@ class VoiceChannelTestBot(discord.Client):
                     finally:
                         # 一時ファイルを削除
                         import os
+
                         try:
                             os.unlink(quality_temp_file_path)
                         except OSError:
@@ -516,10 +522,7 @@ async def test_bot_can_speak_in_voice_channel(caplog):
     logger.info("   - 音声品質テスト: ✅")
 
 
-@pytest.mark.skipif(
-    not os.getenv("DISCORD_BOT_TOKEN") or not os.getenv("TARGET_VOICE_CHANNEL_ID"),
-    reason="Discord credentials not configured"
-)
+@pytest.mark.skipif(not os.getenv("DISCORD_BOT_TOKEN") or not os.getenv("TARGET_VOICE_CHANNEL_ID"), reason="Discord credentials not configured")
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_bot_voice_functionality_comprehensive():

@@ -6,7 +6,7 @@ import discord
 from loguru import logger
 
 # Type variable for blockable items
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class BlockManager[T]:

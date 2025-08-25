@@ -22,9 +22,7 @@ def pytest_configure(config: pytest.Config) -> None:
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Modify test collection to handle integration tests."""
     # Skip integration tests if credentials are not available
-    skip_integration = pytest.mark.skip(
-        reason="Discord credentials not configured or integration test disabled"
-    )
+    skip_integration = pytest.mark.skip(reason="Discord credentials not configured or integration test disabled")
 
     for item in items:
         # Check if test is marked as integration test
