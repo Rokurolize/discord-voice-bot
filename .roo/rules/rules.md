@@ -59,3 +59,5 @@ The rules are as follows:
 You must resolve any issues identified by the type checker based on the actual error content, addressing each issue exactly as intended by the question: "What is the purpose of this specific error?"
 
 Do not commit /external-docs/ directory.
+
+--no-verifyはダメだよ！ちゃんとリファクタリングすればプッシュできるはずだから、時間をかけて頑張ってね！

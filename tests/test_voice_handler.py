@@ -2,7 +2,7 @@
 
 import asyncio
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock
 
 import discord
 import pytest
@@ -475,5 +475,3 @@ class TestComplianceTDD:
         voice_handler._last_connection_attempt = time.time()  # type: ignore[attr-defined]
 
         assert voice_handler._last_connection_attempt > old_time  # type: ignore[attr-defined]
-
-
