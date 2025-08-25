@@ -12,6 +12,7 @@ class Config:
 
     def __init__(self) -> None:
         """Initialize configuration from environment variables."""
+        super().__init__()
         # Load environment variables in the correct order
         # 1. Load secrets file first (production)
         secrets_path = os.environ.get("SECRETS_FILE", "~/.config/discord-voice-bot/secrets.env")

@@ -94,13 +94,21 @@ class DiscordVoiceTTSBot(BaseEventBot):
                     if hasattr(http_exc, "response") and http_exc.response:
                         print(f"🔴 Response headers: {dict(http_exc.response.headers)}")
                     # Try to get response data
-                    if hasattr(http_exc, "data"):
-                        print(f"🔴 Response data: {http_exc.data}")
-                    elif hasattr(http_exc, "response") and http_exc.response:
+                    try:
+                        data = getattr(http_exc, "data", None)
+                        if data is not None:
+                            print(f"🔴 Response data: {data}")
+                    except AttributeError:
+                        pass
+
+                    if hasattr(http_exc, "response") and http_exc.response:
                         try:
                             # Try to read response body if available
-                            if hasattr(http_exc.response, "text"):
-                                print(f"🔴 Response body: {await http_exc.response.text()}")
+                            response = getattr(http_exc, "response", None)
+                            if response and hasattr(response, "text"):
+                                text_method = getattr(response, "text", None)
+                                if text_method and callable(text_method):
+                                    print(f"🔴 Response body: {await text_method()}")
                         except Exception:
                             print("🔴 Could not read response body")
             elif isinstance(e, discord.HTTPException):
@@ -108,8 +116,12 @@ class DiscordVoiceTTSBot(BaseEventBot):
                 print(f"🔴 HTTP Error Details: status={getattr(http_exc, 'status', 'unknown')} code={getattr(http_exc, 'code', 'unknown')} text='{getattr(http_exc, 'text', 'unknown')}'")
                 if hasattr(http_exc, "response") and http_exc.response:
                     print(f"🔴 Response headers: {dict(http_exc.response.headers)}")
-                if hasattr(http_exc, "data"):
-                    print(f"🔴 Response data: {http_exc.data}")
+                try:
+                    data = getattr(http_exc, "data", None)
+                    if data is not None:
+                        print(f"🔴 Response data: {data}")
+                except AttributeError:
+                    pass
 
             print(f"🔴 Exception type: {type(e).__name__}")
             print(f"🔴 Exception message: {e!s}")
