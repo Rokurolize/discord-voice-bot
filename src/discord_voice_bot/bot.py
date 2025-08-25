@@ -108,7 +108,14 @@ class DiscordVoiceTTSBot(BaseEventBot):
                             if response and hasattr(response, "text"):
                                 text_method = getattr(response, "text", None)
                                 if text_method and callable(text_method):
-                                    print(f"🔴 Response body: {await text_method()}")
+                                    try:
+                                        result = text_method()
+                                        if hasattr(result, '__await__'):
+                                            print(f"🔴 Response body: {await result}")
+                                        else:
+                                            print(f"🔴 Response body: {result}")
+                                    except TypeError:
+                                        print("🔴 Could not call text method")
                         except Exception:
                             print("🔴 Could not read response body")
             elif isinstance(e, discord.HTTPException):

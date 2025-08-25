@@ -10,6 +10,28 @@ from dotenv import load_dotenv
 class Config:
     """Configuration manager for the Discord Voice TTS Bot."""
 
+    # Declare instance variables as class variables for pyright
+    discord_token: str
+    target_guild_id: int
+    target_voice_channel_id: int
+    tts_engine: str
+    tts_speaker: str
+    engines: dict[str, dict[str, Any]]
+    command_prefix: str
+    max_message_length: int
+    message_queue_size: int
+    reconnect_delay: int
+    audio_sample_rate: int
+    audio_channels: int
+    audio_frame_duration: int
+    rate_limit_messages: int
+    rate_limit_period: int
+    log_level: str
+    log_file: str | None
+    debug: bool
+    test_mode: bool
+    enable_self_message_processing: bool
+
     def __init__(self) -> None:
         """Initialize configuration from environment variables."""
         super().__init__()
