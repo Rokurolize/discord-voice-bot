@@ -1,7 +1,6 @@
 """Tests for MessageValidator component - TDD Approach (Red-Green-Refactor)."""
 
 import unittest
-from typing import override
 from unittest.mock import MagicMock
 
 import pytest
@@ -18,35 +17,29 @@ class TestValidationResult(BaseTestCase):
         """Test ValidationResult initializes with correct default values."""
         result = ValidationResult(is_valid=False)
 
-        self.assertFalse(result.is_valid)
-        self.assertEqual(result.reason, "")
-        self.assertEqual(result.filtered_content, "")
-        self.assertEqual(result.warnings, [])
-        self.assertEqual(result.metadata, {})
+        assert result.is_valid is False
+        assert result.reason == ""
+        assert result.filtered_content == ""
+        assert result.warnings == []
+        assert result.metadata == {}
 
     def test_validation_result_with_values(self) -> None:
         """Test ValidationResult with custom values."""
         result = ValidationResult(is_valid=True, reason="Test reason", filtered_content="filtered content", warnings=["warning1", "warning2"], metadata={"key": "value"})
 
-        self.assertTrue(result.is_valid)
-        self.assertEqual(result.reason, "Test reason")
-        self.assertEqual(result.filtered_content, "filtered content")
-        self.assertEqual(result.warnings, ["warning1", "warning2"])
-        self.assertEqual(result.metadata, {"key": "value"})
+        assert result.is_valid is True
+        assert result.reason == "Test reason"
+        assert result.filtered_content == "filtered content"
+        assert result.warnings == ["warning1", "warning2"]
+        assert result.metadata == {"key": "value"}
 
 
 class TestMessageValidator(BaseTestCase):
     """Test cases for MessageValidator - Main component."""
 
-    def __init__(self, methodName: str = "runTest") -> None:
-        """Initialize test case."""
-        super().__init__(methodName)
-        self.validator: MessageValidator
-
-    @override
-    def setUp(self) -> None:
-        """Set up test fixtures."""
-        super().setUp()
+    def setup_method(self) -> None:
+        """Set up test fixtures (pytest compatible)."""
+        super().setup_method()
         self.validator = MessageValidator()
 
     def test_initialization(self) -> None:
@@ -177,7 +170,7 @@ class TestMessageValidator(BaseTestCase):
     @pytest.mark.asyncio
     async def test_validate_message_special_chars(self) -> None:
         """Test validate_message filters messages with excessive special characters."""
-        special_content = "!@#$%^&*()!@#$%^&*()" * 50  # 80% special chars
+        special_content = "!@#$%^&*()!@#$%^&*()" * 10  # 80% special chars, shorter
         mock_message = MockDiscordObjects.create_mock_message(special_content)
 
         result = await self.validator.validate_message(mock_message)

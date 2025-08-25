@@ -29,9 +29,9 @@ from tests.base_test import AsyncTestCase, MockDiscordObjects
 class TestSelfMessageReading(AsyncTestCase):
     """Test cases for bot reading its own messages."""
 
-    def setUp(self) -> None:
-        """Set up test fixtures."""
-        super().setUp()
+    def setup_method(self) -> None:
+        """Set up test fixtures (pytest compatible)."""
+        super().setup_method()
         self.config_manager = ConfigManagerImpl()
 
         # Create mock bot
@@ -48,9 +48,9 @@ class TestSelfMessageReading(AsyncTestCase):
         # Attach voice handler to bot
         self.mock_bot.voice_handler = self.mock_voice_handler
 
-    def tearDown(self) -> None:
-        """Clean up test fixtures."""
-        super().tearDown()
+    def teardown_method(self) -> None:
+        """Clean up test fixtures (pytest compatible)."""
+        super().teardown_method()
 
     def _create_self_message(self, content: str = "Hello, I am the bot speaking!") -> MagicMock:
         """Create a mock message that appears to be from the bot itself.

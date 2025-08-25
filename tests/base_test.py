@@ -1,51 +1,36 @@
 """Base test infrastructure for Discord Voice TTS Bot tests."""
 
-import unittest
-from typing import Any, override
+from typing import Any
 from unittest.mock import MagicMock
 
 
-class BaseTestCase(unittest.TestCase):
-    """Base test case with common utilities."""
+class BaseTestCase:
+    """Base test case with common utilities for pytest compatibility."""
 
-    def __init__(self, methodName: str = "runTest", *args: Any, **kwargs: Any) -> None:
-        """Initialize test case."""
-        # Handle pytest compatibility - pytest doesn't pass methodName
-        if not args and not methodName.startswith("test_"):
-            methodName = "runTest"
-        super().__init__(methodName, *args, **kwargs)
-        self.mock_logger: MagicMock = MagicMock()
-
-    @override
-    def setUp(self) -> None:
-        """Set up test fixtures."""
-        super().setUp()
+    def setup_method(self) -> None:
+        """Set up test fixtures (pytest compatible)."""
         self.mock_logger = MagicMock()
 
-    @override
-    def tearDown(self) -> None:
-        """Clean up test fixtures."""
-        super().tearDown()
+    def teardown_method(self) -> None:
+        """Clean up test fixtures (pytest compatible)."""
 
     def assertDictContainsSubset(self, subset: dict[str, Any], dictionary: dict[str, Any]) -> None:
         """Assert that dictionary contains all key-value pairs from subset."""
         for key, value in subset.items():
-            self.assertIn(key, dictionary)
-            self.assertEqual(dictionary[key], value)
+            assert key in dictionary, f"Key '{key}' not found in dictionary"
+            assert dictionary[key] == value, f"Value for key '{key}' doesn't match: expected {value}, got {dictionary[key]}"
 
 
 class AsyncTestCase(BaseTestCase):
-    """Base test case for async tests."""
+    """Base test case for async tests (pytest compatible)."""
 
-    @override
-    def setUp(self) -> None:
-        """Set up async test fixtures."""
-        super().setUp()
+    def setup_method(self) -> None:
+        """Set up async test fixtures (pytest compatible)."""
+        super().setup_method()
 
-    @override
-    def tearDown(self) -> None:
-        """Clean up async test fixtures."""
-        super().tearDown()
+    def teardown_method(self) -> None:
+        """Clean up async test fixtures (pytest compatible)."""
+        super().teardown_method()
 
 
 class MockDiscordObjects:

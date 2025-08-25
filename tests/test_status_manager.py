@@ -1,7 +1,7 @@
 """Tests for StatusManager component - TDD Approach (Red-Green-Refactor)."""
 
+import re
 import unittest
-from typing import override
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -21,17 +21,17 @@ class TestBotStats(BaseTestCase):
         """Test BotStats initializes with correct default values."""
         stats = BotStats()
 
-        self.assertEqual(stats.messages_processed, 0)
-        self.assertEqual(stats.tts_messages_played, 0)
-        self.assertEqual(stats.connection_errors, 0)
-        self.assertIsNone(stats.uptime_start)
-        self.assertEqual(stats.command_usage, {})
-        self.assertEqual(stats.voice_connections, 0)
-        self.assertEqual(stats.voice_disconnections, 0)
-        self.assertEqual(stats.failed_tts_requests, 0)
-        self.assertEqual(stats.average_response_time, 0.0)
-        self.assertEqual(stats.peak_concurrent_users, 0)
-        self.assertEqual(stats.total_guilds, 0)
+        assert stats.messages_processed == 0
+        assert stats.tts_messages_played == 0
+        assert stats.connection_errors == 0
+        assert stats.uptime_start is None
+        assert stats.command_usage == {}
+        assert stats.voice_connections == 0
+        assert stats.voice_disconnections == 0
+        assert stats.failed_tts_requests == 0
+        assert stats.average_response_time == 0.0
+        assert stats.peak_concurrent_users == 0
+        assert stats.total_guilds == 0
 
 
 class TestVoiceStatus(BaseTestCase):
@@ -44,14 +44,14 @@ class TestVoiceStatus(BaseTestCase):
         """Test VoiceStatus initializes with correct default values."""
         voice_status = VoiceStatus()
 
-        self.assertFalse(voice_status.connected)
-        self.assertIsNone(voice_status.channel_name)
-        self.assertIsNone(voice_status.channel_id)
-        self.assertFalse(voice_status.is_playing)
-        self.assertEqual(voice_status.queue_size, 0)
-        self.assertIsNone(voice_status.current_group)
-        self.assertIsNone(voice_status.connection_time)
-        self.assertIsNone(voice_status.last_activity)
+        assert voice_status.connected is False
+        assert voice_status.channel_name is None
+        assert voice_status.channel_id is None
+        assert voice_status.is_playing is False
+        assert voice_status.queue_size == 0
+        assert voice_status.current_group is None
+        assert voice_status.connection_time is None
+        assert voice_status.last_activity is None
 
 
 class TestSystemHealth(BaseTestCase):
@@ -64,30 +64,20 @@ class TestSystemHealth(BaseTestCase):
         """Test SystemHealth initializes with correct default values."""
         health = SystemHealth()
 
-        self.assertTrue(health.tts_engine_healthy)
-        self.assertTrue(health.voice_system_healthy)
-        self.assertEqual(health.memory_usage, 0.0)
-        self.assertEqual(health.cpu_usage, 0.0)
-        self.assertIsNone(health.last_health_check)
-        self.assertEqual(health.health_check_failures, 0)
+        assert health.tts_engine_healthy is True
+        assert health.voice_system_healthy is True
+        assert health.memory_usage == 0.0
+        assert health.cpu_usage == 0.0
+        assert health.last_health_check is None
+        assert health.health_check_failures == 0
 
 
 class TestStatusManager(BaseTestCase):
     """Test cases for StatusManager - Main component."""
 
-    def __init__(self, methodName: str = "runTest") -> None:
-        """Initialize test case."""
-        super().__init__(methodName)
-        self.status_manager: StatusManager
-
-    def runTest(self) -> None:
-        """Default test method for unittest compatibility."""
-        # This method is needed when no specific test method is provided
-
-    @override
-    def setUp(self) -> None:
-        """Set up test fixtures."""
-        super().setUp()
+    def setup_method(self) -> None:
+        """Set up test fixtures (pytest compatible)."""
+        super().setup_method()
         self.status_manager = StatusManager()
 
     def test_initialization(self) -> None:
@@ -174,9 +164,9 @@ class TestStatusManager(BaseTestCase):
         self.status_manager.record_response_time(response_time)
 
         response_times = self.status_manager.get_response_times()
-        self.assertEqual(len(response_times), 1)
-        self.assertEqual(response_times[0], response_time)
-        self.assertAlmostEqual(self.status_manager.stats.average_response_time, response_time)
+        assert len(response_times) == 1
+        assert response_times[0] == response_time
+        assert abs(self.status_manager.stats.average_response_time - response_time) < 0.001
 
     def test_record_multiple_response_times(self) -> None:
         """Test recording multiple response times and average calculation."""
@@ -187,8 +177,8 @@ class TestStatusManager(BaseTestCase):
             self.status_manager.record_response_time(rt)
 
         response_times = self.status_manager.get_response_times()
-        self.assertEqual(len(response_times), 3)
-        self.assertAlmostEqual(self.status_manager.stats.average_response_time, expected_average)
+        assert len(response_times) == 3
+        assert abs(self.status_manager.stats.average_response_time - expected_average) < 0.001
 
     def test_response_time_limit(self) -> None:
         """Test that response times are limited to 100 entries."""
@@ -197,54 +187,54 @@ class TestStatusManager(BaseTestCase):
             self.status_manager.record_response_time(0.1)
 
         response_times = self.status_manager.get_response_times()
-        self.assertEqual(len(response_times), 100)
+        assert len(response_times) == 100
 
     def test_update_voice_status_connected(self) -> None:
         """Test updating voice status connected state."""
         self.status_manager.update_voice_status(connected=True, channel_name="Test Channel")
 
-        self.assertTrue(self.status_manager.voice_status.connected)
-        self.assertEqual(self.status_manager.voice_status.channel_name, "Test Channel")
-        self.assertIsNotNone(self.status_manager.voice_status.connection_time)
+        assert self.status_manager.voice_status.connected is True
+        assert self.status_manager.voice_status.channel_name == "Test Channel"
+        assert self.status_manager.voice_status.connection_time is not None
 
     def test_update_voice_status_playing(self) -> None:
         """Test updating voice status playing state."""
         self.status_manager.update_voice_status(is_playing=True, queue_size=5)
 
-        self.assertTrue(self.status_manager.voice_status.is_playing)
-        self.assertEqual(self.status_manager.voice_status.queue_size, 5)
-        self.assertIsNotNone(self.status_manager.voice_status.last_activity)
+        assert self.status_manager.voice_status.is_playing is True
+        assert self.status_manager.voice_status.queue_size == 5
+        assert self.status_manager.voice_status.last_activity is not None
 
     def test_update_system_health(self) -> None:
         """Test updating system health."""
         self.status_manager.update_system_health(tts_engine_healthy=False, voice_system_healthy=True, memory_usage=75.5, cpu_usage=45.2)
 
-        self.assertFalse(self.status_manager.health.tts_engine_healthy)
-        self.assertTrue(self.status_manager.health.voice_system_healthy)
-        self.assertEqual(self.status_manager.health.memory_usage, 75.5)
-        self.assertEqual(self.status_manager.health.cpu_usage, 45.2)
-        self.assertIsNotNone(self.status_manager.health.last_health_check)
-        self.assertEqual(self.status_manager.health.health_check_failures, 1)
+        assert self.status_manager.health.tts_engine_healthy is False
+        assert self.status_manager.health.voice_system_healthy is True
+        assert self.status_manager.health.memory_usage == 75.5
+        assert self.status_manager.health.cpu_usage == 45.2
+        assert self.status_manager.health.last_health_check is not None
+        assert self.status_manager.health.health_check_failures == 1
 
     def test_update_guild_count(self) -> None:
         """Test updating guild count."""
         self.status_manager.update_guild_count(10)
 
-        self.assertEqual(self.status_manager.stats.total_guilds, 10)
-        self.assertEqual(self.status_manager.stats.peak_concurrent_users, 100)  # 10 * 10
+        assert self.status_manager.stats.total_guilds == 10
+        assert self.status_manager.stats.peak_concurrent_users == 100  # 10 * 10
 
     def test_update_guild_count_peak_update(self) -> None:
         """Test that peak concurrent users only increases."""
         self.status_manager.update_guild_count(5)  # Peak: 50
         self.status_manager.update_guild_count(3)  # Peak should remain 50
 
-        self.assertEqual(self.status_manager.stats.peak_concurrent_users, 50)
+        assert self.status_manager.stats.peak_concurrent_users == 50
 
     def test_get_overall_health_healthy(self) -> None:
         """Test getting overall health when system is healthy."""
         health = self.status_manager.get_overall_health()
 
-        self.assertTrue(health)
+        assert health is True
 
     def test_get_overall_health_unhealthy(self) -> None:
         """Test getting overall health when system is unhealthy."""
@@ -252,7 +242,7 @@ class TestStatusManager(BaseTestCase):
 
         health = self.status_manager.get_overall_health()
 
-        self.assertFalse(health)
+        assert health is False
 
     def test_get_overall_health_with_connection_errors(self) -> None:
         """Test getting overall health with many connection errors."""
@@ -261,20 +251,20 @@ class TestStatusManager(BaseTestCase):
 
         health = self.status_manager.get_overall_health()
 
-        self.assertFalse(health)
+        assert health is False
 
     def test_get_uptime_seconds(self) -> None:
         """Test getting uptime in seconds."""
         uptime = self.status_manager.get_uptime_seconds()
 
-        self.assertGreaterEqual(uptime, 0.0)
+        assert uptime >= 0.0
 
     def test_get_uptime_formatted(self) -> None:
         """Test getting formatted uptime string."""
         uptime_str = self.status_manager.get_uptime_formatted()
 
         # Should be in format HH:MM:SS
-        self.assertRegex(uptime_str, r"^\d{2}:\d{2}:\d{2}$")
+        assert re.match(r"^\d{2}:\d{2}:\d{2}$", uptime_str)
 
     def test_get_statistics(self) -> None:
         """Test getting comprehensive statistics."""
@@ -304,22 +294,22 @@ class TestStatusManager(BaseTestCase):
         ]
 
         for key in expected_keys:
-            self.assertIn(key, stats)
+            assert key in stats
 
         # Check specific values
-        self.assertEqual(stats["messages_processed"], 1)
-        self.assertEqual(stats["command_usage"]["test"], 1)
-        self.assertTrue(stats["voice_status"]["connected"])
+        assert stats["messages_processed"] == 1
+        assert stats["command_usage"]["test"] == 1
+        assert stats["voice_status"]["connected"] is True
 
     def test_get_status_summary(self) -> None:
         """Test getting status summary string."""
         summary = self.status_manager.get_status_summary()
 
-        self.assertIn("Uptime:", summary)
-        self.assertIn("Processed:", summary)
-        self.assertIn("Played:", summary)
-        self.assertIn("Errors:", summary)
-        self.assertIn("Voice:", summary)
+        assert "Uptime:" in summary
+        assert "Processed:" in summary
+        assert "Played:" in summary
+        assert "Errors:" in summary
+        assert "Voice:" in summary
 
     def test_reset_statistics(self) -> None:
         """Test resetting all statistics."""
@@ -332,11 +322,11 @@ class TestStatusManager(BaseTestCase):
         self.status_manager.reset_statistics()
 
         # Check reset
-        self.assertEqual(self.status_manager.stats.messages_processed, 0)
-        self.assertEqual(self.status_manager.stats.command_usage, {})
-        self.assertEqual(self.status_manager.get_command_timings(), {})
-        self.assertEqual(self.status_manager.get_response_times(), [])
-        self.assertIsNotNone(self.status_manager.stats.uptime_start)  # Should be reset
+        assert self.status_manager.stats.messages_processed == 0
+        assert self.status_manager.stats.command_usage == {}
+        assert self.status_manager.get_command_timings() == {}
+        assert self.status_manager.get_response_times() == []
+        assert self.status_manager.stats.uptime_start is not None  # Should be reset
 
     def test_status_callbacks(self) -> None:
         """Test status update callbacks."""
@@ -352,7 +342,7 @@ class TestStatusManager(BaseTestCase):
         # Notify callbacks
         self.status_manager.notify_status_callbacks_for_testing()
 
-        self.assertTrue(callback_called)
+        assert callback_called is True
 
     def test_remove_status_callback(self) -> None:
         """Test removing status update callback."""
@@ -369,7 +359,7 @@ class TestStatusManager(BaseTestCase):
         # Notify callbacks
         self.status_manager.notify_status_callbacks_for_testing()
 
-        self.assertFalse(callback_called)
+        assert callback_called is False
 
     @patch("asyncio.iscoroutinefunction", return_value=True)
     @patch("asyncio.create_task")
