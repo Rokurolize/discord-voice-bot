@@ -2,7 +2,7 @@
 
 import asyncio
 from typing import Any
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import discord
 import pytest
@@ -671,16 +671,23 @@ class TestWorkerInitialization:
 
     @pytest.mark.asyncio
     @patch("discord_voice_bot.voice.workers.synthesizer.get_tts_engine")
-    async def test_workers_process_queue_items_fixed(self, mock_get_engine, voice_handler: VoiceHandler) -> None:
+    @patch("discord_voice_bot.voice.workers.player.PlayerWorker")
+    async def test_workers_process_queue_items_fixed(self, mock_player_worker, mock_get_engine, voice_handler: VoiceHandler) -> None:
         """Test that workers actually process items from queues with fixed mocking."""
         # Mock the TTS engine to avoid real HTTP requests
         mock_config_manager = MagicMock()
         mock_get_engine.return_value = MockTTSEngine(mock_config_manager)
 
+        # Mock PlayerWorker to prevent it from consuming the audio queue
+        mock_player_worker_instance = MagicMock()
+        mock_player_worker.return_value = mock_player_worker_instance
+        mock_player_worker_instance.run = AsyncMock()
+        mock_player_worker_instance.stop = MagicMock()
+
         try:
             async with asyncio.timeout(5.0):  # 5 second timeout
                 # Start the voice handler (which should start workers)
-                await voice_handler.start()
+                await voice_handler.start(start_player=False)
 
                 # Add a test message to the synthesis queue
                 test_message = {"text": "Test message", "chunks": ["Test message"], "user_id": 12345, "username": "TestUser", "group_id": "test_group_123"}

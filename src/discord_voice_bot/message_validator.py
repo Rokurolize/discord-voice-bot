@@ -221,11 +221,12 @@ class MessageValidator:
 
         return True
 
-    def should_process_message(self, message: discord.Message) -> bool:
+    def should_process_message(self, message: discord.Message, bot_user_id: int | None = None) -> bool:
         """Quick check to determine if message should be processed.
 
         Args:
             message: Discord message
+            bot_user_id: Optional bot user ID for self-message processing
 
         Returns:
             True if message should be processed, False otherwise
@@ -233,7 +234,11 @@ class MessageValidator:
         """
         # Quick checks without full validation
         if message.author.bot:
-            return False
+            # Allow self-messages if enabled and bot_user_id is provided
+            if config.enable_self_message_processing and bot_user_id and message.author.id == bot_user_id:
+                logger.debug(f"Allowing self-message from bot {bot_user_id}")
+            else:
+                return False
 
         if message.type != discord.MessageType.default:
             return False

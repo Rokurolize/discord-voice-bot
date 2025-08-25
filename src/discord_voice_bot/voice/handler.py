@@ -144,7 +144,7 @@ class VoiceHandler(VoiceHandlerInterface):
         """Set voice gateway in connection manager."""
         self.connection_manager.voice_gateway = value
 
-    async def start(self) -> None:  # type: ignore[override]
+    async def start(self, start_player: bool = True) -> None:  # type: ignore[override]
         """Start the voice handler tasks."""
         # Diagnostics: ensure opus is loaded; if not, voice playback will fail
         try:
@@ -170,28 +170,29 @@ class VoiceHandler(VoiceHandlerInterface):
             # Best-effort only
 
         # Start worker tasks
-        await self._start_workers()
+        await self._start_workers(start_player)
         # Workers are created externally to avoid import cycles
         # The tasks list will be populated by external components
 
-    async def _start_workers(self) -> None:
+    async def _start_workers(self, start_player: bool = True) -> None:
         """Start the worker tasks for processing queues."""
         try:
             # Create workers
             synthesizer_worker = SynthesizerWorker(self, self._config_manager)
-            player_worker = PlayerWorker(self)
 
             # Store worker instances for graceful shutdown
             self._synthesizer_worker = synthesizer_worker
-            self._player_worker = player_worker
 
-            # Start worker tasks
+            # Start synthesizer worker task
             synthesizer_task = asyncio.create_task(synthesizer_worker.run())
-            player_task = asyncio.create_task(player_worker.run())
-
-            # Add to task manager
             self.add_worker_task(synthesizer_task)
-            self.add_worker_task(player_task)
+
+            # Start player worker only if requested
+            if start_player:
+                player_worker = PlayerWorker(self)
+                self._player_worker = player_worker
+                player_task = asyncio.create_task(player_worker.run())
+                self.add_worker_task(player_task)
 
             logger.info("✅ Worker tasks started successfully")
 
