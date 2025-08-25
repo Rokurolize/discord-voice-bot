@@ -9,7 +9,19 @@ from discord.ext import commands
 from .bot_factory import BotFactory
 
 
-class DiscordVoiceTTSBot(commands.Bot):
+class BaseEventBot(commands.Bot):
+    """Base class for Discord bots with unified event delegation."""
+
+    async def _delegate_event_async(self, handler_name: str, method_name: str, *args: Any, **kwargs: Any) -> None:
+        """Delegate async events to handler if available."""
+        if hasattr(self, handler_name) and getattr(self, handler_name):
+            handler_instance = getattr(self, handler_name)
+            if hasattr(handler_instance, method_name):
+                method = getattr(handler_instance, method_name)
+                await method(*args, **kwargs)
+
+
+class DiscordVoiceTTSBot(BaseEventBot):
     """Main Discord Voice TTS Bot class."""
 
     def __init__(self, config_manager: Any) -> None:
@@ -74,29 +86,24 @@ class DiscordVoiceTTSBot(commands.Bot):
     @override
     async def on_message(self, message: Any) -> None:  # discord.Message at runtime
         """Delegate message events to the event handler and process commands."""
-        if hasattr(self, "event_handler") and self.event_handler:
-            await self.event_handler.handle_message(message)
+        await self._delegate_event_async("event_handler", "handle_message", message)
 
     async def on_voice_state_update(self, member: Any, before: Any, after: Any) -> None:
         """Delegate voice state updates to the event handler."""
-        if hasattr(self, "event_handler") and self.event_handler:
-            await self.event_handler.handle_voice_state_update(member, before, after)
+        await self._delegate_event_async("event_handler", "handle_voice_state_update", member, before, after)
 
     async def on_disconnect(self) -> None:
         """Delegate disconnect events to the event handler."""
-        if hasattr(self, "event_handler") and self.event_handler:
-            await self.event_handler.handle_disconnect()
+        await self._delegate_event_async("event_handler", "handle_disconnect")
 
     async def on_resumed(self) -> None:
         """Delegate resume events to the event handler."""
-        if hasattr(self, "event_handler") and self.event_handler:
-            await self.event_handler.handle_resumed()
+        await self._delegate_event_async("event_handler", "handle_resumed")
 
     @override
     async def on_error(self, event: str, *args: Any, **kwargs: Any) -> None:
         """Delegate errors to the event handler for centralized logging."""
-        if hasattr(self, "event_handler") and self.event_handler:
-            await self.event_handler.handle_error(event, *args, **kwargs)
+        await self._delegate_event_async("event_handler", "handle_error", event, *args, **kwargs)
 
 
 async def run_bot() -> None:

@@ -65,11 +65,10 @@ class MockTTSEngine:
 
     async def create_audio_source(self, text: str, speaker_id: int | None = None, engine_name: str | None = None):
         """Mock audio source creation."""
-        return None
+        return
 
     def cleanup_audio_source(self, audio_source):
         """Mock cleanup."""
-        pass
 
 
 from discord_voice_bot.voice.ratelimit import SimpleRateLimiter
@@ -531,8 +530,8 @@ class TestWorkerInitialization:
 
                 # Mock get_tts_engine, get_user_settings, and PlayerWorker to avoid real API calls and queue consumption
                 with patch('discord_voice_bot.voice.workers.synthesizer.get_tts_engine', return_value=mock_tts_engine), \
-                     patch('discord_voice_bot.voice.workers.synthesizer.get_user_settings') as mock_user_settings, \
-                     patch('discord_voice_bot.voice.workers.player.PlayerWorker.run') as mock_player_run:
+                      patch('discord_voice_bot.voice.workers.synthesizer.get_user_settings') as mock_user_settings, \
+                      patch('discord_voice_bot.voice.workers.player.PlayerWorker.run'):
 
                     # Mock user settings
                     mock_user_settings_instance = MagicMock()

@@ -17,8 +17,8 @@ import sys
 import time
 from typing import Any
 
-import discord
 import aiohttp
+import discord
 from dotenv import load_dotenv
 
 # ロギング設定
@@ -207,7 +207,6 @@ class VoiceChannelTestBot(discord.Client):
 
             # Discord AudioSource作成
             # TTS音声データを一時ファイルに書き込む
-            import io
             with tempfile.NamedTemporaryFile(mode="wb", suffix=".wav", delete=False) as tts_temp_file:
                 tts_temp_file.write(tts_audio_data)
                 tts_temp_file_path = tts_temp_file.name
@@ -255,7 +254,7 @@ class VoiceChannelTestBot(discord.Client):
         if not self.voice_client or not self.voice_client.is_connected():
             logger.error("❌ ボイスクライアントが接続されていません")
             self.record_test_result("audio_quality", False, "Voice client not connected")
-            return
+            return None
 
         try:
             # 複数の周波数でテスト音声を生成して品質チェック
@@ -304,7 +303,8 @@ class VoiceChannelTestBot(discord.Client):
             async with aiohttp.ClientSession() as session:
                 # テキストを音声クエリに変換
                 query_url = f"{api_url}/audio_query"
-                params = {"text": text, "speaker": speaker_id}
+                test_text = "こんにちは、これはボイスチャンネルテストです。"
+                params = {"text": test_text, "speaker": speaker_id}
 
                 async with session.post(query_url, params=params) as response:
                     if response.status != 200:
@@ -393,9 +393,9 @@ class VoiceChannelTestBot(discord.Client):
 
     async def show_test_summary(self) -> None:
         """テスト結果のサマリーを表示"""
-        logger.info("\n" + "=" * 60)
+        logger.info(f"\n{'=' * 60}")
         logger.info("📊 ボイスチャンネルテスト結果サマリー")
-        logger.info("=" * 60)
+        logger.info(f"{'=' * 60}")
         logger.info("=" * 60)
 
         total_tests = len(self.test_results)

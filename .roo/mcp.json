@@ -13,7 +13,15 @@
         "--project",
         "/home/ubuntu/workbench/projects/discord-voice-bot"
       ],
-      "env": {}
+      "env": {},
+      "alwaysAllow": [
+        "get_symbols_overview",
+        "find_symbol",
+        "check_onboarding_performed",
+        "onboarding",
+        "list_dir",
+        "write_memory"
+      ]
     }
   }
 }

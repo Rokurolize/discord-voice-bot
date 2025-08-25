@@ -404,9 +404,9 @@ class VoiceChannelTestBot(discord.Client):
 
     async def show_test_summary(self) -> None:
         """テスト結果のサマリーを表示"""
-        logger.info("\n" + "=" * 60)
+        logger.info(f"\n{'=' * 60}")
         logger.info("📊 ボイスチャンネルテスト結果サマリー")
-        logger.info("=" * 60)
+        logger.info(f"{'=' * 60}")
 
         total_tests = len(self.test_results)
         passed_tests = sum(1 for result in self.test_results if result["success"])
@@ -468,7 +468,7 @@ async def test_bot_can_speak_in_voice_channel(caplog):
             logger.info("🔗 Discordに接続しています...")
             await bot.start(token)
 
-    except asyncio.TimeoutError:
+    except TimeoutError:
         pytest.fail("❌ テストがタイムアウトしました - ボットが正常に動作しなかった可能性があります")
 
     except Exception as e:

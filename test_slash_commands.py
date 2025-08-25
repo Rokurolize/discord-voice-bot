@@ -12,15 +12,12 @@ import discord
 from discord.ext import commands
 from loguru import logger
 
-from discord_voice_bot.config_manager import ConfigManagerImpl
 from discord_voice_bot.slash.registry import SlashCommandRegistry
 
 
 async def test_slash_commands():
     """Test slash command registration."""
     print("🔧 Testing Slash Command Registration...")
-
-    config = ConfigManagerImpl()
 
     # Create a minimal bot instance
     intents = discord.Intents.default()

@@ -1,15 +1,15 @@
 """Permission and access control management for Discord Voice TTS Bot."""
 
+from typing import TypeVar
+
 import discord
 from loguru import logger
-from typing import TypeVar, Generic, Set
-
 
 # Type variable for blockable items
 T = TypeVar('T')
 
 
-class BlockManager(Generic[T]):
+class BlockManager[T]:
     """Generic manager for blocked items."""
 
     def __init__(self, item_type: str) -> None:
@@ -17,8 +17,9 @@ class BlockManager(Generic[T]):
 
         Args:
             item_type: Type name for logging (e.g., 'word', 'user', 'channel')
+
         """
-        self._blocked_items: Set[T] = set()
+        self._blocked_items: set[T] = set()
         self._item_type = item_type
 
     def add(self, item: T) -> None:
@@ -26,6 +27,7 @@ class BlockManager(Generic[T]):
 
         Args:
             item: Item to block
+
         """
         self._blocked_items.add(item)
         logger.info(f"Added blocked {self._item_type}: {item}")
@@ -35,6 +37,7 @@ class BlockManager(Generic[T]):
 
         Args:
             item: Item to unblock
+
         """
         self._blocked_items.discard(item)
         logger.info(f"Removed blocked {self._item_type}: {item}")
@@ -47,6 +50,7 @@ class BlockManager(Generic[T]):
 
         Returns:
             True if blocked, False otherwise
+
         """
         return item in self._blocked_items
 
@@ -55,11 +59,12 @@ class BlockManager(Generic[T]):
         self._blocked_items.clear()
         logger.info(f"Cleared all blocked {self._item_type}s")
 
-    def get_all(self) -> Set[T]:
+    def get_all(self) -> set[T]:
         """Get all blocked items.
 
         Returns:
             Set of blocked items
+
         """
         return self._blocked_items.copy()
 
@@ -68,6 +73,7 @@ class BlockManager(Generic[T]):
 
         Returns:
             Number of blocked items
+
         """
         return len(self._blocked_items)
 
@@ -77,7 +83,6 @@ class PermissionManager:
 
     def __init__(self) -> None:
         """Initialize permission manager."""
-        super().__init__()
         # Content filters using generic block managers
         self._word_manager = BlockManager[str]("word")
         self._user_manager = BlockManager[int]("user")

@@ -1,8 +1,8 @@
 """Pytest configuration and fixtures for the Discord Voice Bot."""
 
 import os
+
 import pytest
-from typing import Any
 
 
 @pytest.fixture(scope="session")
