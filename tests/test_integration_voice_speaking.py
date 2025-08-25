@@ -1,32 +1,24 @@
-#!/usr/bin/env python3
-"""
-Integration tests for Discord Voice Channel Speaking functionality.
-ボットが実際にボイスチャンネルで話せるかを統合テストで検証する
-
-このテストは以下の機能を検証します：
-1. ボットがボイスチャンネルに接続できるか
-2. テスト音声を生成してボイスチャンネルで再生できるか
-3. TTSメッセージを処理してボイスチャンネルで再生できるか
-4. 音声品質をチェックできるか
-"""
+"""Integration tests for Discord Voice Channel Speaking functionality."""
 
 import asyncio
 import logging
 import os
 import sys
+import tempfile
 import time
 from typing import Any
 
+import aiohttp
 import discord
 import pytest
 from dotenv import load_dotenv
 
-# ロギング設定
+# Load environment variables
+load_dotenv()
+
+# Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(name)s:%(lineno)d | %(message)s", handlers=[logging.StreamHandler(sys.stdout)])
 logger = logging.getLogger(__name__)
-
-# .envファイルから環境変数を読み込む
-_ = load_dotenv()
 
 
 @pytest.fixture(scope="session")
