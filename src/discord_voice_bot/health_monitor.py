@@ -220,8 +220,14 @@ class HealthMonitor:
         issues: list[str] = []
 
         try:
+            # Check bot readiness status
+            bot_ready = hasattr(self.bot, "is_ready") and self.bot.is_ready
+            logger.debug(f"🔍 Voice health check: Bot ready = {bot_ready}")
+
             # Get voice handler status
             voice_handler = getattr(self.bot, "voice_handler", None)
+            logger.debug(f"🔍 Voice health check: Voice handler present = {voice_handler is not None}")
+
             if voice_handler:
                 # Obtain status defensively (support sync or async get_status implementations)
                 get_status = getattr(voice_handler, "get_status", None)
@@ -238,20 +244,25 @@ class HealthMonitor:
                         status = {}
                 if not status.get("connected", False):
                     issues.append("Voice connection lost")
+                    logger.warning(f"🔍 Voice health check: Connection status = {status.get('connected', 'unknown')}")
                     self.record_disconnection("Health check detected disconnection")
                 elif not status.get("audio_playback_ready", True):
                     issues.append("Audio playback not ready")
+                    logger.warning(f"🔍 Voice health check: Audio playback ready = {status.get('audio_playback_ready', 'unknown')}")
             else:
                 # Only report as issue if bot is ready but voice handler is missing
-                if hasattr(self.bot, "is_ready") and self.bot.is_ready:
+                if bot_ready:
                     issues.append("Voice handler not initialized")
+                    logger.warning("🔍 Voice health check: Bot is ready but voice handler is missing - this may indicate a problem")
                 else:
-                    logger.debug("Voice handler not yet available (bot not ready)")
+                    logger.debug("🔍 Voice health check: Voice handler not yet available (bot not ready) - this is normal during startup")
         except AttributeError:
             issues.append("Voice handler access error")
+            logger.warning("🔍 Voice health check: AttributeError accessing voice handler")
 
         except Exception as e:
             issues.append("Voice health check error: " + str(e))
+            logger.error(f"🔍 Voice health check: Unexpected error: {e}")
 
         return len(issues) == 0, issues
 
