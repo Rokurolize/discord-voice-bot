@@ -2,6 +2,74 @@
 
 import discord
 from loguru import logger
+from typing import TypeVar, Generic, Set
+
+
+# Type variable for blockable items
+T = TypeVar('T')
+
+
+class BlockManager(Generic[T]):
+    """Generic manager for blocked items."""
+
+    def __init__(self, item_type: str) -> None:
+        """Initialize block manager.
+
+        Args:
+            item_type: Type name for logging (e.g., 'word', 'user', 'channel')
+        """
+        self._blocked_items: Set[T] = set()
+        self._item_type = item_type
+
+    def add(self, item: T) -> None:
+        """Add an item to the blocked list.
+
+        Args:
+            item: Item to block
+        """
+        self._blocked_items.add(item)
+        logger.info(f"Added blocked {self._item_type}: {item}")
+
+    def remove(self, item: T) -> None:
+        """Remove an item from the blocked list.
+
+        Args:
+            item: Item to unblock
+        """
+        self._blocked_items.discard(item)
+        logger.info(f"Removed blocked {self._item_type}: {item}")
+
+    def contains(self, item: T) -> bool:
+        """Check if item is blocked.
+
+        Args:
+            item: Item to check
+
+        Returns:
+            True if blocked, False otherwise
+        """
+        return item in self._blocked_items
+
+    def clear(self) -> None:
+        """Clear all blocked items."""
+        self._blocked_items.clear()
+        logger.info(f"Cleared all blocked {self._item_type}s")
+
+    def get_all(self) -> Set[T]:
+        """Get all blocked items.
+
+        Returns:
+            Set of blocked items
+        """
+        return self._blocked_items.copy()
+
+    def count(self) -> int:
+        """Get count of blocked items.
+
+        Returns:
+            Number of blocked items
+        """
+        return len(self._blocked_items)
 
 
 class PermissionManager:
@@ -10,11 +78,11 @@ class PermissionManager:
     def __init__(self) -> None:
         """Initialize permission manager."""
         super().__init__()
-        # Content filters
-        self._blocked_words: set[str] = set()
+        # Content filters using generic block managers
+        self._word_manager = BlockManager[str]("word")
+        self._user_manager = BlockManager[int]("user")
+        self._channel_manager = BlockManager[int]("channel")
         self._allowed_domains: set[str] = set()
-        self._blocked_users: set[int] = set()
-        self._blocked_channels: set[int] = set()
 
         logger.info("Permission manager initialized")
 
@@ -29,11 +97,11 @@ class PermissionManager:
 
         """
         # Check blocked users
-        if message.author.id in self._blocked_users:
+        if self._user_manager.contains(message.author.id):
             return False, "User is blocked from TTS"
 
         # Check blocked channels
-        if message.channel.id in self._blocked_channels:
+        if self._channel_manager.contains(message.channel.id):
             return False, "Channel is blocked from TTS"
 
         # Additional permission checks can be added here
@@ -74,7 +142,7 @@ class PermissionManager:
         content_lower = message.content.lower()
 
         # Check for blocked words
-        for word in self._blocked_words:
+        for word in self._word_manager.get_all():
             if word.lower() in content_lower:
                 return False, f"Blocked word detected: {word}"
 
@@ -88,8 +156,7 @@ class PermissionManager:
             word: Word to block
 
         """
-        self._blocked_words.add(word.lower())
-        logger.info(f"Added blocked word: {word}")
+        self._word_manager.add(word.lower())
 
     def remove_blocked_word(self, word: str) -> None:
         """Remove a word from the blocked list.
@@ -98,8 +165,7 @@ class PermissionManager:
             word: Word to unblock
 
         """
-        self._blocked_words.discard(word.lower())
-        logger.info(f"Removed blocked word: {word}")
+        self._word_manager.remove(word.lower())
 
     def add_blocked_user(self, user_id: int) -> None:
         """Add a user to the blocked list.
@@ -108,8 +174,7 @@ class PermissionManager:
             user_id: Discord user ID to block
 
         """
-        self._blocked_users.add(user_id)
-        logger.info(f"Added blocked user: {user_id}")
+        self._user_manager.add(user_id)
 
     def remove_blocked_user(self, user_id: int) -> None:
         """Remove a user from the blocked list.
@@ -118,8 +183,7 @@ class PermissionManager:
             user_id: Discord user ID to unblock
 
         """
-        self._blocked_users.discard(user_id)
-        logger.info(f"Removed blocked user: {user_id}")
+        self._user_manager.remove(user_id)
 
     def add_blocked_channel(self, channel_id: int) -> None:
         """Add a channel to the blocked list.
@@ -128,8 +192,7 @@ class PermissionManager:
             channel_id: Discord channel ID to block
 
         """
-        self._blocked_channels.add(channel_id)
-        logger.info(f"Added blocked channel: {channel_id}")
+        self._channel_manager.add(channel_id)
 
     def remove_blocked_channel(self, channel_id: int) -> None:
         """Remove a channel from the blocked list.
@@ -138,8 +201,7 @@ class PermissionManager:
             channel_id: Discord channel ID to unblock
 
         """
-        self._blocked_channels.discard(channel_id)
-        logger.info(f"Removed blocked channel: {channel_id}")
+        self._channel_manager.remove(channel_id)
 
     def get_statistics(self) -> dict[str, int]:
         """Get permission statistics.
@@ -149,17 +211,17 @@ class PermissionManager:
 
         """
         return {
-            "blocked_words": len(self._blocked_words),
-            "blocked_users": len(self._blocked_users),
-            "blocked_channels": len(self._blocked_channels),
+            "blocked_words": self._word_manager.count(),
+            "blocked_users": self._user_manager.count(),
+            "blocked_channels": self._channel_manager.count(),
             "allowed_domains": len(self._allowed_domains),
         }
 
     def reset_filters(self) -> None:
         """Reset all filters to default state."""
-        self._blocked_words.clear()
-        self._blocked_users.clear()
-        self._blocked_channels.clear()
+        self._word_manager.clear()
+        self._user_manager.clear()
+        self._channel_manager.clear()
         self._allowed_domains.clear()
         logger.info("Reset all permission filters")
 
@@ -171,7 +233,7 @@ class PermissionManager:
             Set of blocked words
 
         """
-        return self._blocked_words.copy()
+        return self._word_manager.get_all()
 
     def get_blocked_users(self) -> set[int]:
         """Get blocked users for testing.
@@ -180,7 +242,7 @@ class PermissionManager:
             Set of blocked user IDs
 
         """
-        return self._blocked_users.copy()
+        return self._user_manager.get_all()
 
     def get_blocked_channels(self) -> set[int]:
         """Get blocked channels for testing.
@@ -189,7 +251,7 @@ class PermissionManager:
             Set of blocked channel IDs
 
         """
-        return self._blocked_channels.copy()
+        return self._channel_manager.get_all()
 
     def get_allowed_domains(self) -> set[str]:
         """Get allowed domains for testing.
