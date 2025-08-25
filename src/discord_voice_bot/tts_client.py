@@ -22,7 +22,9 @@ class TTSClient:
     @property
     def api_url(self) -> str:
         """Get current API URL from config manager."""
-        return self._config_manager.get_api_url()
+        # Get from environment variable directly to avoid early Config creation
+        import os
+        return os.environ.get("VOICEVOX_URL", "http://localhost:50021")
 
     @property
     def speaker_id(self) -> int:
@@ -31,8 +33,9 @@ class TTSClient:
 
     @property
     def engine_name(self) -> str:
-        """Get current engine name from config manager."""
-        return self._config_manager.get_tts_engine().upper()
+        """Get current engine name from environment variable."""
+        import os
+        return os.environ.get("TTS_ENGINE", "voicevox").upper()
 
     @property
     def session(self) -> aiohttp.ClientSession | None:

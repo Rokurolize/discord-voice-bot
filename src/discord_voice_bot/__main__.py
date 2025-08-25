@@ -1,6 +1,7 @@
 """Main entry point for the discord-voice-bot package."""
 
 import asyncio
+import os
 import signal
 import sys
 from pathlib import Path
@@ -40,25 +41,28 @@ class BotManager:
         logger.debug(f"Terminal color support: {colorize}")
         logger.debug(f"NO_COLOR env var: {os.environ.get('NO_COLOR', 'not set')}")
 
+        # Get log level from environment variable directly to avoid early Config creation
+        log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
+
         # Console logging with colors and formatting
         _ = logger.add(
             sys.stderr,
-            level=self.config_manager.get_log_level(),
+            level=log_level,
             format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | <level>{message}</level>" if colorize else "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} | {message}",
             colorize=colorize,
             backtrace=True,
             diagnose=True,
         )
 
-        # File logging if configured
-        log_file = self.config_manager.get_log_file()
-        if log_file:
+        # File logging if configured - get log file from environment variable directly
+        log_file = os.environ.get("LOG_FILE", "discord_bot_error.log")
+        if log_file and log_file != "discord_bot_error.log":  # Only if explicitly set
             log_path = Path(log_file)
             log_path.parent.mkdir(parents=True, exist_ok=True)
 
             _ = logger.add(
                 log_path,
-                level=self.config_manager.get_log_level(),
+                level=log_level,
                 format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} | {message}",
                 rotation="10 MB",
                 retention="1 week",
@@ -172,8 +176,9 @@ class BotManager:
             is_available, error_detail = await tts_engine.check_api_availability()
             if not is_available:
                 logger.error(f"TTS API health check failed: {error_detail}")
-                engine_name = self.config_manager.get_tts_engine().upper()
-                api_url = self.config_manager.get_api_url()
+                # Get engine info from environment variables directly to avoid early Config creation
+                engine_name = os.environ.get("TTS_ENGINE", "voicevox").upper()
+                api_url = os.environ.get("VOICEVOX_URL", "http://localhost:50021")
                 logger.error(f"Please ensure {engine_name} server is running at {api_url}")
                 return False
 

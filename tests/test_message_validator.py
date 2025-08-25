@@ -58,8 +58,9 @@ class TestMessageValidator(BaseTestCase):
         # Need to set channel ID to match config.target_voice_channel_id
         mock_message = MockDiscordObjects.create_mock_message("Hello world")
         # Import config to get the target channel ID
-        from discord_voice_bot.config import config
+        from discord_voice_bot.config import get_config
 
+        config = get_config()
         mock_message.channel.id = config.target_voice_channel_id
 
         result = self.validator.should_process_message(mock_message)

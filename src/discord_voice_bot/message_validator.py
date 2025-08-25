@@ -7,7 +7,7 @@ from typing import Any
 import discord
 from loguru import logger
 
-from .config import config
+from .config import get_config
 from .content_filter import ContentFilter
 from .permission_manager import PermissionManager
 
@@ -47,14 +47,24 @@ class MessageValidator:
             r"document\.write",
         ]
 
-        # Content limits
-        self._max_message_length = config.max_message_length
+        # Content limits - Delay config access until needed
+        self._max_message_length: int | None = None
         self._max_special_chars_ratio = 0.8  # Max ratio of special chars to total chars
 
-        # Set content filter limits
-        self.content_filter.set_max_length(self._max_message_length)
-
         logger.info("Message validator initialized")
+
+    @property
+    def max_message_length(self) -> int:
+        """Get maximum message length from config (lazy evaluation)."""
+        if self._max_message_length is None:
+            self._max_message_length = get_config().max_message_length
+            # Set content filter limits when first accessed
+            self.content_filter.set_max_length(self._max_message_length)
+        return self._max_message_length
+
+    def _get_enable_self_message_processing(self) -> bool:
+        """Get enable self message processing setting from config (lazy evaluation)."""
+        return get_config().enable_self_message_processing
 
     async def validate_message(self, message: discord.Message) -> ValidationResult:
         """Validate a Discord message for TTS processing.
@@ -140,9 +150,9 @@ class MessageValidator:
             return False
 
         # Check message length limits
-        if len(message.content) > self._max_message_length:
+        if len(message.content) > self.max_message_length:
             result.is_valid = False
-            result.reason = f"Message too long ({len(message.content)} > {self._max_message_length})"
+            result.reason = f"Message too long ({len(message.content)} > {self.max_message_length})"
             return False
 
         # Check for excessive special characters
@@ -235,7 +245,7 @@ class MessageValidator:
         # Quick checks without full validation
         if message.author.bot:
             # Allow self-messages if enabled and bot_user_id is provided
-            if config.enable_self_message_processing and bot_user_id and message.author.id == bot_user_id:
+            if self._get_enable_self_message_processing() and bot_user_id and message.author.id == bot_user_id:
                 logger.debug(f"Allowing self-message from bot {bot_user_id}")
             else:
                 return False
@@ -246,7 +256,7 @@ class MessageValidator:
         if not message.content or not message.content.strip():
             return False
 
-        if len(message.content) > self._max_message_length:
+        if len(message.content) > self.max_message_length:
             return False
 
         return True
@@ -261,7 +271,7 @@ class MessageValidator:
         permission_stats = self.permission_manager.get_statistics()
         return {
             **permission_stats,
-            "max_message_length": self._max_message_length,
+            "max_message_length": self.max_message_length,
         }
 
     # Delegation methods for backward compatibility

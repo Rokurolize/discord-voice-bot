@@ -52,7 +52,9 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, spea
         config_manager = ConfigManagerImpl()
         tts_engine = await get_tts_engine(config_manager)
         speakers = await tts_engine.get_available_speakers()
-        from ...config import config
+        from ...config import get_config
+
+        config = get_config()
 
         # Find matching speaker (case-insensitive)
         speaker_lower = speaker.lower()

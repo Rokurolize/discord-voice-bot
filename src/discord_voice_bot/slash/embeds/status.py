@@ -22,11 +22,12 @@ async def create_status_embed(status: dict[str, Any]) -> discord.Embed:
     )
 
     # TTS status
-    from ...config import config
+    from ...config import get_config
 
+    config_instance = get_config()
     _ = embed.add_field(
         name="🎤 TTS状態",
-        value=f"Engine: {config.tts_engine.upper()}\nSpeaker: {config.tts_speaker}\nPlaying: {'✅' if voice_status.get('is_playing') else '❌'}",
+        value=f"Engine: {config_instance.tts_engine.upper()}\nSpeaker: {config_instance.tts_speaker}\nPlaying: {'✅' if voice_status.get('is_playing') else '❌'}",
         inline=True,
     )
 

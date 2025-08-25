@@ -21,9 +21,9 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
         try:
             # Attempt reconnection
             logger.info(f"🔄 MANUAL RECONNECTION - User {interaction.user.name} requested voice reconnection")
-            from ...config import config
+            from ...config import get_config
 
-            success = await bot.voice_handler.connect_to_channel(config.target_voice_channel_id)
+            success = await bot.voice_handler.connect_to_channel(get_config().target_voice_channel_id)
 
             # Get new status
             new_status = bot.voice_handler.get_status()

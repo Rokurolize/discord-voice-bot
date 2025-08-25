@@ -6,7 +6,7 @@ import discord
 async def create_voices_embed() -> discord.Embed:
     """Create voices embed showing available speakers."""
     try:
-        from ...config import config
+        from ...config import get_config
 
         # Create TTS engine instance
         from ...config_manager import ConfigManagerImpl
@@ -25,7 +25,7 @@ async def create_voices_embed() -> discord.Embed:
         current_speaker = current_settings["speaker_name"] if current_settings else None
 
         embed = discord.Embed(
-            title=f"🎭 Available Voices ({config.tts_engine.upper()})",
+            title=f"🎭 Available Voices ({get_config().tts_engine.upper()})",
             color=discord.Color.blue(),
             description="Use `/voice <name>` to set your personal voice",
         )

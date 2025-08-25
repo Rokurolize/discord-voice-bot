@@ -70,7 +70,50 @@ class DiscordVoiceTTSBot(BaseEventBot):
             return
 
         token = self.config_manager.get_discord_token()
-        await self.start(token)
+        print(f"Debug: Starting bot with token (length: {len(token)})")  # Debug logging
+        # Show first 10 and last 10 characters for debugging
+        if len(token) >= 20:
+            print(f"Debug: Token preview: {token[:10]}...{token[-10:]}")  # Debug logging
+        else:
+            print(f"Debug: Token: {token}")  # Debug logging
+
+        try:
+            await self.start(token)
+        except Exception as e:
+            # Log detailed error information for HTTP exceptions
+            import traceback
+            import discord
+
+            # Check if the exception is a LoginFailure caused by HTTPException
+            if isinstance(e, discord.LoginFailure) and e.__cause__:
+                cause = e.__cause__
+                if isinstance(cause, discord.HTTPException):
+                    http_exc = cause
+                    print(f"🔴 HTTP Error Details: status={getattr(http_exc, 'status', 'unknown')} code={getattr(http_exc, 'code', 'unknown')} text='{getattr(http_exc, 'text', 'unknown')}'")
+                    if hasattr(http_exc, 'response') and http_exc.response:
+                        print(f"🔴 Response headers: {dict(http_exc.response.headers)}")
+                    # Try to get response data
+                    if hasattr(http_exc, 'data'):
+                        print(f"🔴 Response data: {http_exc.data}")
+                    elif hasattr(http_exc, 'response') and http_exc.response:
+                        try:
+                            # Try to read response body if available
+                            if hasattr(http_exc.response, 'text'):
+                                print(f"🔴 Response body: {await http_exc.response.text()}")
+                        except Exception:
+                            print("🔴 Could not read response body")
+            elif isinstance(e, discord.HTTPException):
+                http_exc = e
+                print(f"🔴 HTTP Error Details: status={getattr(http_exc, 'status', 'unknown')} code={getattr(http_exc, 'code', 'unknown')} text='{getattr(http_exc, 'text', 'unknown')}'")
+                if hasattr(http_exc, 'response') and http_exc.response:
+                    print(f"🔴 Response headers: {dict(http_exc.response.headers)}")
+                if hasattr(http_exc, 'data'):
+                    print(f"🔴 Response data: {http_exc.data}")
+
+            print(f"🔴 Exception type: {type(e).__name__}")
+            print(f"🔴 Exception message: {str(e)}")
+            print(f"🔴 Full traceback: {traceback.format_exc()}")
+            raise
 
     async def on_ready(self) -> None:
         """Handle bot ready event and delegate to event handler."""
@@ -108,6 +151,16 @@ class DiscordVoiceTTSBot(BaseEventBot):
     @override
     async def on_error(self, event: str, *args: Any, **kwargs: Any) -> None:
         """Delegate errors to the event handler for centralized logging."""
+        # Log detailed error information for HTTP exceptions
+        import traceback
+        import discord
+        if args and isinstance(args[0], discord.HTTPException):
+            http_exc = args[0]
+            print(f"🔴 HTTP Error Details: {http_exc.status} {http_exc.code} - {http_exc.text}")
+            if hasattr(http_exc, 'response'):
+                print(f"🔴 Response headers: {dict(http_exc.response.headers) if http_exc.response else 'None'}")
+            print(f"🔴 Full traceback: {traceback.format_exc()}")
+
         await self._delegate_event_async("event_handler", "handle_error", event, *args, **kwargs)
 
 
