@@ -9,11 +9,16 @@ from .protocols import ConfigManager
 class ConfigManagerImpl(ConfigManager):
     """Configuration manager implementation that wraps the existing Config class."""
 
-    def __init__(self) -> None:
-        """Initialize configuration manager."""
+    def __init__(self, test_mode: bool | None = None) -> None:
+        """Initialize configuration manager.
+
+        Args:
+            test_mode: Explicitly set test mode. If None, uses environment variable.
+        """
         super().__init__()
         # Delay config creation until first access to avoid circular imports
         self._config: Any = None  # TODO: Replace with proper Config type
+        self._test_mode_override = test_mode
 
     def _get_config(self) -> Any:
         """Get configuration instance, creating it if necessary."""
@@ -141,4 +146,6 @@ class ConfigManagerImpl(ConfigManager):
     @override
     def is_test_mode(self) -> bool:
         """Check if test mode is enabled."""
+        if self._test_mode_override is not None:
+            return self._test_mode_override
         return self._get_config().test_mode

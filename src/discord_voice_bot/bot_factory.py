@@ -68,11 +68,12 @@ class BotFactory:
         self.registry = ComponentRegistry()
         logger.info("Bot factory initialized")
 
-    async def create_bot(self, bot_class: type[Any] | None = None) -> Any:
+    async def create_bot(self, bot_class: type[Any] | None = None, test_mode: bool | None = None) -> Any:
         """Create and configure a new bot instance.
 
         Args:
             bot_class: Bot class to instantiate (defaults to DiscordVoiceTTSBot)
+            test_mode: Explicitly set test mode for ConfigManagerImpl
 
         Returns:
             Configured bot instance
@@ -88,7 +89,7 @@ class BotFactory:
                 bot_class = bot_module.DiscordVoiceTTSBot
 
             # Prepare configuration manager first
-            config_manager = ConfigManagerImpl()
+            config_manager = ConfigManagerImpl(test_mode=test_mode)
 
             # Create bot instance with configuration manager
             if bot_class is None:
@@ -289,10 +290,10 @@ class BotFactory:
 
         try:
             # Initialize TTS engine
-            from .config_manager import ConfigManagerImpl
             from .tts_engine import get_tts_engine
 
-            config_manager = ConfigManagerImpl()
+            # Use the bot's existing config manager
+            config_manager = bot.config_manager
             tts_engine = await get_tts_engine(config_manager)
             await tts_engine.start()
             logger.debug("TTS engine initialized")

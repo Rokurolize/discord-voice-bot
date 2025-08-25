@@ -20,14 +20,14 @@ from .health_monitor import HealthMonitor
 class BotManager:
     """Manages bot lifecycle and graceful shutdown."""
 
-    def __init__(self) -> None:
+    def __init__(self, test_mode: bool | None = None) -> None:
         """Initialize bot manager."""
         super().__init__()
         self.bot_task: asyncio.Task[None] | None = None
         self.shutdown_event = asyncio.Event()
         self.is_shutting_down = False
         self.health_monitor: HealthMonitor | None = None
-        self.config_manager = ConfigManagerImpl()
+        self.config_manager = ConfigManagerImpl(test_mode=test_mode)
 
     def setup_logging(self) -> None:
         """Set up structured logging."""
@@ -117,7 +117,7 @@ class BotManager:
             logger.info(f"Command prefix: {self.config_manager.get_command_prefix()}")
 
             # Start bot
-            self.bot_task = asyncio.create_task(run_bot())
+            self.bot_task = asyncio.create_task(run_bot(test_mode=self.config_manager.is_test_mode()))
 
             # Wait for bot to be ready, then initialize health monitor
             await asyncio.sleep(5)  # Give bot time to initialize and connect
@@ -207,9 +207,9 @@ class BotManager:
         return True
 
 
-async def main() -> None:
+async def main(test_mode: bool | None = None) -> None:
     """Main entry point."""
-    bot_manager = BotManager()
+    bot_manager = BotManager(test_mode=test_mode)
 
     # Set up logging
     bot_manager.setup_logging()

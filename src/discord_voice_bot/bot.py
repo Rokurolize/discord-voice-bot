@@ -164,11 +164,11 @@ class DiscordVoiceTTSBot(BaseEventBot):
         await self._delegate_event_async("event_handler", "handle_error", event, *args, **kwargs)
 
 
-async def run_bot() -> None:
+async def run_bot(test_mode: bool | None = None) -> None:
     """Create and run the Discord bot."""
     try:
         factory = BotFactory()
-        bot = await factory.create_bot()
+        bot = await factory.create_bot(test_mode=test_mode)
         await bot.start_with_config()
     except Exception as e:
         print(f"Failed to start bot: {e}")

@@ -1,6 +1,7 @@
 """Configuration management for Discord Voice TTS Bot."""
 
 import os
+import threading
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -13,11 +14,10 @@ class Config:
 
     def __init__(self) -> None:
         """Initialize configuration from environment variables."""
-        super().__init__()
-
         # Load environment variables in the correct order
         # 1. Load secrets file first (production)
-        secrets_file = Path("/home/ubuntu/.config/discord-voice-bot/secrets.env")
+        secrets_path = os.environ.get("SECRETS_FILE", "~/.config/discord-voice-bot/secrets.env")
+        secrets_file = Path(secrets_path).expanduser()
         if secrets_file.exists():
             _ = load_dotenv(secrets_file)
 
@@ -33,87 +33,6 @@ class Config:
         """Load configuration values from environment variables."""
         # Discord Configuration
         self.discord_token: str = self._get_required_env("DISCORD_BOT_TOKEN")
-        self.target_guild_id: int = int(os.environ.get("TARGET_GUILD_ID") or os.environ.get("GUILD_ID") or "1141224103580274760")
-        self.target_voice_channel_id: int = int(os.environ.get("TARGET_VOICE_CHANNEL_ID") or os.environ.get("VOICE_CHANNEL_ID") or "1350964414286921749")
-
-        # TTS Configuration
-        self.tts_engine: str = os.environ.get("TTS_ENGINE", "voicevox").lower()
-        self.tts_speaker: str = os.environ.get("TTS_SPEAKER", "normal").lower()
-
-        # Engine configurations
-        self.engines: dict[str, dict[str, Any]] = {
-            "voicevox": {
-                "url": os.environ.get("VOICEVOX_URL", "http://localhost:50021"),
-                "default_speaker": 3,  # Zundamon (Normal)
-                "speakers": {
-                    "normal": 3,  # Zundamon (Normal)
-                    "sexy": 5,  # Zundamon (Seductive)
-                    "tsun": 7,  # Zundamon (Tsundere)
-                    "amai": 1,  # Zundamon (Sweet)
-                },
-            },
-            "aivis": {
-                "url": os.environ.get("AIVIS_URL", "http://127.0.0.1:10101"),
-                "default_speaker": 1512153250,  # Unofficial Zundamon (Normal)
-                "speakers": {
-                    # Anneli voices
-                    "anneli_normal": 888753760,  # Anneli (Normal)
-                    "anneli_normal2": 888753761,  # Anneli (Standard)
-                    "anneli_tension": 888753762,  # Anneli (High Tension)
-                    "anneli_calm": 888753763,  # Anneli (Calm)
-                    "anneli_happy": 888753764,  # Anneli (Happy)
-                    "anneli_angry": 888753765,  # Anneli (Angry/Sad)
-                    # Mai voice
-                    "まい": 1431611904,  # Mai (Normal)
-                    # Chuunibyou voice
-                    "中2": 604166016,  # Chuunibyou (Normal)
-                    # Unofficial Zundamon voices
-                    "zunda_reading": 1512153248,  # Unofficial Zundamon (Reading)
-                    "zunda_normal": 1512153250,  # Unofficial Zundamon (Normal)
-                    "zunda_amai": 1512153249,  # Unofficial Zundamon (Sweet)
-                    "zunda_sexy": 1512153251,  # Unofficial Zundamon (Seductive)
-                    "zunda_tsun": 1512153252,  # Unofficial Zundamon (Tsundere)
-                    "zunda_whisper": 1512153253,  # Unofficial Zundamon (Whisper)
-                    "zunda_hisohiso": 1512153254,  # Unofficial Zundamon (Murmur)
-                },
-            },
-        }
-
-        # Bot Configuration
-        self.command_prefix: str = os.environ.get("COMMAND_PREFIX", "!tts")
-        self.max_message_length: int = int(os.environ.get("MAX_MESSAGE_LENGTH", "10000"))
-        self.message_queue_size: int = int(os.environ.get("MESSAGE_QUEUE_SIZE", "10"))
-        self.reconnect_delay: int = int(os.environ.get("RECONNECT_DELAY", "5"))
-
-        # Audio Configuration
-        self.audio_sample_rate: int = 48000  # Discord requires 48kHz
-        self.audio_channels: int = 2  # Stereo
-        self.audio_frame_duration: int = 20  # ms
-
-        # Rate Limiting (very generous to allow natural conversation)
-        self.rate_limit_messages: int = int(os.environ.get("RATE_LIMIT_MESSAGES", "100"))
-        self.rate_limit_period: int = int(os.environ.get("RATE_LIMIT_PERIOD", "60"))  # seconds
-
-        # Logging Configuration
-        self.log_level: str = os.environ.get("LOG_LEVEL", "INFO").upper()  # Force DEBUG for full logging
-        self.log_file: str | None = os.environ.get("LOG_FILE", "discord_bot_error.log")  # Default error log file
-
-        # Development Configuration
-        debug_value = os.environ.get("DEBUG", "false").lower()
-        self.debug: bool = debug_value == "true" or debug_value == "1"
-
-        # Test Configuration
-        test_value = os.environ.get("TEST_MODE", "false").lower()
-        self.test_mode: bool = test_value == "true" or test_value == "1"
-
-        # Self-message Processing Configuration
-        self.enable_self_message_processing: bool = os.environ.get("ENABLE_SELF_MESSAGE_PROCESSING", "false").lower() == "true"
-
-        # Discord Configuration
-        # Debug: Check if token is loaded
-        token = self._get_required_env("DISCORD_BOT_TOKEN")
-        print(f"Debug: DISCORD_BOT_TOKEN loaded, length: {len(token)}")  # Debug logging
-        self.discord_token: str = token
         self.target_guild_id: int = int(os.environ.get("TARGET_GUILD_ID") or os.environ.get("GUILD_ID") or "1141224103580274760")
         self.target_voice_channel_id: int = int(os.environ.get("TARGET_VOICE_CHANNEL_ID") or os.environ.get("VOICE_CHANNEL_ID") or "1350964414286921749")
 
@@ -247,10 +166,8 @@ class Config:
 
 def get_config() -> Config:
     """Return a new Config instance with proper initialization."""
-    # Always create a new Config instance to ensure .env is loaded
-    # The Config class itself handles the singleton-like behavior internally
     return Config()
 
 
-# Global config instance removed to prevent early initialization
-# Use get_config() directly instead
+# Config class loads environment variables on initialization
+# Use get_config() to get a new instance with proper initialization

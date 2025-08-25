@@ -1,11 +1,11 @@
 """Pytest configuration and fixtures for the Discord Voice Bot."""
 
 import os
-
 import pytest
+from unittest.mock import patch
 
-# Enable test mode for all tests to prevent Discord connections
-os.environ["TEST_MODE"] = "true"
+# Don't modify global environment variables
+# Instead, use fixtures to provide test-specific configuration
 
 
 @pytest.fixture(scope="session")
@@ -46,3 +46,17 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
 # Import asyncio here to avoid import issues
 import asyncio
+
+
+@pytest.fixture(scope="session")
+def test_config_manager():
+    """Provide a ConfigManagerImpl instance with test mode enabled."""
+    from discord_voice_bot.config_manager import ConfigManagerImpl
+    return ConfigManagerImpl(test_mode=True)
+
+
+@pytest.fixture(scope="session")
+def prod_config_manager():
+    """Provide a ConfigManagerImpl instance with test mode disabled."""
+    from discord_voice_bot.config_manager import ConfigManagerImpl
+    return ConfigManagerImpl(test_mode=False)
