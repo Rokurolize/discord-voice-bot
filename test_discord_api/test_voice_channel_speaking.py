@@ -205,7 +205,6 @@ class VoiceChannelTestBot(discord.Client):
                 self.record_test_result("tts_playback", False, "Failed to generate TTS audio")
                 return
 
-            # Discord AudioSource作成
             # TTS音声データを一時ファイルに書き込む
             with tempfile.NamedTemporaryFile(mode="wb", suffix=".wav", delete=False) as tts_temp_file:
                 tts_temp_file.write(tts_audio_data)

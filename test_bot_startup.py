@@ -6,6 +6,7 @@ import signal
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
+from types import FrameType
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -17,18 +18,18 @@ from discord_voice_bot.bot import run_bot
 async def timeout_context(seconds: int):
     """Context manager for timeout."""
 
-    def timeout_handler(signum, frame):
+    def timeout_handler(signum: int, frame: FrameType | None) -> None:
         raise TimeoutError(f"Operation timed out after {seconds} seconds")
 
     # Set up signal handler for timeout
-    signal.signal(signal.SIGALRM, timeout_handler)
-    signal.alarm(seconds)
+    _ = signal.signal(signal.SIGALRM, timeout_handler)
+    _ = signal.alarm(seconds)
 
     try:
         yield
     finally:
         # Cancel the alarm
-        signal.alarm(0)
+        _ = signal.alarm(0)
 
 
 async def test_bot_startup():

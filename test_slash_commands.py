@@ -37,13 +37,13 @@ async def test_slash_commands():
         bot.tree.clear_commands(guild=None)
 
         # Register core commands
-        await registry._register_core()
+        await registry._register_core()  # type: ignore[reportPrivateUsage]
 
         # Register voice commands
-        await registry._register_voice()
+        await registry._register_voice()  # type: ignore[reportPrivateUsage]
 
         # Register utility commands
-        await registry._register_util()
+        await registry._register_util()  # type: ignore[reportPrivateUsage]
 
         # Get registered commands
         registered = registry.get_registered_commands()
