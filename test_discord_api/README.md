@@ -47,10 +47,10 @@ Discord Developer Portalで以下の設定を確認してください：
 
 ```bash
 # 依存関係のインストール
-pip install -r requirements.txt
+uv sync
 
 # テストボットの実行
-python test_message_content.py
+uv run python test_message_content.py
 ```
 
 ### テストの手順

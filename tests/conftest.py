@@ -1,59 +1,47 @@
-"""Pytest configuration and shared fixtures."""
+"""Pytest configuration and fixtures for the Discord Voice Bot."""
 
-import asyncio
-import sys
-from pathlib import Path
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock
-
+import os
 import pytest
-
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+from typing import Any
 
 
 @pytest.fixture(scope="session")
 def event_loop():
-    """Create an event loop for the test session."""
+    """Create an instance of the default event loop for the test session."""
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
 
 
-@pytest.fixture
-def mock_discord_client():
-    """Create a mock Discord client."""
-    client = AsyncMock()
-    client.user = MagicMock()
-    client.user.id = 123456789
-    client.user.name = "TestBot"
-    client.guilds = []
-    client.voice_clients = []
-    return client
+def pytest_configure(config: pytest.Config) -> None:
+    """Configure pytest with custom markers."""
+    config.addinivalue_line("markers", "integration: mark test as integration test requiring Discord API")
+    config.addinivalue_line("markers", "requires_credentials: mark test as requiring Discord credentials")
 
 
-@pytest.fixture
-def mock_voice_client():
-    """Create a mock Discord voice client."""
-    voice_client = AsyncMock()
-    voice_client.is_connected = MagicMock(return_value=True)
-    voice_client.is_playing = MagicMock(return_value=False)
-    voice_client.play = MagicMock()
-    voice_client.stop = MagicMock()
-    voice_client.disconnect = AsyncMock()
-    return voice_client
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Modify test collection to handle integration tests."""
+    # Skip integration tests if credentials are not available
+    skip_integration = pytest.mark.skip(
+        reason="Discord credentials not configured or integration test disabled"
+    )
+
+    for item in items:
+        # Check if test is marked as integration test
+        if item.get_closest_marker("integration"):
+            # Check if required environment variables are set
+            required_vars = ["DISCORD_BOT_TOKEN", "TARGET_VOICE_CHANNEL_ID", "TTS_ENGINE"]
+            missing_vars = [var for var in required_vars if not os.getenv(var)]
+
+            if missing_vars:
+                item.add_marker(skip_integration)
+                continue
+
+        # Check if test requires credentials but credentials are missing
+        if item.get_closest_marker("requires_credentials"):
+            if not os.getenv("DISCORD_BOT_TOKEN"):
+                item.add_marker(pytest.mark.skip(reason="Discord bot token not configured"))
 
 
-@pytest.fixture
-def task_group() -> Any:
-    """Create a task group for async task cleanup."""
-    tasks: list[Any] = []
-    try:
-        yield tasks
-    finally:
-        for t in tasks:
-            if not t.done():
-                t.cancel()
-        # gatherでキャンセル完了を待ち、未処理例外を吸収
-        if tasks:
-            _ = asyncio.get_event_loop().run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+# Import asyncio here to avoid import issues
+import asyncio

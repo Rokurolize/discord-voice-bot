@@ -19,6 +19,10 @@ from .rate_limiter_manager import RateLimiterManager
 from .stats_tracker import StatsTracker
 from .task_manager import TaskManager
 
+# Import worker classes for type hints and instance management
+from .workers.player import PlayerWorker
+from .workers.synthesizer import SynthesizerWorker
+
 
 class VoiceHandlerInterface(Protocol):
     """Interface for voice handler to avoid circular imports."""
@@ -126,6 +130,10 @@ class VoiceHandler(VoiceHandlerInterface):
         # Backward compatibility for task management
         self.tasks = self.task_manager.tasks
 
+        # Worker instances for graceful shutdown
+        self._synthesizer_worker: SynthesizerWorker | None = None
+        self._player_worker: PlayerWorker | None = None
+
     @property
     def voice_gateway(self):
         """Get voice gateway from connection manager."""
@@ -161,13 +169,47 @@ class VoiceHandler(VoiceHandlerInterface):
             logger.debug(f"❌ Error checking Opus library: {e}")
             # Best-effort only
 
+        # Start worker tasks
+        await self._start_workers()
         # Workers are created externally to avoid import cycles
         # The tasks list will be populated by external components
-        logger.info("Voice handler started")
+
+    async def _start_workers(self) -> None:
+        """Start the worker tasks for processing queues."""
+        try:
+            # Create workers
+            synthesizer_worker = SynthesizerWorker(self, self._config_manager)
+            player_worker = PlayerWorker(self)
+
+            # Store worker instances for graceful shutdown
+            self._synthesizer_worker = synthesizer_worker
+            self._player_worker = player_worker
+
+            # Start worker tasks
+            synthesizer_task = asyncio.create_task(synthesizer_worker.run())
+            player_task = asyncio.create_task(player_worker.run())
+
+            # Add to task manager
+            self.add_worker_task(synthesizer_task)
+            self.add_worker_task(player_task)
+
+            logger.info("✅ Worker tasks started successfully")
+
+        except Exception as e:
+            logger.error(f"❌ Failed to start worker tasks: {e}")
+            raise
 
     def add_worker_task(self, task: asyncio.Task[None]) -> None:
         """Add a worker task to be managed by the handler."""
         self.task_manager.add_task(task)
+
+    def stop_workers(self) -> None:
+        """Stop all worker tasks gracefully."""
+        if self._synthesizer_worker:
+            self._synthesizer_worker.stop()
+        if self._player_worker:
+            self._player_worker.stop()
+        logger.info("Sent stop signal to workers")
 
     def is_connected(self) -> bool:  # type: ignore[override]
         """Check if the bot is connected to a voice channel."""
@@ -253,6 +295,9 @@ class VoiceHandler(VoiceHandlerInterface):
 
     async def cleanup(self) -> None:  # type: ignore[override]
         """Clean up resources."""
+        # Stop workers gracefully before cleanup
+        self.stop_workers()
+
         await self.task_manager.cleanup()
 
         result = await self.clear_all()

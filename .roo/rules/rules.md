@@ -53,6 +53,8 @@ The rules are as follows:
 - Ignoring type checker configuration settings is not allowed.
 - Properly modifying type checker configuration settings is not allowed.
 - Using `--no-verify` to forcefully commit changes is not allowed.
+- Add `timeout 15 ` (or whatever reasonable amount of time is needed to execute the command) timeouts to all commands executed in Bash.
+- you MUST use `uv`
 
 You must resolve any issues identified by the type checker based on the actual error content, addressing each issue exactly as intended by the question: "What is the purpose of this specific error?"
 
