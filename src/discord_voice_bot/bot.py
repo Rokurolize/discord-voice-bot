@@ -64,6 +64,11 @@ class DiscordVoiceTTSBot(BaseEventBot):
 
     async def start_with_config(self) -> None:
         """Start the bot using the stored configuration."""
+        # Skip Discord connection in test mode
+        if self.config_manager.is_test_mode():
+            print("🧪 Test mode enabled - skipping Discord connection")
+            return
+
         token = self.config_manager.get_discord_token()
         await self.start(token)
 

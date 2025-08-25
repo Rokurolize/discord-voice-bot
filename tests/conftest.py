@@ -4,6 +4,9 @@ import os
 
 import pytest
 
+# Enable test mode for all tests to prevent Discord connections
+os.environ["TEST_MODE"] = "true"
+
 
 @pytest.fixture(scope="session")
 def event_loop():

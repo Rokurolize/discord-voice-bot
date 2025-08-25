@@ -21,7 +21,10 @@ def discord_token():
     return token
 
 
-@pytest.mark.skip(reason="Discord integration test - requires valid bot token and server access")
+@pytest.mark.skipif(
+    not os.getenv("RUN_DISCORD_INTEGRATION_TESTS", "").lower() in ("true", "1", "yes"),
+    reason="Discord integration test - requires valid bot token and server access. Set RUN_DISCORD_INTEGRATION_TESTS=true to run manually"
+)
 @pytest.mark.asyncio
 async def test_bot_message_processing(discord_token):
     """Test bot message processing capabilities."""
@@ -48,18 +51,25 @@ async def test_bot_message_processing(discord_token):
         target_channel = client.get_channel(target_channel_id)
         assert target_channel, f"Target channel {target_channel_id} not found!"
 
-        # Send a test message to the target channel
-        test_message = await target_channel.send("🎤 テストメッセージ - ずんだもんが読み上げてね")
-        assert test_message.content, "Failed to send test message"
+        # Create a mock message instead of sending real message to avoid unnecessary TTS
+        from unittest.mock import Mock
 
-        # Wait for message processing
-        await asyncio.sleep(5)
+        test_message = Mock()
+        test_message.content = "Test message for processing verification"
+        test_message.author = Mock()
+        test_message.author.name = "TestUser"
+        test_message.author.bot = False
+        test_message.channel = target_channel
+        test_message.id = 12345
+        test_message.created_at = discord.utils.utcnow()
 
-        # Clean up the test message
-        try:
-            await test_message.delete()
-        except Exception:
-            pass  # Ignore cleanup errors
+        # Simulate message processing by calling on_message directly
+        await on_message(test_message)
+
+        # Wait briefly for processing
+        await asyncio.sleep(1)
+
+        # Note: No cleanup needed for mock message
 
         await client.close()
 

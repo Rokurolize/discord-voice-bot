@@ -137,3 +137,8 @@ class ConfigManagerImpl(ConfigManager):
     def get_enable_self_message_processing(self) -> bool:
         """Check if self-message processing is enabled."""
         return self._get_config().enable_self_message_processing
+
+    @override
+    def is_test_mode(self) -> bool:
+        """Check if test mode is enabled."""
+        return self._get_config().test_mode

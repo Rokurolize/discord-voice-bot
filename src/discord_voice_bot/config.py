@@ -98,6 +98,10 @@ class Config:
         debug_value = os.environ.get("DEBUG", "false").lower()
         self.debug: bool = debug_value == "true" or debug_value == "1"
 
+        # Test Configuration
+        test_value = os.environ.get("TEST_MODE", "false").lower()
+        self.test_mode: bool = test_value == "true" or test_value == "1"
+
         # Self-message Processing Configuration
         self.enable_self_message_processing: bool = os.environ.get("ENABLE_SELF_MESSAGE_PROCESSING", "false").lower() == "true"
 

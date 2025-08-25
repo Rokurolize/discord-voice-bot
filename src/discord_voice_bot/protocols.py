@@ -98,6 +98,10 @@ class ConfigManager(Protocol):
         """Check if self-message processing is enabled."""
         ...
 
+    def is_test_mode(self) -> bool:
+        """Check if test mode is enabled."""
+        ...
+
 
 class HasConfig(Protocol):
     """Protocol for objects that have configuration."""

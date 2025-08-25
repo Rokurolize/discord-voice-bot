@@ -1,27 +1,3 @@
 {
-  "mcpServers": {
-    "serena": {
-      "type": "stdio",
-      "command": "uv",
-      "args": [
-        "run",
-        "--project",
-        "/home/ubuntu/serena",
-        "serena-mcp-server",
-        "--context",
-        "ide-assistant",
-        "--project",
-        "/home/ubuntu/workbench/projects/discord-voice-bot"
-      ],
-      "env": {},
-      "alwaysAllow": [
-        "get_symbols_overview",
-        "find_symbol",
-        "check_onboarding_performed",
-        "onboarding",
-        "list_dir",
-        "write_memory"
-      ]
-    }
-  }
+  "mcpServers": {}
 }
