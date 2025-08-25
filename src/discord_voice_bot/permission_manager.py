@@ -83,6 +83,7 @@ class PermissionManager:
 
     def __init__(self) -> None:
         """Initialize permission manager."""
+        super().__init__()
         # Content filters using generic block managers
         self._word_manager = BlockManager[str]("word")
         self._user_manager = BlockManager[int]("user")

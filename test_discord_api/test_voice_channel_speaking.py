@@ -14,6 +14,7 @@ import asyncio
 import logging
 import os
 import sys
+import tempfile
 import time
 from typing import Any
 
@@ -153,9 +154,8 @@ class VoiceChannelTestBot(discord.Client):
             wav_data = wav_header + pcm_data
 
             # 一時ファイルにWAVデータを書き込む
-            import tempfile
             with tempfile.NamedTemporaryFile(mode='wb', suffix='.wav', delete=False) as temp_file:
-                temp_file.write(wav_data)
+                _ = temp_file.write(wav_data)
                 temp_file_path = temp_file.name
 
             try:
@@ -176,7 +176,7 @@ class VoiceChannelTestBot(discord.Client):
                 # 一時ファイルを削除
                 import os
                 try:
-                    os.unlink(temp_file_path)
+                    _ = os.unlink(temp_file_path)
                 except OSError:
                     pass  # ファイルが既に削除されている可能性がある
         
@@ -207,7 +207,7 @@ class VoiceChannelTestBot(discord.Client):
 
             # TTS音声データを一時ファイルに書き込む
             with tempfile.NamedTemporaryFile(mode="wb", suffix=".wav", delete=False) as tts_temp_file:
-                tts_temp_file.write(tts_audio_data)
+                _ = tts_temp_file.write(tts_audio_data)
                 tts_temp_file_path = tts_temp_file.name
             
             try:
@@ -258,7 +258,7 @@ class VoiceChannelTestBot(discord.Client):
         try:
             # 複数の周波数でテスト音声を生成して品質チェック
             test_frequencies = [200, 1000, 3000, 8000]  # 異なる周波数
-            quality_results = []
+            quality_results: list[str] = []
 
             for freq in test_frequencies:
                 logger.info(f"   テスト周波数: {freq}Hz")
@@ -267,9 +267,8 @@ class VoiceChannelTestBot(discord.Client):
                 audio_data = await self.generate_test_tone(freq, duration=1.0)
                 if audio_data:
                     # 音声データを一時ファイルに書き込む
-                    import tempfile
                     with tempfile.NamedTemporaryFile(mode="wb", suffix=".wav", delete=False) as quality_temp_file:
-                        quality_temp_file.write(audio_data)
+                        _ = quality_temp_file.write(audio_data)
                         quality_temp_file_path = quality_temp_file.name
                     
                     try:
@@ -285,7 +284,7 @@ class VoiceChannelTestBot(discord.Client):
                         # 一時ファイルを削除
                         import os
                         try:
-                            os.unlink(quality_temp_file_path)
+                            _ = os.unlink(quality_temp_file_path)
                         except OSError:
                             pass  # ファイルが既に削除されている可能性がある
                 else:
@@ -338,7 +337,7 @@ class VoiceChannelTestBot(discord.Client):
             amplitude = 0.3
 
             # PCMデータ生成
-            samples = []
+            samples: list[bytes] = []
             for i in range(int(sample_rate * duration)):
                 sample = amplitude * math.sin(2 * math.pi * frequency * i / sample_rate)
                 sample_int = int(sample * 32767)
@@ -353,6 +352,47 @@ class VoiceChannelTestBot(discord.Client):
 
         except Exception as e:
             logger.error(f"テスト音声生成エラー: {e}")
+            return None
+
+    async def generate_tts_audio(self, text: str) -> bytes | None:
+        """TTS APIを使って音声データを生成"""
+        try:
+            # TTSエンジン設定を取得
+            tts_engine = os.getenv("TTS_ENGINE", "voicevox")
+            api_url = os.getenv("VOICEVOX_URL", "http://127.0.0.1:50021")
+            speaker_id = int(os.getenv("VOICEVOX_SPEAKER_ID", "1"))
+
+            if tts_engine.lower() == "aivis":
+                api_url = os.getenv("AIVIS_URL", "http://127.0.0.1:10101")
+                speaker_id = int(os.getenv("AIVIS_SPEAKER_ID", "888753760"))
+
+            async with aiohttp.ClientSession() as session:
+                # テキストを音声クエリに変換
+                query_url = f"{api_url}/audio_query"
+                test_text = "こんにちは、これはボイスチャンネルテストです。"
+                params = {"text": test_text, "speaker": speaker_id}
+
+                async with session.post(query_url, params=params) as response:
+                    if response.status != 200:
+                        logger.error(f"TTSクエリ失敗: {response.status}")
+                        return None
+
+                    audio_query = await response.json()
+
+                # 音声合成
+                synthesis_url = f"{api_url}/synthesis"
+                synthesis_params = {"speaker": speaker_id}
+
+                headers = {"Content-Type": "application/json"}
+                async with session.post(synthesis_url, params=synthesis_params, json=audio_query, headers=headers) as response:
+                    if response.status != 200:
+                        logger.error(f"TTS合成失敗: {response.status}")
+                        return None
+
+                    return await response.read()
+
+        except Exception as e:
+            logger.error(f"TTS音声生成エラー: {e}")
             return None
 
     def create_wav_header(self, data_size: int, sample_rate: int, channels: int, bits_per_sample: int) -> bytes:
