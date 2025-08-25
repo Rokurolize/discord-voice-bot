@@ -86,3 +86,6 @@ repomix-output.xml
 railway_app.py
 requirements_railway.txt
 RAILWAY_DEPLOYMENT.md
+
+# Generated files
+discord_voice_bot_spec.json
