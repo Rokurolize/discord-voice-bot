@@ -13,6 +13,29 @@ class Config:
     def __init__(self) -> None:
         """Initialize configuration from environment variables."""
         super().__init__()
+
+        # Initialize instance variables for pyright
+        self.discord_token: str = ""
+        self.target_guild_id: int = 0
+        self.target_voice_channel_id: int = 0
+        self.tts_engine: str = ""
+        self.tts_speaker: str = ""
+        self.engines: dict[str, dict[str, Any]] = {}
+        self.command_prefix: str = ""
+        self.max_message_length: int = 0
+        self.message_queue_size: int = 0
+        self.reconnect_delay: int = 0
+        self.audio_sample_rate: int = 0
+        self.audio_channels: int = 0
+        self.audio_frame_duration: int = 0
+        self.rate_limit_messages: int = 0
+        self.rate_limit_period: int = 0
+        self.log_level: str = ""
+        self.log_file: str | None = None
+        self.debug: bool = False
+        self.test_mode: bool = False
+        self.enable_self_message_processing: bool = False
+
         # Load environment variables in the correct order
         # 1. Load secrets file first (production)
         secrets_path = os.environ.get("SECRETS_FILE", "~/.config/discord-voice-bot/secrets.env")
