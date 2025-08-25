@@ -19,6 +19,7 @@ class BlockManager[T]:
             item_type: Type name for logging (e.g., 'word', 'user', 'channel')
 
         """
+        super().__init__()
         self._blocked_items: set[T] = set()
         self._item_type = item_type
 

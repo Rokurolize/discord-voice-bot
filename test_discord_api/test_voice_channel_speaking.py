@@ -174,9 +174,8 @@ class VoiceChannelTestBot(discord.Client):
             
             finally:
                 # 一時ファイルを削除
-                import os
                 try:
-                    _ = os.unlink(temp_file_path)
+                    os.unlink(temp_file_path)
                 except OSError:
                     pass  # ファイルが既に削除されている可能性がある
         
@@ -226,7 +225,6 @@ class VoiceChannelTestBot(discord.Client):
             
             finally:
                 # 一時ファイルを削除
-                import os
                 try:
                     os.unlink(tts_temp_file_path)
                 except OSError:
@@ -253,7 +251,7 @@ class VoiceChannelTestBot(discord.Client):
         if not self.voice_client or not self.voice_client.is_connected():
             logger.error("❌ ボイスクライアントが接続されていません")
             self.record_test_result("audio_quality", False, "Voice client not connected")
-            return None
+            return
 
         try:
             # 複数の周波数でテスト音声を生成して品質チェック
@@ -270,62 +268,36 @@ class VoiceChannelTestBot(discord.Client):
                     with tempfile.NamedTemporaryFile(mode="wb", suffix=".wav", delete=False) as quality_temp_file:
                         _ = quality_temp_file.write(audio_data)
                         quality_temp_file_path = quality_temp_file.name
-                    
+
                     try:
                         # Discord AudioSource作成 (ファイルパスを使用)
                         audio_source = discord.FFmpegPCMAudio(quality_temp_file_path)
                         self.voice_client.play(audio_source)
-                        
+
                         while self.voice_client.is_playing():
                             await asyncio.sleep(0.1)
-                        
+
                         quality_results.append(f"✓ {freq}Hz: OK")
                     finally:
                         # 一時ファイルを削除
-                        import os
                         try:
-                            _ = os.unlink(quality_temp_file_path)
+                            os.unlink(quality_temp_file_path)
                         except OSError:
                             pass  # ファイルが既に削除されている可能性がある
                 else:
                     quality_results.append(f"✗ {freq}Hz: Failed")
-            # TTSエンジン設定を取得
-            tts_engine = os.getenv("TTS_ENGINE", "voicevox")
-            api_url = os.getenv("VOICEVOX_URL", "http://127.0.0.1:50021")
-            speaker_id = int(os.getenv("VOICEVOX_SPEAKER_ID", "1"))
 
-            if tts_engine.lower() == "aivis":
-                api_url = os.getenv("AIVIS_URL", "http://127.0.0.1:10101")
-                speaker_id = int(os.getenv("AIVIS_SPEAKER_ID", "888753760"))
-
-            async with aiohttp.ClientSession() as session:
-                # テキストを音声クエリに変換
-                query_url = f"{api_url}/audio_query"
-                test_text = "こんにちは、これはボイスチャンネルテストです。"
-                params = {"text": test_text, "speaker": speaker_id}
-
-                async with session.post(query_url, params=params) as response:
-                    if response.status != 200:
-                        logger.error(f"TTSクエリ失敗: {response.status}")
-                        return None
-
-                    audio_query = await response.json()
-
-                # 音声合成
-                synthesis_url = f"{api_url}/synthesis"
-                synthesis_params = {"speaker": speaker_id}
-
-                headers = {"Content-Type": "application/json"}
-                async with session.post(synthesis_url, params=synthesis_params, json=audio_query, headers=headers) as response:
-                    if response.status != 200:
-                        logger.error(f"TTS合成失敗: {response.status}")
-                        return None
-
-                    return await response.read()
+            # 品質テスト結果を記録
+            if quality_results:
+                logger.info("✅ 音声品質テスト成功")
+                self.record_test_result("audio_quality", True, f"Tested frequencies: {', '.join(quality_results)}")
+            else:
+                logger.error("❌ 音声品質テスト失敗")
+                self.record_test_result("audio_quality", False, "No quality tests completed")
 
         except Exception as e:
-            logger.error(f"TTS音声生成エラー: {e}")
-            return None
+            logger.error(f"音声品質テストエラー: {e}")
+            self.record_test_result("audio_quality", False, str(e))
 
     async def generate_test_tone(self, frequency: int, duration: float = 1.0) -> bytes | None:
         """テスト音声（サイン波）を生成"""

@@ -55,7 +55,7 @@ async def test_slash_commands():
         # Test that we have the expected commands
         expected_commands = ["status", "skip", "clear", "voice", "voices", "voicecheck", "reconnect", "test"]
 
-        missing_commands = []
+        missing_commands: list[str] = []
         for cmd in expected_commands:
             if cmd not in registered:
                 missing_commands.append(cmd)
