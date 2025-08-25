@@ -1,8 +1,8 @@
 """Pytest configuration and fixtures for the Discord Voice Bot."""
 
 import os
+
 import pytest
-from unittest.mock import patch
 
 # Don't modify global environment variables
 # Instead, use fixtures to provide test-specific configuration
@@ -52,6 +52,7 @@ import asyncio
 def test_config_manager():
     """Provide a ConfigManagerImpl instance with test mode enabled."""
     from discord_voice_bot.config_manager import ConfigManagerImpl
+
     return ConfigManagerImpl(test_mode=True)
 
 
@@ -59,4 +60,5 @@ def test_config_manager():
 def prod_config_manager():
     """Provide a ConfigManagerImpl instance with test mode disabled."""
     from discord_voice_bot.config_manager import ConfigManagerImpl
+
     return ConfigManagerImpl(test_mode=False)

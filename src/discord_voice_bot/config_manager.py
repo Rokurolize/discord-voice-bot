@@ -14,6 +14,7 @@ class ConfigManagerImpl(ConfigManager):
 
         Args:
             test_mode: Explicitly set test mode. If None, uses environment variable.
+
         """
         super().__init__()
         # Delay config creation until first access to avoid circular imports

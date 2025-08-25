@@ -36,6 +36,7 @@ class BotManager:
 
         # Check if terminal supports colors
         import os
+
         colorize = os.environ.get("NO_COLOR") is None and sys.stderr.isatty()
 
         logger.debug(f"Terminal color support: {colorize}")
@@ -48,7 +49,9 @@ class BotManager:
         _ = logger.add(
             sys.stderr,
             level=log_level,
-            format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | <level>{message}</level>" if colorize else "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} | {message}",
+            format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | <level>{message}</level>"
+            if colorize
+            else "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} | {message}",
             colorize=colorize,
             backtrace=True,
             diagnose=True,

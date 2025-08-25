@@ -2,11 +2,11 @@
 
 import os
 from pathlib import Path
+
 import pytest
 from discord import Client
 from discord.errors import LoginFailure
 from dotenv import load_dotenv
-
 
 # Load environment variables from .env
 load_dotenv(Path(__file__).parent.parent / ".env")
@@ -27,6 +27,7 @@ async def test_discord_token_validity():
 
     # Get intents from config
     from discord_voice_bot.config import get_config
+
     config = get_config()
     intents = config.get_intents()
 
@@ -50,6 +51,7 @@ async def test_discord_token_validity():
 async def test_discord_token_via_config_manager():
     """Test if the Discord bot token via ConfigManager is valid."""
     from discord_voice_bot.config_manager import ConfigManagerImpl
+
     config_manager = ConfigManagerImpl()
 
     token = config_manager.get_discord_token()
@@ -64,6 +66,7 @@ async def test_discord_token_via_config_manager():
 
     # Get intents from config
     from discord_voice_bot.config import get_config
+
     config = get_config()
     intents = config.get_intents()
 
@@ -86,7 +89,6 @@ async def test_discord_token_via_config_manager():
 def test_token_consistency(test_config_manager):
     """Test if tokens from different sources are identical."""
     import os
-    from discord_voice_bot.config_manager import ConfigManagerImpl
 
     # Get token from .env
     env_token = os.getenv("DISCORD_BOT_TOKEN")
@@ -132,7 +134,7 @@ async def test_bot_creation_and_token(test_config_manager):
         # Check if bot has the token
         # Note: We can't directly access the token from bot, but we can test the creation process
         assert bot is not None, "Bot creation failed"
-        assert hasattr(bot, 'config_manager'), "Bot missing config_manager"
+        assert hasattr(bot, "config_manager"), "Bot missing config_manager"
         assert bot.config_manager is not None, "Bot config_manager is None"
 
         # Verify test mode is properly set
@@ -165,6 +167,7 @@ async def test_bot_start_with_config_dry_run(test_config_manager):
 
         # Test the token one more time
         from discord import Client
+
         from discord_voice_bot.config import get_config
 
         config = get_config()
@@ -205,8 +208,6 @@ async def test_bot_start_with_config_dry_run(test_config_manager):
 @pytest.mark.asyncio
 async def test_actual_bot_startup_simulation(prod_config_manager):
     """Simulate the actual bot startup process to identify the issue."""
-    import sys
-    from pathlib import Path
 
     print("🎯 Simulating actual bot startup process...")
 
@@ -247,6 +248,7 @@ async def test_actual_bot_startup_simulation(prod_config_manager):
 
         # Test the token
         from discord import Client
+
         from discord_voice_bot.config import get_config
 
         config = get_config()
@@ -272,7 +274,6 @@ async def test_actual_bot_startup_simulation(prod_config_manager):
 def test_environment_variable_sources():
     """Test where TEST_MODE environment variable is coming from."""
     import os
-    import subprocess
     from pathlib import Path
 
     print("🔍 Testing environment variable sources...")
@@ -285,13 +286,7 @@ def test_environment_variable_sources():
     print(f"🔍 Found potential env files: {[str(f) for f in env_files]}")
 
     # Check for any Python environment files
-    python_env_files = [
-        ".env",
-        ".flaskenv",
-        ".python-env",
-        "pyvenv.cfg",
-        current_dir / ".config" / "discord-voice-bot" / "secrets.env"
-    ]
+    python_env_files = [".env", ".flaskenv", ".python-env", "pyvenv.cfg", current_dir / ".config" / "discord-voice-bot" / "secrets.env"]
 
     for env_file in python_env_files:
         env_path = Path(env_file)
@@ -299,25 +294,25 @@ def test_environment_variable_sources():
             print(f"🔍 Found env file: {env_path}")
             if env_path.is_file():
                 try:
-                    with open(env_path, 'r') as f:
+                    with open(env_path) as f:
                         content = f.read()
-                        if 'TEST_MODE' in content:
+                        if "TEST_MODE" in content:
                             print(f"🔍 TEST_MODE found in {env_path}")
-                            for line in content.split('\n'):
-                                if 'TEST_MODE' in line:
+                            for line in content.split("\n"):
+                                if "TEST_MODE" in line:
                                     print(f"  {line.strip()}")
                 except Exception as e:
                     print(f"🔍 Could not read {env_path}: {e}")
 
     # Check environment variables
-    test_mode = os.getenv('TEST_MODE')
-    debug = os.getenv('DEBUG')
+    test_mode = os.getenv("TEST_MODE")
+    debug = os.getenv("DEBUG")
 
     print(f"🔍 Current TEST_MODE: {test_mode}")
     print(f"🔍 Current DEBUG: {debug}")
 
     # Check if there are any pytest or test-related environment variables
-    test_env_vars = {k: v for k, v in os.environ.items() if 'test' in k.lower() or 'pytest' in k.lower()}
+    test_env_vars = {k: v for k, v in os.environ.items() if "test" in k.lower() or "pytest" in k.lower()}
     if test_env_vars:
         print("🔍 Test-related environment variables:")
         for k, v in test_env_vars.items():

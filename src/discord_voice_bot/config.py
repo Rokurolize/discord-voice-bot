@@ -1,8 +1,6 @@
 """Configuration management for Discord Voice TTS Bot."""
 
 import os
-import threading
-from functools import lru_cache
 from pathlib import Path
 from typing import Any
 

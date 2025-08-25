@@ -24,6 +24,7 @@ class TTSClient:
         """Get current API URL from config manager."""
         # Get from environment variable directly to avoid early Config creation
         import os
+
         return os.environ.get("VOICEVOX_URL", "http://localhost:50021")
 
     @property
@@ -35,6 +36,7 @@ class TTSClient:
     def engine_name(self) -> str:
         """Get current engine name from environment variable."""
         import os
+
         return os.environ.get("TTS_ENGINE", "voicevox").upper()
 
     @property

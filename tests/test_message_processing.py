@@ -22,8 +22,8 @@ def discord_token():
 
 
 @pytest.mark.skipif(
-    not os.getenv("RUN_DISCORD_INTEGRATION_TESTS", "").lower() in ("true", "1", "yes"),
-    reason="Discord integration test - requires valid bot token and server access. Set RUN_DISCORD_INTEGRATION_TESTS=true to run manually"
+    os.getenv("RUN_DISCORD_INTEGRATION_TESTS", "").lower() not in ("true", "1", "yes"),
+    reason="Discord integration test - requires valid bot token and server access. Set RUN_DISCORD_INTEGRATION_TESTS=true to run manually",
 )
 @pytest.mark.asyncio
 async def test_bot_message_processing(discord_token):
