@@ -110,12 +110,12 @@ class DiscordVoiceTTSBot(BaseEventBot):
                                 if text_method and callable(text_method):
                                     try:
                                         result = text_method()
-                                        if hasattr(result, '__await__'):
+                                        if asyncio.iscoroutine(result):
                                             print(f"🔴 Response body: {await result}")
-                                        else:
+                                        elif result is not None:
                                             print(f"🔴 Response body: {result}")
-                                    except TypeError:
-                                        print("🔴 Could not call text method")
+                                    except Exception:
+                                        print("🔴 Could not read response body")
                         except Exception:
                             print("🔴 Could not read response body")
             elif isinstance(e, discord.HTTPException):
