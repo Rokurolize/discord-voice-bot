@@ -440,9 +440,10 @@ class VoiceChannelTestBot(discord.Client):
 
 # Import and run integration tests from separate file to keep this file under 500 lines
 try:
-    from .test_integration_voice_speaking_functions import test_bot_can_speak_in_voice_channel, test_bot_voice_functionality_comprehensive
+    # Import the test functions to make them available when running tests
+    import importlib
+    if importlib.util.find_spec(".test_integration_voice_speaking_functions"):
+        from .test_integration_voice_speaking_functions import test_bot_can_speak_in_voice_channel, test_bot_voice_functionality_comprehensive
 except ImportError:
     # Handle case where the functions file doesn't exist or can't be imported
     pass
-
-
