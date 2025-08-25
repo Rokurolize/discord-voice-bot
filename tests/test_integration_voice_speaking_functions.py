@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 @pytest.mark.skipif(
     True,  # Always skip this test - it's too slow for regular testing
-    reason="This integration test is too slow for regular test runs - run manually when needed"
+    reason="This integration test is too slow for regular test runs - run manually when needed",
 )
 @pytest.mark.integration
 @pytest.mark.asyncio
@@ -100,7 +100,7 @@ async def test_bot_can_speak_in_voice_channel(caplog):
 
 @pytest.mark.skipif(
     True,  # Always skip this test - it's too slow for regular testing
-    reason="This integration test is too slow for regular test runs - run manually when needed"
+    reason="This integration test is too slow for regular test runs - run manually when needed",
 )
 @pytest.mark.integration
 @pytest.mark.asyncio

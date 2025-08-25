@@ -34,13 +34,23 @@ class SynthesizerWorker:
         self._running = True  # Flag to control the worker loop
 
         # Initialize TTS engine and user settings with config manager
-        self._tts_engine = get_tts_engine(config_manager)
+        # Note: TTS engine will be initialized asynchronously in run() method
+        self._tts_engine = None
         self._user_settings = get_user_settings()
 
     async def run(self) -> None:
         """Run the synthesis worker loop."""
         consecutive_errors = 0
         max_consecutive_errors = 5
+
+        # Initialize TTS engine if not already initialized
+        if self._tts_engine is None:
+            try:
+                self._tts_engine = await get_tts_engine(self._config_manager)
+            except Exception as e:
+                logger.error(f"Failed to initialize TTS engine: {e}")
+                self._running = False
+                return
 
         while self._running:
             try:

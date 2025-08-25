@@ -151,34 +151,52 @@ class CommandHandler:
 
         return ctx  # type: ignore[return-value]
 
+    def _create_message_func(self, message: discord.Message, method_name: str) -> Callable[..., Any]:
+        """Create a message function for the context."""
+        channel_method = getattr(message.channel, method_name)
+        message_method = getattr(message, method_name)
+
+        if method_name == "send":
+
+            async def send(content: Any = None, **kwargs: Any) -> Any:
+                return await channel_method(content, **kwargs)
+
+            return send
+        else:
+
+            async def reply(content: Any = None, **kwargs: Any) -> Any:
+                return await message_method(content, **kwargs)
+
+            return reply
+
     def _create_send_func(self, message: discord.Message) -> Callable[..., Any]:
         """Create a send function for the context."""
-
-        async def send(content: Any = None, **kwargs: Any) -> Any:
-            return await message.channel.send(content, **kwargs)
-
-        return send
+        return self._create_message_func(message, "send")
 
     def _create_reply_func(self, message: discord.Message) -> Callable[..., Any]:
         """Create a reply function for the context."""
+        return self._create_message_func(message, "reply")
 
-        async def reply(content: Any = None, **kwargs: Any) -> Any:
-            return await message.reply(content, **kwargs)
+    def _get_command(self, command_name: str) -> dict[str, Any] | None:
+        """Get command data, handling aliases."""
+        command = self._commands.get(command_name)
+        if not command:
+            return None
 
-        return reply
+        # Handle aliases
+        if "alias_for" in command:
+            command_name = command["alias_for"]
+            command = self._commands.get(command_name)
+
+        if not command or "alias_for" in command:
+            return None
+
+        return command
 
     def get_command_help(self, command_name: str) -> str:
-        """Get help text for a command.
-
-        Args:
-            command_name: Name of the command
-
-        Returns:
-            Help text for the command
-
-        """
-        command = self._commands.get(command_name)
-        if not command or "alias_for" in command:
+        """Get help text for a command."""
+        command = self._get_command(command_name)
+        if not command:
             return f"Command '{command_name}' not found."
 
         help_text = command.get("help_text", "No help available")
@@ -191,26 +209,13 @@ class CommandHandler:
         return help_text
 
     def list_commands(self) -> list[str]:
-        """List all available commands.
-
-        Returns:
-            List of command names (excluding aliases)
-
-        """
+        """List all available commands."""
         return [name for name, cmd in self._commands.items() if "alias_for" not in cmd]
 
     def get_command_info(self, command_name: str) -> dict[str, Any] | None:
-        """Get detailed information about a command.
-
-        Args:
-            command_name: Name of the command
-
-        Returns:
-            Dictionary with command information, or None if not found
-
-        """
-        command = self._commands.get(command_name)
-        if not command or "alias_for" in command:
+        """Get detailed information about a command."""
+        command = self._get_command(command_name)
+        if not command:
             return None
 
         return {

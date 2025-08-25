@@ -14,7 +14,7 @@ async def create_voices_embed() -> discord.Embed:
         from ...user_settings import get_user_settings
 
         config_manager = ConfigManagerImpl()
-        tts_engine = get_tts_engine(config_manager)
+        tts_engine = await get_tts_engine(config_manager)
         user_settings = get_user_settings()
 
         speakers = await tts_engine.get_available_speakers()

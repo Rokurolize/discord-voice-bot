@@ -125,29 +125,34 @@ class HealthMonitor:
         self._termination_conditions["api_unavailable_duration"]["count"] = 0
         self._termination_conditions["api_unavailable_duration"]["last_reset"] = time.time()
 
-    async def _health_monitoring_loop(self) -> None:
-        """Main health monitoring loop."""
+    async def _create_monitoring_loop(self, operation: Any, interval: int, name: str, retry_interval: int = 30) -> None:
+        """Generic monitoring loop with error handling."""
         while not self._graceful_shutdown:
             try:
-                await self._perform_health_checks()
-                await asyncio.sleep(60)  # Check every minute
+                await operation()
+                await asyncio.sleep(interval)
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"Error in health monitoring loop: {e}")
-                await asyncio.sleep(30)  # Wait before retrying
+                logger.error(f"Error in {name}: {e}")
+                await asyncio.sleep(retry_interval)
+
+    async def _health_monitoring_loop(self) -> None:
+        """Main health monitoring loop."""
+        await self._create_monitoring_loop(
+            self._perform_health_checks,
+            60,  # Check every minute
+            "health monitoring loop",
+        )
 
     async def _permission_check_loop(self) -> None:
         """Permission checking loop."""
-        while not self._graceful_shutdown:
-            try:
-                await self._check_bot_permissions()
-                await asyncio.sleep(300)  # Check every 5 minutes
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                logger.error(f"Error in permission check loop: {e}")
-                await asyncio.sleep(60)  # Wait before retrying
+        await self._create_monitoring_loop(
+            self._check_bot_permissions,
+            300,  # Check every 5 minutes
+            "permission check loop",
+            60,  # Retry after 1 minute
+        )
 
     async def _perform_health_checks(self) -> None:
         """Perform comprehensive health checks."""
@@ -161,7 +166,7 @@ class HealthMonitor:
             from .tts_engine import get_tts_engine
 
             logger.debug("🔍 Creating new TTS engine for health check")
-            tts_engine = get_tts_engine(self._config_manager)
+            tts_engine = await get_tts_engine(self._config_manager)
             api_healthy = await tts_engine.health_check()
             logger.debug("🔍 TTS engine health check completed, closing engine")
             await tts_engine.close()  # Close the engine after use
@@ -266,6 +271,24 @@ class HealthMonitor:
 
         return len(issues) == 0, issues
 
+    def _check_permissions_in_guild(self, guild: discord.Guild, critical_perms: dict[str, bool], trigger_termination: bool = False) -> list[str]:
+        """Check permissions in a specific guild."""
+        missing_perms = [perm for perm, has_perm in critical_perms.items() if not has_perm]
+
+        if missing_perms:
+            logger.warning(f"⚠️ Missing permissions in {guild.name}: {', '.join(missing_perms)}")
+
+            # Check if this affects our target channel
+            target_channel = self.bot.get_channel(self._config_manager.get_target_voice_channel_id())
+            if isinstance(target_channel, (discord.VoiceChannel, discord.StageChannel)) and target_channel.guild == guild:
+                if trigger_termination:
+                    logger.error(f"🚨 Critical permissions missing in target guild {guild.name}")
+                    self._trigger_termination(f"Missing critical permissions: {', '.join(missing_perms)}")
+            else:
+                logger.debug(f"✅ All permissions present in {guild.name}")
+
+        return missing_perms
+
     async def _check_bot_permissions(self) -> None:
         """Check bot permissions across all accessible guilds."""
         logger.debug("🔐 Performing comprehensive bot permissions check...")
@@ -277,9 +300,7 @@ class HealthMonitor:
         for guild in self.bot.guilds:
             try:
                 if guild.me:
-                    # Check basic permissions
                     perms = guild.me.guild_permissions
-
                     critical_perms = {
                         "view_channels": perms.view_channel,
                         "connect": perms.connect,
@@ -287,19 +308,7 @@ class HealthMonitor:
                         "use_voice_activation": perms.use_voice_activation,
                         "read_messages": perms.read_message_history,
                     }
-
-                    missing_perms = [perm for perm, has_perm in critical_perms.items() if not has_perm]
-
-                    if missing_perms:
-                        logger.warning(f"⚠️ Missing permissions in {guild.name}: {', '.join(missing_perms)}")
-
-                        # Check if this affects our target channel
-                        target_channel = self.bot.get_channel(self._config_manager.get_target_voice_channel_id())
-                        if isinstance(target_channel, (discord.VoiceChannel, discord.StageChannel)) and target_channel.guild == guild:
-                            logger.error(f"🚨 Critical permissions missing in target guild {guild.name}")
-                            self._trigger_termination(f"Missing critical permissions: {', '.join(missing_perms)}")
-                        else:
-                            logger.debug(f"✅ All permissions present in {guild.name}")
+                    _ = self._check_permissions_in_guild(guild, critical_perms, trigger_termination=True)
 
             except Exception as e:
                 logger.error(f"Error checking permissions in {guild.name}: {e}")
@@ -320,17 +329,16 @@ class HealthMonitor:
                 return False, issues
 
             # Check if bot can access the channel
-            if not target_channel.permissions_for(target_channel.guild.me).view_channel:
-                issues.append("Cannot view target voice channel")
-                return False, issues
+            bot_perms = target_channel.permissions_for(target_channel.guild.me)
 
-            if not target_channel.permissions_for(target_channel.guild.me).connect:
-                issues.append("Missing 'Connect' permission for target voice channel")
-                return False, issues
+            critical_perms = {
+                "view_channel": bot_perms.view_channel,
+                "connect": bot_perms.connect,
+                "speak": bot_perms.speak,
+            }
 
-            if not target_channel.permissions_for(target_channel.guild.me).speak:
-                issues.append("Missing 'Speak' permission for target voice channel")
-                return False, issues
+            missing_perms = [perm for perm, has_perm in critical_perms.items() if not has_perm]
+            issues.extend([f"Missing '{perm}' permission for target voice channel" for perm in missing_perms])
 
         except Exception as e:
             issues.append("Critical permission check error: " + str(e))
@@ -405,7 +413,7 @@ class HealthMonitor:
             # Stop TTS engine
             from .tts_engine import get_tts_engine
 
-            tts_engine = get_tts_engine(self._config_manager)
+            tts_engine = await get_tts_engine(self._config_manager)
             await tts_engine.close()
 
             # Close Discord connection

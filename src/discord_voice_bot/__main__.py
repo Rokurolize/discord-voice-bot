@@ -156,7 +156,7 @@ class BotManager:
             from .tts_engine import get_tts_engine
 
             # Initialize TTS engine with config manager
-            tts_engine = get_tts_engine(self.config_manager)
+            tts_engine = await get_tts_engine(self.config_manager)
 
             # Check TTS API availability
             logger.info("Checking TTS API availability...")

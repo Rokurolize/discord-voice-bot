@@ -1,6 +1,6 @@
 """Permission and access control management for Discord Voice TTS Bot."""
 
-from typing import TypeVar
+from typing import Any, TypeVar
 
 import discord
 from loguru import logger
@@ -23,25 +23,26 @@ class BlockManager[T]:
         self._blocked_items: set[T] = set()
         self._item_type = item_type
 
+    def _modify_blocked_item(self, item: T, action: str, operation: Any) -> None:
+        """Modify blocked item with logging."""
+        operation(item)
+        logger.info(f"{action} blocked {self._item_type}: {item}")
+
     def add(self, item: T) -> None:
-        """Add an item to the blocked list.
+        """Add an item to the blocked list."""
 
-        Args:
-            item: Item to block
+        def add_item(i: T) -> None:
+            self._blocked_items.add(i)
 
-        """
-        self._blocked_items.add(item)
-        logger.info(f"Added blocked {self._item_type}: {item}")
+        self._modify_blocked_item(item, "Added", add_item)
 
     def remove(self, item: T) -> None:
-        """Remove an item from the blocked list.
+        """Remove an item from the blocked list."""
 
-        Args:
-            item: Item to unblock
+        def remove_item(i: T) -> None:
+            self._blocked_items.discard(i)
 
-        """
-        self._blocked_items.discard(item)
-        logger.info(f"Removed blocked {self._item_type}: {item}")
+        self._modify_blocked_item(item, "Removed", remove_item)
 
     def contains(self, item: T) -> bool:
         """Check if item is blocked.
@@ -155,60 +156,44 @@ class PermissionManager:
 
         return True, ""
 
+    def _modify_blocked_item_by_manager(self, manager_name: str, item: str | int, action: str) -> None:
+        """Modify blocked item using manager with logging."""
+        manager = getattr(self, f"_{manager_name}_manager")
+        if action == "add":
+            if manager_name == "word":
+                manager.add(str(item).lower())
+            else:
+                manager.add(item)
+        else:  # remove
+            if manager_name == "word":
+                manager.remove(str(item).lower())
+            else:
+                manager.remove(item)
+
     # Configuration methods
     def add_blocked_word(self, word: str) -> None:
-        """Add a word to the blocked list.
-
-        Args:
-            word: Word to block
-
-        """
-        self._word_manager.add(word.lower())
+        """Add a word to the blocked list."""
+        self._modify_blocked_item_by_manager("word", word, "add")
 
     def remove_blocked_word(self, word: str) -> None:
-        """Remove a word from the blocked list.
-
-        Args:
-            word: Word to unblock
-
-        """
-        self._word_manager.remove(word.lower())
+        """Remove a word from the blocked list."""
+        self._modify_blocked_item_by_manager("word", word, "remove")
 
     def add_blocked_user(self, user_id: int) -> None:
-        """Add a user to the blocked list.
-
-        Args:
-            user_id: Discord user ID to block
-
-        """
-        self._user_manager.add(user_id)
+        """Add a user to the blocked list."""
+        self._modify_blocked_item_by_manager("user", user_id, "add")
 
     def remove_blocked_user(self, user_id: int) -> None:
-        """Remove a user from the blocked list.
-
-        Args:
-            user_id: Discord user ID to unblock
-
-        """
-        self._user_manager.remove(user_id)
+        """Remove a user from the blocked list."""
+        self._modify_blocked_item_by_manager("user", user_id, "remove")
 
     def add_blocked_channel(self, channel_id: int) -> None:
-        """Add a channel to the blocked list.
-
-        Args:
-            channel_id: Discord channel ID to block
-
-        """
-        self._channel_manager.add(channel_id)
+        """Add a channel to the blocked list."""
+        self._modify_blocked_item_by_manager("channel", channel_id, "add")
 
     def remove_blocked_channel(self, channel_id: int) -> None:
-        """Remove a channel from the blocked list.
-
-        Args:
-            channel_id: Discord channel ID to unblock
-
-        """
-        self._channel_manager.remove(channel_id)
+        """Remove a channel from the blocked list."""
+        self._modify_blocked_item_by_manager("channel", channel_id, "remove")
 
     def get_statistics(self) -> dict[str, int]:
         """Get permission statistics.

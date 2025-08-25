@@ -31,8 +31,11 @@ class TTSEngine:
         self._temp_file_manager = TempFileManager(config_manager, self._audio_processor)
         self._health_monitor = TTSHealthMonitor(config_manager, self._tts_client)
 
+        # Engine state management
+        self._started = False
+
         # Backward compatibility: direct access to session for testing
-        self._session = self._tts_client.session
+        self._session = None
 
     @property
     def api_url(self) -> str:
@@ -60,11 +63,19 @@ class TTSEngine:
 
     async def start(self) -> None:
         """Start the TTS engine session."""
-        await self._tts_client.start_session()
+        if not self._started:
+            await self._tts_client.start_session()
+            self._started = True
+            self._session = self._tts_client.session  # Update session reference
+            logger.info("🎵 TTS Engine started successfully")
 
     async def close(self) -> None:
         """Close the TTS engine session."""
-        await self._tts_client.close_session()
+        if self._started:
+            await self._tts_client.close_session()
+            self._started = False
+            self._session = None
+            logger.info("🎵 TTS Engine closed successfully")
 
     async def check_api_availability(self) -> tuple[bool, str]:
         """Check TTS API availability with detailed error information.
@@ -93,6 +104,11 @@ class TTSEngine:
         if not text or not text.strip():
             logger.debug("Empty text provided, returning None")
             return None
+
+        # Ensure engine is started
+        if not self._started:
+            logger.debug("Engine not started, starting automatically...")
+            await self.start()
 
         try:
             # Generate audio query using TTS client
@@ -238,6 +254,8 @@ class TTSEngine:
         return await self._health_monitor.perform_health_check()
 
 
-def get_tts_engine(config_manager: ConfigManager) -> TTSEngine:
-    """Create new TTS engine instance with configuration manager."""
-    return TTSEngine(config_manager)
+async def get_tts_engine(config_manager: ConfigManager) -> TTSEngine:
+    """Create and start new TTS engine instance with configuration manager."""
+    engine = TTSEngine(config_manager)
+    await engine.start()
+    return engine

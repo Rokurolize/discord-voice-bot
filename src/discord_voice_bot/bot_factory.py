@@ -1,5 +1,6 @@
 """Bot factory for Discord Voice TTS Bot initialization and configuration."""
 
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
 from loguru import logger
@@ -150,122 +151,88 @@ class BotFactory:
 
         logger.info("All bot components setup successfully")
 
-    async def _create_event_handler(self, bot: Any, config_manager: ConfigManagerImpl) -> "EventHandler":
-        """Create event handler.
+    def _create_component(self, import_path: str, class_name: str, *args: Any) -> Any:
+        """Generic component creation helper.
 
         Args:
-            bot: Bot instance
-            config_manager: Configuration manager
+            import_path: Module path to import from
+            class_name: Class name to instantiate
+            *args: Arguments to pass to constructor
 
         Returns:
-            Configured event handler
+            Component instance
 
         """
-        from .event_handler import EventHandler
+        module = __import__(import_path, fromlist=[class_name])
+        cls = getattr(module, class_name)
+        return cls(*args)
 
-        handler = EventHandler(bot, config_manager)
-        return handler
+    async def _execute_with_logging(self, start_msg: str, operation: Callable[[], Any] | Awaitable[Any], success_msg: str) -> None:
+        """Execute operation with standardized logging.
+
+        Args:
+            start_msg: Message to log at start
+            operation: Function or coroutine to execute
+            success_msg: Message to log on success
+
+        """
+        """Execute operation with standardized logging.
+
+        Args:
+            start_msg: Message to log at start
+            operation: Function or coroutine to execute
+            success_msg: Message to log on success
+
+        """
+        logger.info(start_msg)
+        try:
+            if callable(operation):
+                result = operation()
+                if hasattr(result, "__await__"):
+                    await result
+            else:
+                if hasattr(operation, "__await__"):
+                    await operation
+            logger.info(success_msg)
+        except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            raise
+
+    async def _create_event_handler(self, bot: Any, config_manager: ConfigManagerImpl) -> "EventHandler":
+        """Create event handler."""
+        return self._create_component("discord_voice_bot.event_handler", "EventHandler", bot, config_manager)
 
     async def _create_command_handler(self, bot: Any) -> "CommandHandler":
-        """Create command handler.
-
-        Args:
-            bot: Bot instance
-
-        Returns:
-            Configured command handler
-
-        """
-        from .command_handler import CommandHandler
-
-        handler = CommandHandler(bot)
-        return handler
+        """Create command handler."""
+        return self._create_component("discord_voice_bot.command_handler", "CommandHandler", bot)
 
     async def _create_slash_command_handler(self, bot: Any) -> Any:
-        """Create slash command handler.
-
-        Args:
-            bot: Bot instance
-
-        Returns:
-            Configured slash command handler or None if not available
-
-        """
+        """Create slash command handler."""
         try:
-            # Use the new slash command implementation directly
-            from .slash.registry import SlashCommandRegistry
-
-            handler = SlashCommandRegistry(bot)
-            return handler
-        except ImportError:
+            return self._create_component("discord_voice_bot.slash.registry", "SlashCommandRegistry", bot)
+        except (ImportError, AttributeError):
             logger.warning("Slash command handler not available")
             return None
 
     async def _create_message_validator(self, bot: Any) -> "MessageValidator":
-        """Create message validator.
-
-        Args:
-            bot: Bot instance
-
-        Returns:
-            Configured message validator
-
-        """
-        from .message_validator import MessageValidator
-
-        validator = MessageValidator()
-        return validator
+        """Create message validator."""
+        return self._create_component("discord_voice_bot.message_validator", "MessageValidator")
 
     async def _create_status_manager(self, bot: Any) -> "StatusManager":
-        """Create status manager.
-
-        Args:
-            bot: Bot instance
-
-        Returns:
-            Configured status manager
-
-        """
-        from .status_manager import StatusManager
-
-        manager = StatusManager()
-        return manager
+        """Create status manager."""
+        return self._create_component("discord_voice_bot.status_manager", "StatusManager")
 
     async def _create_voice_handler(self, bot: Any, config_manager: ConfigManagerImpl) -> Any:
-        """Create voice handler.
-
-        Args:
-            bot: Bot instance
-            config_manager: Configuration manager
-
-        Returns:
-            Configured voice handler
-
-        """
+        """Create voice handler."""
         try:
-            from .voice.handler import VoiceHandler
-
-            handler = VoiceHandler(bot, config_manager)
-            return handler
+            return self._create_component("discord_voice_bot.voice.handler", "VoiceHandler", bot, config_manager)
         except Exception as e:
             logger.error(f"Failed to create voice handler: {e}")
             raise
 
     async def _create_health_monitor(self, bot: Any, config_manager: ConfigManagerImpl) -> Any:
-        """Create health monitor.
-
-        Args:
-            bot: Bot instance
-            config_manager: Configuration manager
-
-        Returns:
-            Configured health monitor
-
-        """
-        from .health_monitor import HealthMonitor
-
-        monitor = HealthMonitor(bot, config_manager)
-        return monitor
+        """Create health monitor."""
+        return self._create_component("discord_voice_bot.health_monitor", "HealthMonitor", bot, config_manager)
 
     async def _setup_existing_components(self, bot: Any) -> None:
         """Setup existing components that are already part of the bot.
@@ -287,53 +254,29 @@ class BotFactory:
             logger.debug("Registered existing health_monitor component")
 
     async def _validate_configuration(self, bot: Any, config_manager: ConfigManagerImpl) -> None:
-        """Validate bot configuration and components.
+        """Validate bot configuration and components."""
+        await self._execute_with_logging("Validating bot configuration...", lambda: self._perform_configuration_validation(config_manager), "Bot configuration validation completed successfully")
 
-        Args:
-            bot: Bot instance to validate
-            config_manager: Configuration manager to validate
-
-        Raises:
-            ValueError: If configuration is invalid
-            RuntimeError: If required components are missing
-
-        """
-        logger.info("Validating bot configuration...")
-
+    def _perform_configuration_validation(self, config_manager: ConfigManagerImpl) -> None:
+        """Perform the actual configuration validation."""
         # Validate config
-        try:
-            config_manager.validate()
-            logger.debug("Configuration validation passed")
-        except Exception as e:
-            logger.error(f"Configuration validation failed: {e}")
-            raise
+        config_manager.validate()
+        logger.debug("Configuration validation passed")
 
         # Validate required components
         required_components = ["event_handler", "command_handler", "message_validator", "status_manager"]
+        component_requirements = {"command_handler": ["process_command"], "event_handler": ["handle_ready"], "message_validator": ["validate_message"], "status_manager": ["record_command_usage"]}
 
         for component_name in required_components:
             component = self.registry.get(component_name)
             if not component:
                 raise RuntimeError(f"Required component missing: {component_name}")
 
-            # Additional component-specific validation
-            if component_name == "command_handler":
-                if not hasattr(component, "process_command"):
-                    raise RuntimeError(f"Component {component_name} missing required method: process_command")
-
-            elif component_name == "event_handler":
-                if not hasattr(component, "handle_ready"):
-                    raise RuntimeError(f"Component {component_name} missing required method: handle_ready")
-
-            elif component_name == "message_validator":
-                if not hasattr(component, "validate_message"):
-                    raise RuntimeError(f"Component {component_name} missing required method: validate_message")
-
-            elif component_name == "status_manager":
-                if not hasattr(component, "record_command_usage"):
-                    raise RuntimeError(f"Component {component_name} missing required method: record_command_usage")
-
-        logger.info("Bot configuration validation completed successfully")
+            # Check required methods
+            if component_name in component_requirements:
+                for method_name in component_requirements[component_name]:
+                    if not hasattr(component, method_name):
+                        raise RuntimeError(f"Component {component_name} missing required method: {method_name}")
 
     async def initialize_services(self, bot: Any) -> None:
         """Initialize external services and dependencies.
@@ -350,7 +293,7 @@ class BotFactory:
             from .tts_engine import get_tts_engine
 
             config_manager = ConfigManagerImpl()
-            tts_engine = get_tts_engine(config_manager)
+            tts_engine = await get_tts_engine(config_manager)
             await tts_engine.start()
             logger.debug("TTS engine initialized")
 

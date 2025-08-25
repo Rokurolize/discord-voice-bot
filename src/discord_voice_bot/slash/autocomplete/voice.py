@@ -13,7 +13,7 @@ async def voice_autocomplete(interaction: discord.Interaction, current: str) -> 
     try:
         # Create TTS engine instance for autocomplete
         config_manager = ConfigManagerImpl()
-        tts_engine = get_tts_engine(config_manager)
+        tts_engine = await get_tts_engine(config_manager)
         speakers = await tts_engine.get_available_speakers()
 
         # Filter speakers based on current input

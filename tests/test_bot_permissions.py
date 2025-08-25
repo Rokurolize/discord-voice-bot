@@ -2,7 +2,6 @@
 """Test script to verify bot permissions and connectivity to target Discord server/channel."""
 
 import asyncio
-import os
 
 import discord
 import pytest
@@ -11,7 +10,7 @@ from src.discord_voice_bot.config_manager import ConfigManagerImpl
 
 @pytest.mark.skipif(
     True,  # Always skip this test - it's too slow for regular testing
-    reason="This integration test is too slow for regular test runs - run manually when needed"
+    reason="This integration test is too slow for regular test runs - run manually when needed",
 )
 async def test_bot_permissions():
     """Test bot permissions and connectivity."""

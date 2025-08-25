@@ -6,7 +6,6 @@ import os
 import discord
 import pytest
 from dotenv import load_dotenv
-
 from src.discord_voice_bot.config_manager import ConfigManagerImpl
 
 # Load environment variables
@@ -22,6 +21,7 @@ def discord_token():
     return token
 
 
+@pytest.mark.skip(reason="Discord integration test - requires valid bot token and server access")
 @pytest.mark.asyncio
 async def test_bot_message_processing(discord_token):
     """Test bot message processing capabilities."""
@@ -72,12 +72,7 @@ async def test_bot_message_processing(discord_token):
 
         # Only process messages from the target channel
         if message.channel.id == target_channel_id:
-            messages_processed.append({
-                "content": message.content,
-                "author": str(message.author),
-                "channel": str(message.channel),
-                "timestamp": message.created_at
-            })
+            messages_processed.append({"content": message.content, "author": str(message.author), "channel": str(message.channel), "timestamp": message.created_at})
 
     @client.event
     async def on_error(event, *args, **kwargs):

@@ -157,10 +157,14 @@ class TestWorkerInitialization:
         try:
             async with asyncio.timeout(5.0):  # 5 second timeout
                 with patch("discord_voice_bot.voice.workers.synthesizer.get_tts_engine") as mock_get_engine:
-                    mock_get_engine.return_value = MockTTSEngine(mock_config_manager)
+                    # Mock the async function to return our mock engine
+                    async def mock_async_get_engine(*args, **kwargs):
+                        return MockTTSEngine(mock_config_manager)
 
-                    # Start the voice handler
-                    await voice_handler.start()
+                    mock_get_engine.side_effect = mock_async_get_engine
+
+                    # Start the voice handler (without player worker to avoid consuming audio queue)
+                    await voice_handler.start(start_player=False)
 
                     # Add a test message to the synthesis queue
                     test_message = {"text": "Test message", "chunks": ["Test message"], "user_id": 12345, "username": "TestUser", "group_id": "test_group_123"}

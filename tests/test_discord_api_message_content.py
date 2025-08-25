@@ -1,10 +1,8 @@
 """Test for Discord API message content retrieval functionality."""
 
-import asyncio
 import logging
 import os
 import sys
-from typing import Any
 
 import discord
 import pytest
@@ -53,7 +51,7 @@ def test_message_content_retrieval():
 
 @pytest.mark.skipif(
     True,  # Always skip this test - it's too slow for regular testing
-    reason="This integration test is too slow for regular test runs - run manually when needed"
+    reason="This integration test is too slow for regular test runs - run manually when needed",
 )
 @pytest.mark.asyncio
 async def test_bot_intents_configuration(discord_token):

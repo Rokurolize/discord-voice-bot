@@ -257,20 +257,30 @@ class MessageProcessor:
 
         return content.strip()
 
+    def _execute_user_action(self, action: str, user_id: int, operation: Any) -> None:
+        """Execute user action with logging."""
+        operation(user_id)
+        logger.info(f"{action} user {user_id}")
+
     def add_blocked_user(self, user_id: int) -> None:
         """Add user to blocked list."""
-        self.blocked_users.add(user_id)
-        logger.info(f"Added user {user_id} to blocked list")
+
+        def add_user(uid: int) -> None:
+            self.blocked_users.add(uid)
+
+        self._execute_user_action("Added", user_id, add_user)
 
     def remove_blocked_user(self, user_id: int) -> None:
         """Remove user from blocked list."""
-        self.blocked_users.discard(user_id)
-        logger.info(f"Removed user {user_id} from blocked list")
+
+        def remove_user(uid: int) -> None:
+            self.blocked_users.discard(uid)
+
+        self._execute_user_action("Removed", user_id, remove_user)
 
     def reset_rate_limit(self, user_id: int) -> None:
         """Reset rate limit for specific user."""
-        self.rate_limiter.reset_user(user_id)
-        logger.info(f"Reset rate limit for user {user_id}")
+        self._execute_user_action("Reset rate limit for", user_id, self.rate_limiter.reset_user)
 
     def get_stats(self) -> dict[str, int]:
         """Get processing statistics."""

@@ -4,11 +4,9 @@ import asyncio
 import logging
 import os
 import sys
-import tempfile
 import time
 from typing import Any
 
-import aiohttp
 import discord
 import pytest
 from dotenv import load_dotenv

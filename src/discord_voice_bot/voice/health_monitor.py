@@ -74,7 +74,7 @@ class HealthMonitor:
             from ..tts_engine import get_tts_engine
 
             config_manager = ConfigManagerImpl()
-            tts_engine = get_tts_engine(config_manager)
+            tts_engine = await get_tts_engine(config_manager)
 
             if await tts_engine.health_check():
                 health_status["can_synthesize"] = True

@@ -50,7 +50,7 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, spea
         from ...tts_engine import get_tts_engine
 
         config_manager = ConfigManagerImpl()
-        tts_engine = get_tts_engine(config_manager)
+        tts_engine = await get_tts_engine(config_manager)
         speakers = await tts_engine.get_available_speakers()
         from ...config import config
 

@@ -17,7 +17,7 @@ async def test_tts_engines():
     print("🔊 Testing TTS Engines...")
 
     config = ConfigManagerImpl()
-    tts_engine = get_tts_engine(config)
+    tts_engine = await get_tts_engine(config)
 
     test_text = "こんにちは、ボットです。正常に動作しています。"
 
