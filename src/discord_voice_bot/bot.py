@@ -2,7 +2,7 @@
 """Discord Voice TTS Bot - Main Entry Point."""
 
 import asyncio
-from typing import Any
+from typing import Any, override
 
 from discord.ext import commands
 
@@ -56,9 +56,12 @@ class DiscordVoiceTTSBot(commands.Bot):
         await self.start(token)
 
     async def on_ready(self) -> None:
-        """Handle bot ready event."""
+        """Handle bot ready event and delegate to event handler."""
         print(f"🤖 {self.user} has connected to Discord!")
+        if hasattr(self, "event_handler") and self.event_handler:
+            await self.event_handler.handle_ready()
 
+    @override
     async def change_presence(self, *, status: Any = None, activity: Any = None) -> None:
         """Change bot presence (required by StartupBot protocol)."""
         await super().change_presence(status=status, activity=activity)
@@ -67,6 +70,33 @@ class DiscordVoiceTTSBot(commands.Bot):
     def config(self) -> Any:
         """Backward compatibility property for config access."""
         return self.config_manager
+
+    @override
+    async def on_message(self, message: Any) -> None:  # discord.Message at runtime
+        """Delegate message events to the event handler and process commands."""
+        if hasattr(self, "event_handler") and self.event_handler:
+            await self.event_handler.handle_message(message)
+
+    async def on_voice_state_update(self, member: Any, before: Any, after: Any) -> None:
+        """Delegate voice state updates to the event handler."""
+        if hasattr(self, "event_handler") and self.event_handler:
+            await self.event_handler.handle_voice_state_update(member, before, after)
+
+    async def on_disconnect(self) -> None:
+        """Delegate disconnect events to the event handler."""
+        if hasattr(self, "event_handler") and self.event_handler:
+            await self.event_handler.handle_disconnect()
+
+    async def on_resumed(self) -> None:
+        """Delegate resume events to the event handler."""
+        if hasattr(self, "event_handler") and self.event_handler:
+            await self.event_handler.handle_resumed()
+
+    @override
+    async def on_error(self, event: str, *args: Any, **kwargs: Any) -> None:
+        """Delegate errors to the event handler for centralized logging."""
+        if hasattr(self, "event_handler") and self.event_handler:
+            await self.event_handler.handle_error(event, *args, **kwargs)
 
 
 async def run_bot() -> None:

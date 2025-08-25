@@ -103,10 +103,15 @@ class MockBot(DiscordBotClient):
     """Mock Discord bot client that implements DiscordBotClient protocol."""
 
     def __init__(self) -> None:  # type: ignore[reportMissingSuperCall]
-        self.guilds: list[MockGuild] = [MockGuild()]
+        self.__guilds: list[MockGuild] = [MockGuild()]
         self.__user: Mock = Mock()
         self.__user.id = 789
         self.application_id = 123456789
+
+    @property
+    def guilds(self) -> list[MockGuild]:
+        """List of guilds the bot is in."""
+        return self.__guilds
 
     @override
     def get_channel(self, channel_id: int) -> MockChannel:

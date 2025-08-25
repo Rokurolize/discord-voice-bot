@@ -105,8 +105,9 @@ class MessageProcessor:
             True if message should be processed, False otherwise
 
         """
-        # Check if message is in target voice channel
-        if message.channel.id != self._config_manager.get_target_voice_channel_id():
+        # Only process messages from servers (ignore DMs), but do not restrict to
+        # a single channel: the bot should TTS all server text messages.
+        if getattr(message, "guild", None) is None:
             return False
 
         # Handle bot messages - allow self-messages if configured

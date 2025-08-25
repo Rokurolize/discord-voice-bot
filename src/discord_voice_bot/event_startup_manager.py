@@ -118,11 +118,7 @@ class StartupManager:
         else:
             logger.warning("Voice handler not available during startup")
 
-        # Start TTS engine
-        from .tts_engine import TTSEngine, get_tts_engine
-
-        tts_engine: TTSEngine = get_tts_engine(self._config_manager)
-        await tts_engine.start()
+        # TTS engine is managed by the synthesizer worker/voice handler; no eager start here
 
         # Start health monitor
         health_monitor = getattr(self.bot, "health_monitor", None)
@@ -133,6 +129,14 @@ class StartupManager:
                 logger.warning(f"Health monitor start failed during initialization: {e}")
         else:
             logger.warning("Health monitor not available during startup")
+
+        # Register slash commands via registry if available
+        try:
+            slash_handler = getattr(self.bot, "slash_handler", None)
+            if slash_handler and hasattr(slash_handler, "register_slash_commands"):
+                await slash_handler.register_slash_commands()
+        except Exception as e:
+            logger.warning(f"Slash command registration failed during initialization: {e}")
 
     async def _attempt_voice_connection(self) -> bool:
         """Attempt to connect to the target voice channel."""

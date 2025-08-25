@@ -216,9 +216,10 @@ class MessageHandler:
                 "…": "...",
                 "—": "-",
                 "–": "-",
-                '"': '"',  # Keep quotes but ensure they're proper
-                """: "'",
-                """: "'",
+                "“": '"',
+                "”": '"',
+                "‘": "'",
+                "’": "'",
             }
 
             for old, new in replacements.items():

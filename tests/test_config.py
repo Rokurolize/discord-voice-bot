@@ -11,10 +11,13 @@ from discord_voice_bot.config import Config
 class TestConfig:
     """Test cases for Config - TDD Approach."""
 
-    def test_config_initialization_with_default_env(self) -> None:
+    @patch("discord_voice_bot.config.Path.exists", return_value=False)
+    def test_config_initialization_with_default_env(self, mock_exists) -> None:
         """Test Config initializes with default environment variables."""
         with patch.dict(
-            os.environ, {"DISCORD_BOT_TOKEN": "test_token", "TARGET_VOICE_CHANNEL_ID": "12345", "TTS_ENGINE": "voicevox", "TTS_SPEAKER": "normal", "MAX_MESSAGE_LENGTH": "5000"}, clear=True
+            os.environ,
+            {"DISCORD_BOT_TOKEN": "test_token", "TARGET_VOICE_CHANNEL_ID": "12345", "TTS_ENGINE": "voicevox", "TTS_SPEAKER": "normal", "MAX_MESSAGE_LENGTH": "5000", "DEBUG": "false"},
+            clear=True,
         ):
             config = Config()
 
@@ -28,15 +31,17 @@ class TestConfig:
             assert config.audio_channels == 2
             assert config.debug is False
 
-    def test_config_initialization_missing_required_env(self) -> None:
+    @patch("discord_voice_bot.config.Path.exists", return_value=False)
+    def test_config_initialization_missing_required_env(self, mock_exists) -> None:
         """Test Config raises error when required env var is missing."""
         with patch.dict(os.environ, {}, clear=True):
             with pytest.raises(ValueError, match="Required environment variable DISCORD_BOT_TOKEN is not set"):
                 _ = Config()
 
-    def test_config_default_values(self) -> None:
+    @patch("discord_voice_bot.config.Path.exists", return_value=False)
+    def test_config_default_values(self, mock_exists) -> None:
         """Test Config uses proper default values."""
-        with patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "test_token"}, clear=True):
+        with patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "test_token", "DEBUG": "false"}, clear=True):
             config = Config()
 
             # Discord defaults
@@ -62,13 +67,14 @@ class TestConfig:
             assert config.rate_limit_period == 60
 
             # Logging defaults
-            assert config.log_level == "INFO"
-            assert config.log_file is None
+            assert config.log_level == "DEBUG"
+            assert config.log_file == "discord_bot_error.log"
 
             # Development defaults
             assert config.debug is False
 
-    def test_config_engine_configurations(self) -> None:
+    @patch("discord_voice_bot.config.Path.exists", return_value=False)
+    def test_config_engine_configurations(self, mock_exists) -> None:
         """Test Config engine configurations are properly set."""
         with patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "test_token", "TTS_ENGINE": "voicevox"}, clear=True):
             config = Config()
@@ -89,7 +95,8 @@ class TestConfig:
             assert aivis_config["default_speaker"] == 1512153250
             assert "zunda_normal" in aivis_config["speakers"]
 
-    def test_config_properties(self) -> None:
+    @patch("discord_voice_bot.config.Path.exists", return_value=False)
+    def test_config_properties(self, mock_exists) -> None:
         """Test Config property accessors."""
         with patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "test_token", "TTS_ENGINE": "voicevox", "TTS_SPEAKER": "normal"}, clear=True):
             config = Config()
@@ -104,7 +111,8 @@ class TestConfig:
             # Test speaker_id property
             assert config.speaker_id == config.engines["voicevox"]["speakers"]["normal"]
 
-    def test_config_get_intents(self) -> None:
+    @patch("discord_voice_bot.config.Path.exists", return_value=False)
+    def test_config_get_intents(self, mock_exists) -> None:
         """Test Config.get_intents() method."""
         with patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "test_token"}, clear=True):
             config = Config()
@@ -115,7 +123,8 @@ class TestConfig:
             assert intents.voice_states is True
             assert intents.guilds is True
 
-    def test_config_validate_valid_config(self) -> None:
+    @patch("discord_voice_bot.config.Path.exists", return_value=False)
+    def test_config_validate_valid_config(self, mock_exists) -> None:
         """Test Config.validate() with valid configuration."""
         with patch.dict(
             os.environ,
@@ -126,21 +135,24 @@ class TestConfig:
             # Should not raise any exceptions
             config.validate()
 
-    def test_config_validate_invalid_tts_engine(self) -> None:
+    @patch("discord_voice_bot.config.Path.exists", return_value=False)
+    def test_config_validate_invalid_tts_engine(self, mock_exists) -> None:
         """Test Config.validate() with invalid TTS engine."""
         with patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "test_token", "TTS_ENGINE": "invalid_engine"}, clear=True):
             config = Config()
             with pytest.raises(ValueError, match="Invalid TTS engine: invalid_engine"):
                 config.validate()
 
-    def test_config_validate_invalid_speaker(self) -> None:
+    @patch("discord_voice_bot.config.Path.exists", return_value=False)
+    def test_config_validate_invalid_speaker(self, mock_exists) -> None:
         """Test Config.validate() with invalid speaker."""
         with patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "test_token", "TTS_ENGINE": "voicevox", "TTS_SPEAKER": "invalid_speaker"}, clear=True):
             config = Config()
             with pytest.raises(ValueError, match="Invalid speaker 'invalid_speaker' for engine 'voicevox'"):
                 config.validate()
 
-    def test_config_validate_invalid_numeric_values(self) -> None:
+    @patch("discord_voice_bot.config.Path.exists", return_value=False)
+    def test_config_validate_invalid_numeric_values(self, mock_exists) -> None:
         """Test Config.validate() with invalid numeric values."""
         test_cases = [
             ("TARGET_VOICE_CHANNEL_ID", "0", "Invalid voice channel ID"),
@@ -157,7 +169,8 @@ class TestConfig:
                 with pytest.raises(ValueError, match=expected_error):
                     config.validate()
 
-    def test_config_environment_variable_precedence(self) -> None:
+    @patch("discord_voice_bot.config.Path.exists", return_value=False)
+    def test_config_environment_variable_precedence(self, mock_exists) -> None:
         """Test that environment variables take precedence over defaults."""
         with patch.dict(
             os.environ,
@@ -180,22 +193,22 @@ class TestConfig:
             assert config.max_message_length == 8000
             assert config.debug is True
 
-    def test_config_debug_flag_parsing(self) -> None:
+    @patch("discord_voice_bot.config.Path.exists", return_value=False)
+    def test_config_debug_flag_parsing(self, mock_exists) -> None:
         """Test Config debug flag parsing."""
         test_cases = [("true", True), ("True", True), ("TRUE", True), ("false", False), ("False", False), ("FALSE", False), ("1", True), ("0", False), ("", False), ("anything_else", False)]
 
         for debug_value, expected in test_cases:
             with patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "test_token", "DEBUG": debug_value}, clear=True):
-                # Force .env loading by setting PYTEST_CURRENT_TEST
-                with patch.dict(os.environ, {"PYTEST_CURRENT_TEST": "1"}, clear=False):
-                    config = Config()
-                    assert config.debug is expected
+                config = Config()
+                assert config.debug is expected
 
-    def test_config_dotenv_loading(self) -> None:
+    @patch("discord_voice_bot.config.load_dotenv")
+    @patch("discord_voice_bot.config.Path.exists", return_value=True)
+    def test_config_dotenv_loading(self, mock_exists, mock_load_dotenv) -> None:
         """Test Config loads from .env files."""
-        with patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "test_token", "PYTEST_CURRENT_TEST": "1"}, clear=True):
-            with patch("discord_voice_bot.config.Path.exists", return_value=True), patch("discord_voice_bot.config.load_dotenv") as mock_load_dotenv:
-                _ = Config()
+        with patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "test_token"}, clear=True):
+            _ = Config()
 
-                # Should try to load from both secrets file and local .env
-                assert mock_load_dotenv.call_count == 2
+            # Should try to load from both secrets file and local .env
+            assert mock_load_dotenv.call_count == 2

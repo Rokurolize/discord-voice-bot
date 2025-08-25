@@ -17,6 +17,9 @@ def processor() -> MessageProcessor:
 
     mock_config: MagicMock = MagicMock(spec=ConfigManager)
     mock_config.get_target_voice_channel_id.return_value = 123456789
+    mock_config.get_rate_limit_messages.return_value = 100
+    mock_config.get_rate_limit_period.return_value = 60
+    mock_config.get_enable_self_message_processing.return_value = False
     return MessageProcessor(mock_config)
 
 
@@ -31,6 +34,7 @@ def mock_message() -> MagicMock:
     msg.author.bot = False
     msg.content = "Test message"
     msg.channel = MagicMock()
+    msg.guild = MagicMock()  # Treat as a server message
     msg.channel.id = config.target_voice_channel_id  # Use actual config
     msg.id = 987654321
     msg.type = MagicMock()
@@ -77,11 +81,11 @@ class TestMessageFiltering:
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_wrong_channel_filtered(self, processor: MessageProcessor, mock_message: MagicMock) -> None:
-        """Messages from wrong channel should be filtered."""
+    async def test_messages_from_any_channel_are_allowed(self, processor: MessageProcessor, mock_message: MagicMock) -> None:
+        """Messages from any server text channel should be allowed."""
         mock_message.channel.id = 999999999
         result = await processor.should_process_message(mock_message)
-        assert result is False
+        assert result is True
 
     @pytest.mark.asyncio
     async def test_system_message_filtered(self, processor: MessageProcessor, mock_message: MagicMock) -> None:

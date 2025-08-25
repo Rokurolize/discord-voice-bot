@@ -101,9 +101,6 @@ class Config:
         # Self-message Processing Configuration
         self.enable_self_message_processing: bool = os.environ.get("ENABLE_SELF_MESSAGE_PROCESSING", "false").lower() == "true"
 
-        # Force debug mode to ensure .env files are loaded
-        self.debug = True
-
     def _get_required_env(self, key: str) -> str:
         """Get required environment variable or raise error."""
         value = os.environ.get(key)

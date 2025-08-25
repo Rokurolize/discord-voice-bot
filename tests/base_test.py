@@ -10,7 +10,10 @@ class BaseTestCase(unittest.TestCase):
 
     def __init__(self, methodName: str = "runTest", *args: Any, **kwargs: Any) -> None:
         """Initialize test case."""
-        super().__init__(*args, **kwargs)
+        # Handle pytest compatibility - pytest doesn't pass methodName
+        if not args and not methodName.startswith("test_"):
+            methodName = "runTest"
+        super().__init__(methodName, *args, **kwargs)
         self.mock_logger: MagicMock = MagicMock()
 
     @override
@@ -61,6 +64,7 @@ class MockDiscordObjects:
         mock_message.author.bot = False  # Important: explicitly set bot to False
         mock_message.id = 67890
         mock_message.channel.id = 11111
+        mock_message.guild = MagicMock()  # Treat as a server message
         mock_message.type = discord.MessageType.default
         return mock_message
 

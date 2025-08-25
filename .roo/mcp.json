@@ -1,18 +1,19 @@
 {
   "mcpServers": {
-    "context7": {
-      "command": "npx",
+    "serena": {
+      "type": "stdio",
+      "command": "uv",
       "args": [
-        "-y",
-        "@upstash/context7-mcp"
+        "run",
+        "--project",
+        "/home/ubuntu/serena",
+        "serena-mcp-server",
+        "--context",
+        "ide-assistant",
+        "--project",
+        "/home/ubuntu/workbench/projects/discord-voice-bot"
       ],
-      "env": {
-        "DEFAULT_MINIMUM_TOKENS": ""
-      },
-      "alwaysAllow": [
-        "resolve-library-id",
-        "get-library-docs"
-      ]
+      "env": {}
     }
   }
 }

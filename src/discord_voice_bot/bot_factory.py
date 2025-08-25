@@ -10,7 +10,6 @@ if TYPE_CHECKING:
     from .command_handler import CommandHandler
     from .event_handler import EventHandler
     from .message_validator import MessageValidator
-    from .slash_command_handler import SlashCommandHandler
     from .status_manager import StatusManager
 
 
@@ -87,13 +86,15 @@ class BotFactory:
                 bot_module = importlib.import_module(".bot", package="discord_voice_bot")
                 bot_class = bot_module.DiscordVoiceTTSBot
 
-            # Create bot instance (current constructor doesn't take config parameter)
+            # Prepare configuration manager first
+            config_manager = ConfigManagerImpl()
+
+            # Create bot instance with configuration manager
             if bot_class is None:
                 raise ValueError("Bot class cannot be None")
-            bot: Any = bot_class()
+            bot: Any = bot_class(config_manager)
 
             # Setup all components with config manager
-            config_manager = ConfigManagerImpl()
             await self._setup_components(bot, config_manager)
 
             # Validate configuration
@@ -123,12 +124,14 @@ class BotFactory:
             ("slash_handler", self._create_slash_command_handler),
             ("message_validator", self._create_message_validator),
             ("status_manager", self._create_status_manager),
+            ("voice_handler", self._create_voice_handler),
+            ("health_monitor", self._create_health_monitor),
         ]
 
         for component_name, creator_func in components_to_setup:
             try:
                 # Pass config_manager to components that need it
-                if component_name in ["event_handler"]:
+                if component_name in ["event_handler", "voice_handler", "health_monitor"]:
                     component = await creator_func(bot, config_manager)  # type: ignore[call-arg]
                 else:
                     component = await creator_func(bot)  # type: ignore[call-arg]
@@ -178,7 +181,7 @@ class BotFactory:
         handler = CommandHandler(bot)
         return handler
 
-    async def _create_slash_command_handler(self, bot: Any) -> "SlashCommandHandler | None":
+    async def _create_slash_command_handler(self, bot: Any) -> Any:
         """Create slash command handler.
 
         Args:
@@ -189,9 +192,10 @@ class BotFactory:
 
         """
         try:
-            from .slash_command_handler import SlashCommandHandler
+            # Use the new slash command implementation directly
+            from .slash.registry import SlashCommandRegistry
 
-            handler = SlashCommandHandler(bot)
+            handler = SlashCommandRegistry(bot)
             return handler
         except ImportError:
             logger.warning("Slash command handler not available")
@@ -226,6 +230,42 @@ class BotFactory:
 
         manager = StatusManager()
         return manager
+
+    async def _create_voice_handler(self, bot: Any, config_manager: ConfigManagerImpl) -> Any:
+        """Create voice handler.
+
+        Args:
+            bot: Bot instance
+            config_manager: Configuration manager
+
+        Returns:
+            Configured voice handler
+
+        """
+        try:
+            from .voice.handler import VoiceHandler
+
+            handler = VoiceHandler(bot, config_manager)
+            return handler
+        except Exception as e:
+            logger.error(f"Failed to create voice handler: {e}")
+            raise
+
+    async def _create_health_monitor(self, bot: Any, config_manager: ConfigManagerImpl) -> Any:
+        """Create health monitor.
+
+        Args:
+            bot: Bot instance
+            config_manager: Configuration manager
+
+        Returns:
+            Configured health monitor
+
+        """
+        from .health_monitor import HealthMonitor
+
+        monitor = HealthMonitor(bot, config_manager)
+        return monitor
 
     async def _setup_existing_components(self, bot: Any) -> None:
         """Setup existing components that are already part of the bot.
@@ -388,13 +428,26 @@ class BotFactory:
         logger.info("Starting bot shutdown...")
 
         # Shutdown components in reverse order
-        shutdown_order = ["status_manager", "message_validator", "slash_handler", "command_handler", "event_handler"]
+        shutdown_order = [
+            "health_monitor",
+            "voice_handler",
+            "status_manager",
+            "message_validator",
+            "slash_handler",
+            "command_handler",
+            "event_handler",
+        ]
 
         for component_name in shutdown_order:
             component = self.registry.get(component_name)
-            if component and hasattr(component, "shutdown"):
+            if component:
                 try:
-                    await component.shutdown()
+                    if component_name == "voice_handler" and hasattr(component, "cleanup"):
+                        await component.cleanup()
+                    elif component_name == "health_monitor" and hasattr(component, "stop"):
+                        await component.stop()
+                    elif hasattr(component, "shutdown"):
+                        await component.shutdown()
                     logger.debug(f"Shutdown component: {component_name}")
                 except Exception as e:
                     logger.error(f"Error shutting down {component_name}: {e}")
