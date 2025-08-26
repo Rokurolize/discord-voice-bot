@@ -1,6 +1,7 @@
 """User-specific settings management for Discord Voice TTS Bot."""
 
 import json
+import os
 from pathlib import Path
 from threading import RLock
 from typing import Any
@@ -13,10 +14,7 @@ from .speaker_mapping import DEFAULT_SPEAKERS, SPEAKER_MAPPING, detect_engine
 class UserSettings:
     """Manages user-specific settings like voice preferences."""
 
-    def __init__(
-        self,
-        settings_file: str = "/home/ubuntu/.config/discord-voice-bot/user_settings.json",
-    ) -> None:
+    def __init__(self, settings_file: str | None = None) -> None:
         """Initialize user settings manager.
 
         Args:
@@ -24,6 +22,12 @@ class UserSettings:
 
         """
         super().__init__()
+        if settings_file is None:
+            if os.name == "nt":
+                base = Path(os.getenv("APPDATA", Path.home() / "AppData" / "Roaming"))
+            else:
+                base = Path(os.getenv("XDG_CONFIG_HOME", Path.home() / ".config"))
+            settings_file = str(base / "discord-voice-bot" / "user_settings.json")
         self.settings_file = Path(settings_file)
         self.settings: dict[str, dict[str, Any]] = {}
         self._lock = RLock()
@@ -64,8 +68,12 @@ class UserSettings:
         """Save settings to JSON file."""
         with self._lock:
             try:
-                with open(self.settings_file, "w", encoding="utf-8") as f:
+                tmp_path = self.settings_file.with_suffix(self.settings_file.suffix + ".tmp")
+                with open(tmp_path, "w", encoding="utf-8") as f:
                     json.dump(self.settings, f, indent=2, ensure_ascii=False)
+                # Atomic on POSIX and Windows
+                import os
+                os.replace(tmp_path, self.settings_file)
                 logger.debug("Settings saved to file")
             except Exception as e:
                 logger.error(f"Failed to save settings: {e}")
@@ -84,22 +92,20 @@ class UserSettings:
     def _migrate_settings(self) -> None:
         """Migrate existing user settings to include engine information."""
         migrated = False
-
-        for user_id, user_data in self.settings.items():
-            if "engine" not in user_data:
-                # Determine engine based on speaker_id
-                speaker_id = user_data.get("speaker_id")
-                if speaker_id:
-                    # Check if it's a VOICEVOX speaker (typically small numbers)
-                    if speaker_id in [1, 3, 5, 7]:  # Known VOICEVOX IDs
-                        user_data["engine"] = "voicevox"
-                    else:
-                        user_data["engine"] = "aivis"
-
-                    migrated = True
-                    speaker_name = user_data.get("speaker_name", "Unknown")
-                    logger.info(f"Migrated user {user_id} settings: {speaker_name} -> engine: {user_data['engine']}")
-
+        with self._lock:
+            for user_id, user_data in self.settings.items():
+                if "engine" not in user_data:
+                    speaker_id = user_data.get("speaker_id")
+                    if speaker_id is not None:
+                        try:
+                            user_data["engine"] = detect_engine(int(speaker_id))
+                            migrated = True
+                            speaker_name = user_data.get("speaker_name", "Unknown")
+                            logger.info(
+                                f"Migrated user {user_id} settings: {speaker_name} -> engine: {user_data['engine']}"
+                            )
+                        except Exception as e:
+                            logger.warning(f"Migration skipped for user {user_id}: invalid speaker_id {speaker_id} ({e})")
         if migrated:
             self._save_settings()
             logger.info("Settings migration completed")
@@ -118,12 +124,12 @@ class UserSettings:
         # Reload settings from file to get latest changes
         self._load_settings()
 
-        user_settings = self.settings.get(str(user_id))
-        if not user_settings:
-            return None
-
-        speaker_id = user_settings.get("speaker_id")
-        user_engine = user_settings.get("engine", "voicevox")  # Default to voicevox for old settings
+        with self._lock:
+            user_settings = self.settings.get(str(user_id))
+            if not user_settings:
+                return None
+            speaker_id = user_settings.get("speaker_id")
+            user_engine = user_settings.get("engine", "voicevox")  # Default to voicevox for old settings
 
         if not speaker_id:
             return None

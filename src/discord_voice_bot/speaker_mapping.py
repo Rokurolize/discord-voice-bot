@@ -1,7 +1,7 @@
 """Speaker mapping between different TTS engines."""
 
 from types import MappingProxyType
-from typing import Any
+from typing import Any, Literal
 
 # Mapping table between VOICEVOX and AivisSpeech speakers
 # Based on voice characteristics and style
@@ -49,7 +49,7 @@ DEFAULT_SPEAKERS = MappingProxyType(
 )
 
 
-def detect_engine(speaker_id: int) -> str:
+def detect_engine(speaker_id: int) -> Literal["aivis", "voicevox"]:
     """Keep heuristic centralized; evolve here when engines/IDs change."""
     return "aivis" if speaker_id >= 100000 else "voicevox"
 
@@ -64,7 +64,8 @@ def get_compatible_speaker(speaker_id: int, from_engine: str, to_engine: str, en
         engine_configs: Engine configuration dictionary from config
 
     Returns:
-        Compatible speaker ID for target engine, or None if same engine
+        Compatible speaker ID for the target engine. If engines are the same,
+        returns the original speaker_id.
 
     """
     # If same engine, no mapping needed
