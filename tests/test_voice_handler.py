@@ -62,7 +62,7 @@ def mock_config_manager() -> FakeConfigManager:
     return FakeConfigManager()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def mock_tts_client(mock_config_manager: FakeConfigManager) -> TTSClient:
     """Create a mock TTS client with proper teardown."""
     client = TTSClient(mock_config_manager)
