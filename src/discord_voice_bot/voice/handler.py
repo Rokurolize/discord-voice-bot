@@ -137,6 +137,11 @@ class VoiceHandler(VoiceHandlerInterface):
         self._player_worker: PlayerWorker | None = None
 
     @property
+    def tts_client(self) -> TTSClient:
+        """Get the TTS client instance."""
+        return self._tts_client
+
+    @property
     def voice_gateway(self):
         """Get voice gateway from connection manager."""
         return self.connection_manager.voice_gateway
