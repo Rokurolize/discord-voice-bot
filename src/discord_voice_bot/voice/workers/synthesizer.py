@@ -59,7 +59,7 @@ class SynthesizerWorker:
                 # Add timeout to queue.get() to prevent indefinite blocking
                 try:
                     item = await asyncio.wait_for(self.voice_handler.synthesis_queue.get(), timeout=1.0)
-                except TimeoutError:
+                except asyncio.TimeoutError:
                     # No items in queue, continue loop
                     await asyncio.sleep(0.1)
                     continue
@@ -84,7 +84,7 @@ class SynthesizerWorker:
                         self._tts_engine.synthesize_audio(item["text"], speaker_id=speaker_id, engine_name=engine_name),
                         timeout=30.0,  # 30 second timeout for TTS synthesis
                     )
-                except TimeoutError:
+                except asyncio.TimeoutError:
                     logger.error(f"TTS synthesis timeout for: {item['text'][:50]}...")
                     self.voice_handler.stats.increment_errors()
                     consecutive_errors += 1
@@ -113,8 +113,8 @@ class SynthesizerWorker:
                     # Calculate priority and add to audio queue with timeout protection
                     priority = calculate_message_priority(item)
                     try:
-                        await asyncio.wait_for(self.voice_handler.audio_queue.put((audio_path, item["group_id"], priority, item["chunk_index"])), timeout=1.0)
-                    except TimeoutError:
+                        await asyncio.wait_for(self.voice_handler.audio_queue.put((audio_path, item["group_id"], priority, item["chunk_index"], audio_size)), timeout=1.0)
+                    except asyncio.TimeoutError:
                         logger.warning(f"Audio queue full, dropping synthesized audio for: {item['text'][:50]}...")
                         cleanup_file(audio_path)
                         continue

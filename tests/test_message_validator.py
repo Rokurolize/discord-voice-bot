@@ -10,15 +10,6 @@ from discord_voice_bot.message_validator import MessageValidator, ValidationResu
 from .base_test import BaseTestCase, MockDiscordObjects
 
 
-@pytest.fixture(autouse=True)
-def mock_env_vars(monkeypatch):
-    """Mock environment variables for tests."""
-    monkeypatch.setenv("DISCORD_BOT_TOKEN", "test_token")
-    monkeypatch.setenv("TARGET_VOICE_CHANNEL_ID", "123456789")
-    monkeypatch.setenv("TTS_ENGINE", "voicevox")
-    monkeypatch.setenv("VOICEVOX_URL", "http://localhost:50021")
-
-
 class TestValidationResult(BaseTestCase):
     """Test cases for ValidationResult data class."""
 

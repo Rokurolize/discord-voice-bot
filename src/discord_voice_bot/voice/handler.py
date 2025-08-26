@@ -191,7 +191,7 @@ class VoiceHandler(VoiceHandlerInterface):
 
             # Start player worker only if requested
             if start_player:
-                player_worker = PlayerWorker(self)
+                player_worker = PlayerWorker(self, synthesizer_worker)
                 self._player_worker = player_worker
                 player_task = asyncio.create_task(player_worker.run())
                 self.add_worker_task(player_task)

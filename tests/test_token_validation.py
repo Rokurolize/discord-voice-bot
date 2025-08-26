@@ -6,20 +6,6 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from discord import Client
-from dotenv import load_dotenv
-
-# Load environment variables from .env
-load_dotenv(Path(__file__).parent.parent / ".env")
-
-
-@pytest.fixture(autouse=True)
-def mock_env_vars(monkeypatch):
-    """Mock environment variables for tests."""
-    # Use a token with a valid format, even if it's fake, to pass basic client-side validation
-    monkeypatch.setenv("DISCORD_BOT_TOKEN", "FAKE_BOT_TOKEN_LONG_ENOUGH_TO_PASS_VALIDATION.ABC.XYZ")
-    monkeypatch.setenv("TARGET_VOICE_CHANNEL_ID", "123456789")
-    monkeypatch.setenv("TTS_ENGINE", "voicevox")
-    monkeypatch.setenv("VOICEVOX_URL", "http://localhost:50021")
 
 
 @pytest.mark.asyncio
@@ -284,7 +270,6 @@ async def test_actual_bot_startup_simulation(mock_login, prod_config_manager):
 def test_environment_variable_sources():
     """Test where TEST_MODE environment variable is coming from."""
     import os
-    from pathlib import Path
 
     print("🔍 Testing environment variable sources...")
 

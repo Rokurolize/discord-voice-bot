@@ -75,24 +75,29 @@ class HealthMonitor:
             api_healthy, error_detail = await self._tts_client.check_api_availability()
             if api_healthy:
                 health_status["can_synthesize"] = True
-                logger.debug("✅ TTS engine is healthy")
+                logger.debug("✅ TTS API is healthy")
             else:
-                health_status["issues"].append(f"TTS engine health check failed: {error_detail}")
+                health_status["issues"].append(f"TTS API health check failed: {error_detail}")
                 health_status["recommendations"].append("Check TTS API availability and configuration")
         except Exception as e:
-            health_status["issues"].append(f"TTS engine check failed: {e}")
+            health_status["issues"].append(f"TTS API check failed: {e}")
             logger.debug(f"⚠️ TTS engine check error: {e}")
 
         # Overall health assessment
-        critical_issues = [issue for issue in health_status["issues"] if any(keyword in issue.lower() for keyword in ["not initialized", "not connected", "failed", "error"])]
+        health_status["healthy"] = health_status["voice_client_connected"] and health_status["channel_accessible"] and health_status["can_synthesize"]
 
-        if not critical_issues:
-            health_status["healthy"] = True
+        if health_status["healthy"]:
             logger.debug("🎉 Voice system health check PASSED")
         else:
-            logger.debug(f"💥 Voice system health check FAILED: {len(critical_issues)} critical issues")
+            # Create a list of specific reasons for failure
+            failure_reasons: list[str] = []
+            if not health_status["voice_client_connected"]:
+                failure_reasons.append("Voice client not connected")
+            if not health_status["channel_accessible"]:
+                failure_reasons.append("Voice channel not accessible")
+            if not health_status["can_synthesize"]:
+                failure_reasons.append("TTS API not available")
 
-            for issue in critical_issues:
-                logger.debug(f"   - {issue}")
+            logger.debug(f"💥 Voice system health check FAILED: {', '.join(failure_reasons)}")
 
         return health_status

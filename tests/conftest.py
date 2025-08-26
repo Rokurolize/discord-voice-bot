@@ -62,3 +62,13 @@ def prod_config_manager():
     from discord_voice_bot.config_manager import ConfigManagerImpl
 
     return ConfigManagerImpl(test_mode=False)
+
+
+@pytest.fixture(autouse=True)
+def mock_env_vars(monkeypatch):
+    """Mock common environment variables for all tests."""
+    monkeypatch.setenv("DISCORD_BOT_TOKEN", "FAKE_BOT_TOKEN_FOR_TESTS")
+    monkeypatch.setenv("TARGET_VOICE_CHANNEL_ID", "123456789")  # unified value
+    monkeypatch.setenv("TTS_ENGINE", "voicevox")
+    monkeypatch.setenv("VOICEVOX_URL", "http://localhost:50021")
+    monkeypatch.setenv("TEST_MODE", "1")  # enables deterministic rate limits

@@ -8,7 +8,6 @@ import time
 from typing import Any
 
 import psutil
-import pytest
 
 # Add src directory to path
 sys.path.insert(0, "/home/ubuntu/workbench/projects/discord-voice-bot/src")
@@ -17,15 +16,6 @@ from discord_voice_bot.config_manager import ConfigManagerImpl
 from discord_voice_bot.message_processor import MessageProcessor
 from discord_voice_bot.tts_client import TTSClient
 from discord_voice_bot.voice_handler import VoiceHandler
-
-
-@pytest.fixture
-def mock_env_vars(monkeypatch):
-    """Mock environment variables for tests."""
-    monkeypatch.setenv("DISCORD_BOT_TOKEN", "test_token")
-    monkeypatch.setenv("TARGET_VOICE_CHANNEL_ID", "123456789")
-    monkeypatch.setenv("TTS_ENGINE", "voicevox")
-    monkeypatch.setenv("VOICEVOX_URL", "http://localhost:50021")
 
 
 class PerformanceMonitor:
@@ -404,7 +394,19 @@ if __name__ == "__main__":
     print("🚀 Starting Discord Voice TTS Bot Performance Tests")
     print("=" * 60)
 
+    # Set up test environment
+    import os
+
+    os.environ["DISCORD_BOT_TOKEN"] = "test_token"
+    os.environ["TARGET_VOICE_CHANNEL_ID"] = "123456789"
+    os.environ["TTS_ENGINE"] = "voicevox"
+    os.environ["VOICEVOX_URL"] = "http://localhost:50021"
+    os.environ["TEST_MODE"] = "1"
+
     try:
+        # Since we are not using pytest, we don't have the monkeypatch fixture.
+        # The tests will use the environment variables we just set.
+        # We pass None because the fixture is not available.
         test_memory_usage_message_processing(None)
         test_memory_usage_voice_handler(None)
         test_tts_engine_memory_performance(None)

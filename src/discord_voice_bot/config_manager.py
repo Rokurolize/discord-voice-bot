@@ -118,14 +118,18 @@ class ConfigManagerImpl(ConfigManager):
     def get_rate_limit_messages(self) -> int:
         """Get rate limit messages."""
         if self.is_test_mode():
-            return 5
+            import os
+
+            return int(os.getenv("TEST_RATE_LIMIT_MESSAGES", "5"))
         return self._get_config().rate_limit_messages
 
     @override
     def get_rate_limit_period(self) -> int:
         """Get rate limit period."""
         if self.is_test_mode():
-            return 60
+            import os
+
+            return int(os.getenv("TEST_RATE_LIMIT_PERIOD", "60"))
         return self._get_config().rate_limit_period
 
     @override

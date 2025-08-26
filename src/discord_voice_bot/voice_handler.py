@@ -29,7 +29,7 @@ class VoiceHandler(NewVoiceHandler):
         Args:
             bot_client: The Discord bot client instance
             config_manager: Configuration manager (for compatibility)
-            tts_client: Shared TTS client instance
+            tts_client: Shared TTS client instance. This will become required in a future version.
 
         """
         # Delegate to new implementation - config_manager is always passed from factory
@@ -40,6 +40,7 @@ class VoiceHandler(NewVoiceHandler):
             config = config_manager or ConfigManagerImpl()
             tts_client = TTSClient(config)
             logger.warning("⚠️  DEPRECATED: Creating temporary TTSClient for old VoiceHandler. Please update to inject it.")
+            config_manager = config  # ensure super() receives a valid config
 
         super().__init__(bot_client, config_manager, tts_client)
         logger.warning("⚠️  DEPRECATED: Using old VoiceHandler. Consider migrating to discord_voice_bot.voice.VoiceHandler")

@@ -405,7 +405,6 @@ class HealthMonitor:
                     except Exception as e:
                         logger.warning(f"Voice handler cleanup failed: {e}")
 
-            # Stop TTS engine - no longer needed here, handled by BotFactory
             # Close Discord connection
             if not self.bot.is_closed():
                 await self.bot.close()

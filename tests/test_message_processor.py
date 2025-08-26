@@ -8,15 +8,6 @@ from discord_voice_bot.config import get_config
 from discord_voice_bot.message_processor import MessageProcessor
 
 
-@pytest.fixture(autouse=True)
-def mock_env_vars(monkeypatch):
-    """Mock environment variables for tests."""
-    monkeypatch.setenv("DISCORD_BOT_TOKEN", "test_token")
-    monkeypatch.setenv("TARGET_VOICE_CHANNEL_ID", "123456789")
-    monkeypatch.setenv("TTS_ENGINE", "voicevox")
-    monkeypatch.setenv("VOICEVOX_URL", "http://localhost:50021")
-
-
 @pytest.fixture
 def processor() -> MessageProcessor:
     """Create a MessageProcessor instance for testing."""

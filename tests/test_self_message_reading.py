@@ -26,15 +26,6 @@ from src.discord_voice_bot.voice.handler import VoiceHandler
 from tests.base_test import AsyncTestCase, MockDiscordObjects
 
 
-@pytest.fixture(autouse=True)
-def mock_env_vars(monkeypatch):
-    """Mock environment variables for tests."""
-    monkeypatch.setenv("DISCORD_BOT_TOKEN", "test_token")
-    monkeypatch.setenv("TARGET_VOICE_CHANNEL_ID", "1350964414286921749")
-    monkeypatch.setenv("TTS_ENGINE", "voicevox")
-    monkeypatch.setenv("VOICEVOX_URL", "http://localhost:50021")
-
-
 class TestSelfMessageReading(AsyncTestCase):
     """Test cases for bot reading its own messages."""
 
@@ -76,7 +67,7 @@ class TestSelfMessageReading(AsyncTestCase):
         mock_message.author.bot = True  # This is the key issue - bot messages are filtered
         mock_message.author.name = "TestBot"
         mock_message.author.display_name = "TestBot"
-        mock_message.channel.id = 1350964414286921749  # Target voice channel
+        mock_message.channel.id = 123456789  # Target voice channel
 
         return mock_message
 
@@ -93,7 +84,7 @@ class TestSelfMessageReading(AsyncTestCase):
         mock_message = MockDiscordObjects.create_mock_message(content, "RegularUser")
         mock_message.author.id = 99999  # Different ID from bot
         mock_message.author.bot = False  # Regular user message
-        mock_message.channel.id = 1350964414286921749  # Target voice channel
+        mock_message.channel.id = 123456789  # Target voice channel
 
         return mock_message
 

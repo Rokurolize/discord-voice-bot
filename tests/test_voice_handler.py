@@ -7,70 +7,6 @@ from unittest.mock import MagicMock, Mock
 import discord
 import pytest
 
-
-class MockTTSEngine:
-    """Mock TTS engine that doesn't make real HTTP requests."""
-
-    def __init__(self, config_manager):
-        self._config_manager = config_manager
-
-    async def synthesize_audio(self, text: str, speaker_id: int | None = None, engine_name: str | None = None) -> bytes | None:
-        """Mock audio synthesis that returns fake WAV data."""
-        if not text or not text.strip():
-            return None
-
-        # Create a proper WAV file header with minimal audio data
-        # WAV header structure:
-        # RIFF header (12 bytes)
-        # fmt chunk (24 bytes)
-        # data chunk header (8 bytes) + data
-
-        # Calculate sizes
-        fmt_chunk_size = 16  # PCM format
-        sample_rate = 22050
-        channels = 1
-        bits_per_sample = 16
-        bytes_per_sample = bits_per_sample // 8
-        block_align = channels * bytes_per_sample
-        byte_rate = sample_rate * block_align
-
-        # Create some minimal audio data (silence)
-        audio_samples = 480  # 0.02 seconds at 24kHz
-        audio_data_size = audio_samples * bytes_per_sample
-        audio_data = b"\x00" * audio_data_size  # Silence
-
-        # Total file size
-        file_size = 36 + audio_data_size  # 12 (RIFF) + 24 (fmt) + 8 (data header) + data
-
-        # Build WAV header
-        header = b"RIFF"
-        header += file_size.to_bytes(4, "little")
-        header += b"WAVE"
-
-        # fmt chunk
-        header += b"fmt "
-        header += fmt_chunk_size.to_bytes(4, "little")
-        header += (1).to_bytes(2, "little")  # PCM format
-        header += channels.to_bytes(2, "little")
-        header += sample_rate.to_bytes(4, "little")
-        header += byte_rate.to_bytes(4, "little")
-        header += block_align.to_bytes(2, "little")
-        header += bits_per_sample.to_bytes(2, "little")
-
-        # data chunk
-        header += b"data"
-        header += audio_data_size.to_bytes(4, "little")
-
-        return header + audio_data
-
-    async def create_audio_source(self, text: str, speaker_id: int | None = None, engine_name: str | None = None):
-        """Mock audio source creation."""
-        return
-
-    def cleanup_audio_source(self, audio_source):
-        """Mock cleanup."""
-
-
 from discord_voice_bot.tts_client import TTSClient
 from discord_voice_bot.voice.ratelimit import SimpleRateLimiter
 from discord_voice_bot.voice_handler import VoiceHandler
@@ -158,7 +94,7 @@ class TestQueueManagement:
                 item: dict[str, Any] = await voice_handler.synthesis_queue.get()
                 assert item["text"] == "Hello"
                 assert item["group_id"] == "test_group"
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pytest.fail("Test timed out - add_to_queue operation took too long")
 
     @pytest.mark.asyncio
@@ -185,7 +121,7 @@ class TestQueueManagement:
                         voice_handler.synthesis_queue.get_nowait()
                     except asyncio.QueueEmpty:
                         break
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pytest.fail("Test timed out - skip_current_message operation took too long")
 
     @pytest.mark.asyncio
@@ -259,8 +195,8 @@ class TestComplianceTDD:
 
         elapsed: float = time.time() - start_time
 
-        # Should have taken at least 0.2 seconds (10 requests at 50/sec = 0.2 sec)
-        assert elapsed >= 0.15  # Allow some margin for timing precision
+        # Should have taken at least ~0.15 seconds (10 requests at 50/sec = 0.2 sec; allow margin)
+        assert elapsed >= 0.15
 
     @pytest.mark.asyncio
     async def test_rate_limited_api_call_success(self, voice_handler: VoiceHandler) -> None:
@@ -277,7 +213,7 @@ class TestComplianceTDD:
                 result: str = await voice_handler.make_rate_limited_request(mock_success_api)
                 assert result == "success_1"
                 assert call_count == 1
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pytest.fail("Test timed out - rate_limited_api_call_success took too long")
 
     @pytest.mark.asyncio
@@ -301,7 +237,7 @@ class TestComplianceTDD:
                 result: str = await voice_handler.make_rate_limited_request(mock_rate_limited_api)
                 assert result == "success_2"  # Should succeed on retry
                 assert call_count == 2
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pytest.fail("Test timed out - rate_limited_api_call_with_retry took too long")
 
     def test_voice_handler_has_rate_limiter(self, voice_handler: VoiceHandler) -> None:
@@ -327,7 +263,7 @@ class TestComplianceTDD:
 
                 mock_state_payload: dict[str, str] = {"session_id": "test_session_id"}
                 await voice_handler.handle_voice_state_update(mock_state_payload)
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pytest.fail("Test timed out - voice_gateway_event_handling took too long")
 
     def test_compliance_components_exist(self, voice_handler: VoiceHandler) -> None:
@@ -393,7 +329,7 @@ class TestComplianceTDD:
                 # This is acceptable in test contexts where we're verifying implementation details
                 assert voice_handler.voice_gateway._token == "test_voice_token_123"  # type: ignore[attr-defined]
                 assert voice_handler.voice_gateway._session_id == "test_session_abc123"  # type: ignore[attr-defined]
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pytest.fail("Test timed out - voice_gateway_compliance_flow took too long")
 
     @pytest.mark.asyncio
@@ -439,7 +375,7 @@ class TestComplianceTDD:
             async with asyncio.timeout(2.0):  # 2 second timeout
                 # This should not raise an exception
                 await voice_handler.handle_voice_server_update({"token": "test", "guild_id": "123", "endpoint": "test:443"})
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pytest.fail("Test timed out - e2ee_protocol_readiness took too long")
 
     @pytest.mark.asyncio

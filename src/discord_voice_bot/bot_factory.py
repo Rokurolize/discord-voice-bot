@@ -11,8 +11,10 @@ from .tts_client import TTSClient
 if TYPE_CHECKING:
     from .command_handler import CommandHandler
     from .event_handler import EventHandler
+    from .health_monitor import HealthMonitor
     from .message_validator import MessageValidator
     from .status_manager import StatusManager
+    from .voice.handler import VoiceHandler
 
 
 class ComponentRegistry:
@@ -95,6 +97,7 @@ class BotFactory:
 
             # Create a shared TTS client
             self.tts_client = TTSClient(config_manager)
+            assert self.tts_client is not None, "TTSClient creation returned None"
 
             # Create bot instance with configuration manager
             if bot_class is None:
@@ -136,15 +139,19 @@ class BotFactory:
             ("health_monitor", self._create_health_monitor),
         ]
 
-        for component_name, creator_func in components_to_setup:
+        # Bind arguments so all factories share the same zero-arg callable signature
+        bound_factories: dict[str, Callable[[], Awaitable[Any]]] = {
+            "event_handler": lambda: self._create_event_handler(bot, config_manager),
+            "command_handler": lambda: self._create_command_handler(bot),
+            "slash_handler": lambda: self._create_slash_command_handler(bot),
+            "message_validator": lambda: self._create_message_validator(bot),
+            "status_manager": lambda: self._create_status_manager(bot),
+            "voice_handler": lambda: self._create_voice_handler(bot, config_manager, tts_client),
+            "health_monitor": lambda: self._create_health_monitor(bot, config_manager, tts_client),
+        }
+        for component_name, _ in components_to_setup:
             try:
-                # Pass config_manager to components that need it
-                if component_name in ["voice_handler", "health_monitor"]:
-                    component = await creator_func(bot, config_manager, tts_client)  # type: ignore[call-arg]
-                elif component_name == "event_handler":
-                    component = await creator_func(bot, config_manager)  # type: ignore[call-arg]
-                else:
-                    component = await creator_func(bot)  # type: ignore[call-arg]
+                component = await bound_factories[component_name]()
                 if component is not None:
                     self.registry.register(component_name, component)
                     setattr(bot, component_name, component)
@@ -177,14 +184,6 @@ class BotFactory:
         return cls(*args)
 
     async def _execute_with_logging(self, start_msg: str, operation: Callable[[], Any] | Awaitable[Any], success_msg: str) -> None:
-        """Execute operation with standardized logging.
-
-        Args:
-            start_msg: Message to log at start
-            operation: Function or coroutine to execute
-            success_msg: Message to log on success
-
-        """
         """Execute operation with standardized logging.
 
         Args:
@@ -231,7 +230,7 @@ class BotFactory:
         """Create status manager."""
         return self._create_component("discord_voice_bot.status_manager", "StatusManager")
 
-    async def _create_voice_handler(self, bot: Any, config_manager: ConfigManagerImpl, tts_client: TTSClient) -> Any:
+    async def _create_voice_handler(self, bot: Any, config_manager: ConfigManagerImpl, tts_client: TTSClient) -> "VoiceHandler":
         """Create voice handler."""
         try:
             return self._create_component("discord_voice_bot.voice.handler", "VoiceHandler", bot, config_manager, tts_client)
@@ -239,7 +238,7 @@ class BotFactory:
             logger.error(f"Failed to create voice handler: {e}")
             raise
 
-    async def _create_health_monitor(self, bot: Any, config_manager: ConfigManagerImpl, tts_client: TTSClient) -> Any:
+    async def _create_health_monitor(self, bot: Any, config_manager: ConfigManagerImpl, tts_client: TTSClient) -> "HealthMonitor":
         """Create health monitor."""
         return self._create_component("discord_voice_bot.health_monitor", "HealthMonitor", bot, config_manager, tts_client)
 
@@ -299,8 +298,11 @@ class BotFactory:
         try:
             # Initialize TTS client session
             if self.tts_client:
-                await self.tts_client.start_session()
-                logger.debug("TTS client session initialized")
+                await self._execute_with_logging(
+                    "Initializing TTS client session...",
+                    self.tts_client.start_session(),
+                    "TTS client session initialized",
+                )
 
             # Initialize voice handler
             if hasattr(bot, "voice_handler") and getattr(bot, "voice_handler", None):
@@ -355,8 +357,8 @@ class BotFactory:
         # Check service initialization
         services_initialized = True
         try:
-            # TTS engine is now created per instance, so we can't check global state
-            # Assume it's initialized if no errors occurred during creation
+            # TTS client is created and managed by BotFactory; no reliable global state to inspect here.
+            # Assume it's initialized if no errors occurred during component/service startup.
             pass
         except Exception as e:
             services_initialized = False
@@ -402,8 +404,13 @@ class BotFactory:
 
         # Shutdown TTS client session
         if self.tts_client:
-            await self.tts_client.close_session()
-            logger.debug("Shutdown TTS client session")
+            try:
+                await self.tts_client.close_session()
+                logger.debug("Shutdown TTS client session")
+            except Exception as e:
+                logger.error(f"Error shutting down TTS client: {e}")
+            finally:
+                self.tts_client = None
 
         # Clear registry
         self.registry.clear()
@@ -413,4 +420,5 @@ class BotFactory:
     def reset_factory(self) -> None:
         """Reset factory to initial state."""
         self.registry.clear()
+        self.tts_client = None  # caller should have shut it down already
         logger.info("Bot factory reset")

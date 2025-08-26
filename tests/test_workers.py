@@ -96,7 +96,6 @@ def mock_config_manager() -> MagicMock:
     config_manager.get_target_voice_channel_id.return_value = 987654321
     config_manager.get_command_prefix.return_value = "!tts"
     config_manager.get_engine_config.return_value = {"speakers": {"test": 1}}
-    config_manager.get_engines.return_value = {"voicevox": {"url": "http://localhost:50021", "default_speaker": 1}}
     config_manager.get_max_message_length.return_value = 200
     config_manager.get_message_queue_size.return_value = 10
     config_manager.get_reconnect_delay.return_value = 5
@@ -117,11 +116,10 @@ def mock_tts_client(mock_config_manager: MagicMock) -> TTSClient:
 @pytest.fixture
 def voice_handler(mock_bot_client: MagicMock, mock_config_manager: MagicMock, mock_tts_client: TTSClient, monkeypatch) -> VoiceHandler:
     """Create a VoiceHandler instance with mocked bot client."""
-    print("<<<<< USING PATCHED voice_handler FIXTURE >>>>>")
     monkeypatch.setattr(Path, "mkdir", lambda *args, **kwargs: None)
     with patch("discord_voice_bot.voice.workers.synthesizer.get_user_settings") as mock_get_user_settings:
         mock_user_settings = MagicMock()
-        mock_user_settings.get_user_speaker.return_value = None
+        mock_user_settings.get_user_settings.return_value = {}  # no overrides
         mock_get_user_settings.return_value = mock_user_settings
 
         handler = VoiceHandler(mock_bot_client, mock_config_manager, mock_tts_client)
@@ -265,7 +263,7 @@ class TestWorkerInitialization:
                 await asyncio.gather(*voice_handler.tasks, return_exceptions=True)
 
     @pytest.mark.asyncio
-    @patch("discord_voice_bot.voice.workers.synthesizer.get_tts_engine")
+    @patch("discord_voice_bot.voice.workers.synthesizer.get_tts_engine", new_callable=AsyncMock)
     async def test_voice_handler_initializes_workers_fixed(self, mock_get_engine, voice_handler: VoiceHandler) -> None:
         """Test that VoiceHandler initializes and starts worker tasks with fixed mocking."""
         try:
@@ -300,7 +298,7 @@ class TestWorkerInitialization:
                 await asyncio.gather(*voice_handler.tasks, return_exceptions=True)
 
     @pytest.mark.asyncio
-    @patch("discord_voice_bot.voice.workers.synthesizer.get_tts_engine")
+    @patch("discord_voice_bot.voice.workers.synthesizer.get_tts_engine", new_callable=AsyncMock)
     @patch("discord_voice_bot.voice.workers.player.PlayerWorker")
     async def test_workers_process_queue_items_fixed(self, mock_player_worker, mock_get_engine, voice_handler: VoiceHandler) -> None:
         """Test that workers actually process items from queues with fixed mocking."""
@@ -349,7 +347,7 @@ class TestWorkerInitialization:
                 await asyncio.gather(*voice_handler.tasks, return_exceptions=True)
 
     @pytest.mark.asyncio
-    @patch("discord_voice_bot.voice.workers.synthesizer.get_tts_engine")
+    @patch("discord_voice_bot.voice.workers.synthesizer.get_tts_engine", new_callable=AsyncMock)
     async def test_worker_cleanup_on_handler_cleanup_fixed(self, mock_get_engine, voice_handler: VoiceHandler) -> None:
         """Test that workers are properly cleaned up when handler is cleaned up with fixed mocking."""
         try:
