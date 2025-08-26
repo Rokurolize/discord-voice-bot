@@ -1,5 +1,7 @@
 """Reconnect slash command handler."""
 
+import asyncio
+
 import discord
 from loguru import logger
 
@@ -56,6 +58,8 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
 
         _ = await interaction.edit_original_response(embed=embed)
 
+    except asyncio.CancelledError:
+        raise
     except Exception:
         logger.exception("Error in reconnect slash command")
         try:

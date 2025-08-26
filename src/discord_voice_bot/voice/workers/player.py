@@ -118,8 +118,8 @@ class PlayerWorker:
                             self._running = False
                             break
 
-                except Exception as e:
-                    logger.error(f"Playback task error: {e}")
+                except Exception:
+                    logger.exception("Playback task error")
                     consecutive_errors += 1
 
                     if consecutive_errors >= max_consecutive_errors:

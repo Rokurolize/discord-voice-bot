@@ -27,8 +27,9 @@ class UserSettings:
                 base = Path(os.getenv("APPDATA", Path.home() / "AppData" / "Roaming"))
             else:
                 base = Path(os.getenv("XDG_CONFIG_HOME", Path.home() / ".config"))
-            settings_file = str(base / "discord-voice-bot" / "user_settings.json")
-        self.settings_file = Path(settings_file)
+            self.settings_file = base / "discord-voice-bot" / "user_settings.json"
+        else:
+            self.settings_file = Path(settings_file)
         self.settings: dict[str, dict[str, Any]] = {}
         self._lock = RLock()
 
@@ -50,6 +51,9 @@ class UserSettings:
                 try:
                     with open(self.settings_file, encoding="utf-8") as f:
                         loaded_settings = json.load(f)
+                    if not isinstance(loaded_settings, dict):
+                        logger.error(f"Settings file is not a dictionary, but {type(loaded_settings)}")
+                        return
                     # Only update if file has changed
                     if loaded_settings != self.settings:
                         self.settings = loaded_settings
@@ -68,11 +72,17 @@ class UserSettings:
         """Save settings to JSON file."""
         with self._lock:
             try:
-                tmp_path = self.settings_file.with_suffix(self.settings_file.suffix + ".tmp")
+                tmp_path = self.settings_file.with_name(self.settings_file.name + ".tmp")
                 with open(tmp_path, "w", encoding="utf-8") as f:
                     json.dump(self.settings, f, indent=2, ensure_ascii=False)
-                # Atomic on POSIX and Windows
+                    f.flush()
+                    os.fsync(f.fileno())
                 os.replace(tmp_path, self.settings_file)
+                try:
+                    with open(self.settings_file.parent) as d:
+                        os.fsync(d.fileno())
+                except OSError:
+                    pass # fsync on dir not supported on all platforms
                 logger.debug("Settings saved to file")
             except Exception as e:
                 logger.error(f"Failed to save settings: {e}")

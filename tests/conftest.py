@@ -1,9 +1,30 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from discord_voice_bot.config import Config  # Import the real Config class for spec
+MOCK_CONFIG_INSTANCE = MagicMock()
+PATCHERS = []
 
+def pytest_sessionstart(session):
+    """
+    Called after the Session object has been created and
+    before performing test collection.
+    """
+    global PATCHERS
+    # ruff: noqa: PLW0602
+    patcher = patch("discord_voice_bot.config.get_config", lambda: MOCK_CONFIG_INSTANCE)
+    PATCHERS.append(patcher)
+    patcher.start()
+
+def pytest_sessionfinish(session, exitstatus):
+    """
+    Called after whole test run finished, right before
+    returning the exit status to the system.
+    """
+    global PATCHERS
+    # ruff: noqa: PLW0602
+    for patcher in PATCHERS:
+        patcher.stop()
 
 @pytest.fixture(autouse=True)
 def mock_config_get(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
@@ -12,7 +33,16 @@ def mock_config_get(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     Each test gets an isolated mock instance.
     """
     # 1) Create a Config-shaped mock so attribute access matches the real type.
-    mock_instance = MagicMock(spec=Config)
+    mock_instance = MagicMock(spec_set=[
+        "discord_token",
+        "target_voice_channel_id",
+        "tts_engine",
+        "log_level",
+        "rate_limit_messages",
+        "rate_limit_period",
+        "get_enable_self_message_processing",
+        "max_message_length",
+    ])
 
     # 2) Set baseline values for common test scenarios.
     mock_instance.discord_token = "test_token_from_conftest"

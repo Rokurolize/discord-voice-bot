@@ -36,8 +36,6 @@ class VoiceHandlerInterface(Protocol):
     is_playing: bool
     stats: "StatsTracker"
     connection_state: str
-    if TYPE_CHECKING:
-        from .workers.synthesizer import SynthesizerWorker
     synthesizer: "SynthesizerWorker | None"
 
     async def start(self) -> None:
@@ -216,6 +214,7 @@ class VoiceHandler(VoiceHandlerInterface):
             self._synthesizer_worker.stop()
         if self._player_worker:
             self._player_worker.stop()
+        self.synthesizer = None
         logger.info("Sent stop signal to workers")
 
     def is_connected(self) -> bool:  # type: ignore[override]
