@@ -1,6 +1,7 @@
 """Bot factory for Discord Voice TTS Bot initialization and configuration."""
 
 from collections.abc import Awaitable, Callable
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
 from loguru import logger
@@ -97,7 +98,6 @@ class BotFactory:
 
             # Create a shared TTS client
             tts_client = TTSClient(config_manager)
-            assert tts_client is not None, "TTSClient creation returned None"
             self.tts_client = tts_client
 
             # Create bot instance with configuration manager
@@ -150,13 +150,13 @@ class BotFactory:
 
         # Bind arguments so all factories share the same zero-arg callable signature
         bound_factories: dict[str, Callable[[], Awaitable[Any]]] = {
-            "event_handler": lambda: self._create_event_handler(bot, config_manager),
-            "command_handler": lambda: self._create_command_handler(bot),
-            "slash_handler": lambda: self._create_slash_command_handler(bot),
-            "message_validator": lambda: self._create_message_validator(bot),
-            "status_manager": lambda: self._create_status_manager(bot),
-            "voice_handler": lambda: self._create_voice_handler(bot, config_manager, tts_client),
-            "health_monitor": lambda: self._create_health_monitor(bot, config_manager, tts_client),
+            "event_handler": partial(self._create_event_handler, bot, config_manager),
+            "command_handler": partial(self._create_command_handler, bot),
+            "slash_handler": partial(self._create_slash_command_handler, bot),
+            "message_validator": partial(self._create_message_validator, bot),
+            "status_manager": partial(self._create_status_manager, bot),
+            "voice_handler": partial(self._create_voice_handler, bot, config_manager, tts_client),
+            "health_monitor": partial(self._create_health_monitor, bot, config_manager, tts_client),
         }
         for component_name, _ in components_to_setup:
             try:
@@ -309,7 +309,7 @@ class BotFactory:
             if self.tts_client:
                 await self._execute_with_logging(
                     "Initializing TTS client session...",
-                    self.tts_client.start_session(),
+                    lambda: self.tts_client.start_session(),
                     "TTS client session initialized",
                 )
 
@@ -364,14 +364,11 @@ class BotFactory:
             status["component_status"][name] = {"initialized": component is not None, "type": type(component).__name__ if component else None}
 
         # Check service initialization
-        services_initialized = True
-        try:
-            # TTS client is created and managed by BotFactory; no reliable global state to inspect here.
-            # Assume it's initialized if no errors occurred during component/service startup.
-            pass
-        except Exception as e:
-            services_initialized = False
-            status["errors"].append(f"TTS engine error: {e}")
+        services_initialized = bool(
+            self.tts_client and self.tts_client.session and not self.tts_client.session.closed
+        )
+        if not services_initialized:
+            status["errors"].append("TTS client session not initialized or closed")
 
         status["services_initialized"] = services_initialized
 

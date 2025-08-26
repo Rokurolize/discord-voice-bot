@@ -131,7 +131,7 @@ class TestQueueManagement:
         """Test clearing all queues."""
         # Add items to both queues
         await voice_handler.synthesis_queue.put({"text": "syn1"})
-        await voice_handler.audio_queue.put(("path1", "group1", 1, 1024))
+        await voice_handler.audio_queue.put(("path1", "group1", 1, 0, 1024))
 
         cleared: int = await voice_handler.clear_all()
 
@@ -148,7 +148,7 @@ class TestStatusGeneration:
         """Test getting handler status."""
         # Add some items to queues
         await voice_handler.synthesis_queue.put({"text": "item1"})
-        await voice_handler.audio_queue.put(("path1", "group1", 1, 1024))
+        await voice_handler.audio_queue.put(("path1", "group1", 1, 0, 1024))
 
         voice_handler.is_playing = True
         voice_handler.stats["messages_played"] = 10
@@ -170,7 +170,7 @@ class TestCleanup:
     async def test_cleanup_clears_queues(self, voice_handler: VoiceHandler) -> None:
         """Test cleanup clears all queues."""
         await voice_handler.synthesis_queue.put({"text": "item"})
-        await voice_handler.audio_queue.put(("path", "group", 1, 1024))
+        await voice_handler.audio_queue.put(("path", "group", 1, 0, 1024))
 
         # Mock tasks to avoid cancellation issues
         voice_handler.tasks = []

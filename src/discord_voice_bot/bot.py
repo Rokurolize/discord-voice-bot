@@ -119,6 +119,8 @@ async def run_bot(test_mode: bool | None = None) -> None:
         bot = await factory.create_bot(test_mode=test_mode)
         await factory.initialize_services(bot)
         await bot.start_with_config()
+    except asyncio.CancelledError:
+        raise
     except Exception as e:
         print(f"Failed to start bot: {e}")
         raise

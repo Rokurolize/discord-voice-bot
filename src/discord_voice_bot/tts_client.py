@@ -92,6 +92,10 @@ class TTSClient:
             logger.error(f"{self.engine_name} TTS API: {error_msg}")
             return False, error_msg
 
+        except asyncio.CancelledError:
+            # Preserve cooperative cancellation
+            raise
+
         except Exception as e:
             error_msg = f"unexpected error: {type(e).__name__}"
             logger.error(f"{self.engine_name} TTS API: {error_msg} - {e!s}")
