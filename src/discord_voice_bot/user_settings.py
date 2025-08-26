@@ -61,7 +61,7 @@ class UserSettings:
                     logger.error(f"Failed to load settings: {e}")
                     # Don't clear existing settings on load error
             else:
-                logger.info("No existing settings file, starting fresh")
+                logger.debug("No existing settings file, starting fresh")
                 self.settings = {}
 
     def _save_settings(self) -> None:
@@ -72,7 +72,6 @@ class UserSettings:
                 with open(tmp_path, "w", encoding="utf-8") as f:
                     json.dump(self.settings, f, indent=2, ensure_ascii=False)
                 # Atomic on POSIX and Windows
-                import os
                 os.replace(tmp_path, self.settings_file)
                 logger.debug("Settings saved to file")
             except Exception as e:
@@ -186,9 +185,14 @@ class UserSettings:
         try:
             user_id = str(user_id)
 
-            # Auto-detect engine if not specified
+            # Auto-detect/validate engine
             if engine is None:
                 engine = detect_engine(speaker_id)
+            else:
+                engine = engine.lower()
+                if engine not in ("voicevox", "aivis"):
+                    logger.error(f"Invalid engine '{engine}' provided; expected 'voicevox' or 'aivis'")
+                    return False
 
             with self._lock:
                 self.settings[user_id] = {
@@ -234,7 +238,8 @@ class UserSettings:
         """
         # Reload to get latest settings
         self._load_settings()
-        return self.settings.get(str(user_id))
+        data = self.settings.get(str(user_id))
+        return None if data is None else data.copy()
 
     def list_all_settings(self) -> dict[str, dict[str, Any]]:
         """Get all user settings.
@@ -245,7 +250,8 @@ class UserSettings:
         """
         # Reload to get latest settings
         self._load_settings()
-        return self.settings.copy()
+        import copy
+        return copy.deepcopy(self.settings)
 
     def get_stats(self) -> dict[str, Any]:
         """Get statistics about user settings.
