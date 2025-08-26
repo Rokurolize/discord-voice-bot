@@ -8,7 +8,14 @@ from ...bot import DiscordVoiceTTSBot
 
 async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, speaker: str | None = None) -> None:
     """Handle voice slash command."""
-    logger.debug(f"Handling /voice command from user '{interaction.user.name}'. Speaker provided: '{speaker}'")
+    logger.debug(
+        "Handling /voice command from user id={} name={} speaker={}",
+        interaction.user.id,
+        interaction.user.display_name,
+        (speaker if speaker is None
+         else (speaker[:64] + "…") if len(speaker) > 64
+         else speaker),
+    )
     try:
         from ...user_settings import get_user_settings
 
@@ -92,6 +99,6 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, spea
         else:
             _ = await interaction.response.send_message(f"❌ Voice '{speaker}' not found. Use `/voices` to see available options.", ephemeral=True)
 
-    except Exception as e:
-        logger.error(f"Error in voice slash command: {e}")
+    except Exception:
+        logger.exception("Error in voice slash command")
         _ = await interaction.response.send_message("❌ Error setting voice preference", ephemeral=True)

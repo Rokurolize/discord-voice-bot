@@ -1,6 +1,7 @@
 """User-specific settings management for Discord Voice TTS Bot."""
 
 import json
+import os
 from pathlib import Path
 from threading import Lock
 from typing import Any
@@ -30,9 +31,6 @@ SPEAKER_MAPPING = {
 }
 
 
-import tempfile
-
-
 class UserSettings:
     """Manages user-specific settings like voice preferences."""
 
@@ -50,7 +48,12 @@ class UserSettings:
         if settings_file:
             self.settings_file = Path(settings_file)
         else:
-            self.settings_file = Path(tempfile.gettempdir()) / "discord-voice-bot/user_settings.json"
+            # ~/.config/discord-voice-bot/user_settings.json (POSIX) or %APPDATA%\discord-voice-bot\user_settings.json (Windows)
+            if os.name == "nt":
+                base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
+            else:
+                base = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+            self.settings_file = base / "discord-voice-bot" / "user_settings.json"
         self.settings: dict[str, dict[str, Any]] = {}
         self._lock = Lock()
 
@@ -89,8 +92,10 @@ class UserSettings:
         """Save settings to JSON file."""
         with self._lock:
             try:
-                with open(self.settings_file, "w", encoding="utf-8") as f:
+                tmp_path = self.settings_file.with_suffix(self.settings_file.suffix + ".tmp")
+                with open(tmp_path, "w", encoding="utf-8") as f:
                     json.dump(self.settings, f, indent=2, ensure_ascii=False)
+                os.replace(tmp_path, self.settings_file)
                 logger.debug("Settings saved to file")
             except Exception as e:
                 logger.error(f"Failed to save settings: {e}")
@@ -122,7 +127,7 @@ class UserSettings:
                         user_data["engine"] = "aivis"
 
                     migrated = True
-                    logger.info(f"Migrated user {user_id} settings: {user_data['speaker_name']} -> engine: {user_data['engine']}")
+                    logger.info(f"Migrated user {user_id} settings: {user_data.get('speaker_name', 'Unknown')} -> engine: {user_data['engine']}")
 
         if migrated:
             self._save_settings()

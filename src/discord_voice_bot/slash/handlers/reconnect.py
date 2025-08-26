@@ -8,7 +8,7 @@ from ...bot import DiscordVoiceTTSBot
 
 async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> None:
     """Handle reconnect slash command."""
-    logger.debug(f"Handling /reconnect command from user '{interaction.user.name}'")
+    logger.debug(f"Handling /reconnect command from user '{interaction.user}' (id={interaction.user.id})")
     try:
         if not hasattr(bot, "voice_handler") or not bot.voice_handler:
             embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.red(), description="❌ Voice handler not initialized")
@@ -21,7 +21,7 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
 
         try:
             # Attempt reconnection
-            logger.info(f"🔄 MANUAL RECONNECTION - User {interaction.user.name} requested voice reconnection")
+            logger.info(f"🔄 MANUAL RECONNECTION - User {interaction.user} (id={interaction.user.id}) requested voice reconnection")
             from ...config import get_config
 
             success = await bot.voice_handler.connect_to_channel(get_config().target_voice_channel_id)
@@ -52,10 +52,16 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
 
         except Exception as e:
             embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.red(), description=f"❌ Error during reconnection: {e}")
-            logger.error(f"💥 CRITICAL ERROR during manual reconnection: {e}")
+            logger.exception("💥 CRITICAL ERROR during manual reconnection")
 
         _ = await interaction.edit_original_response(embed=embed)
 
-    except Exception as e:
-        logger.error(f"Error in reconnect slash command: {e}")
-        _ = await interaction.response.send_message("❌ Error during reconnection", ephemeral=True)
+    except Exception:
+        logger.exception("Error in reconnect slash command")
+        try:
+            if interaction.response.is_done():
+                _ = await interaction.followup.send("❌ Error during reconnection", ephemeral=True)
+            else:
+                _ = await interaction.response.send_message("❌ Error during reconnection", ephemeral=True)
+        except Exception as followup_err:
+            logger.debug(f"Suppressed secondary error while responding to interaction: {followup_err!s}")

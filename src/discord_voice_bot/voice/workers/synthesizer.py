@@ -33,6 +33,7 @@ class SynthesizerWorker:
         self.buffer_size = 0
         self._running = True  # Flag to control the worker loop
         self._idle_log_counter = 0
+        self._last_idle_log = 0.0
 
         # Initialize TTS engine and user settings with config manager
         # Note: TTS engine will be initialized asynchronously in run() method
@@ -61,8 +62,10 @@ class SynthesizerWorker:
                     self._idle_log_counter = 0
                 except TimeoutError:
                     self._idle_log_counter += 1
-                    if self._idle_log_counter % 60 == 0:  # Log once every 60 seconds of idling
+                    now = asyncio.get_running_loop().time()
+                    if now - getattr(self, "_last_idle_log", 0.0) >= 60.0:
                         logger.debug("SynthesizerWorker is idle, waiting for synthesis tasks in the queue.")
+                        self._last_idle_log = now
                     await asyncio.sleep(0.1)
                     continue
 
@@ -115,10 +118,11 @@ class SynthesizerWorker:
                     # Calculate priority and add to audio queue with timeout protection
                     priority = calculate_message_priority(item)
                     try:
-                        await asyncio.wait_for(self.voice_handler.audio_queue.put((audio_path, item["group_id"], priority, item["chunk_index"])), timeout=1.0)
+                        await asyncio.wait_for(self.voice_handler.audio_queue.put((audio_path, item["group_id"], priority, item["chunk_index"], audio_size)), timeout=1.0)
                     except TimeoutError:
                         logger.warning(f"Audio queue full, dropping synthesized audio for: {item['text'][:50]}...")
                         cleanup_file(audio_path)
+                        self.buffer_size -= audio_size
                         continue
 
                     logger.debug(f"Synthesized chunk {item['chunk_index'] + 1}/{item['total_chunks']} (size: {audio_size} bytes)")
@@ -153,6 +157,10 @@ class SynthesizerWorker:
     def stop(self) -> None:
         """Stop the worker loop."""
         self._running = False
+
+    def decrement_buffer_size(self, size: int) -> None:
+        """Decrement the buffer size."""
+        self.buffer_size -= size
 
     async def _create_temp_audio_file(self, audio_data: bytes) -> str:
         """Create a temporary audio file with the given data."""

@@ -8,8 +8,8 @@ from discord_voice_bot.config import Config  # 本物のConfigクラスをイン
 @pytest.fixture(autouse=True)
 def mock_config_get(monkeypatch: pytest.MonkeyPatch):
     """
-    Globally mocks the get_config() function for the entire test session.
-    Any call to get_config() anywhere in the code will return this mock instance.
+    Automatically patches get_config() for each test to return a fresh MagicMock.
+    Each test gets an isolated mock instance.
     """
     # 1. 偽物のConfigオブジェクト（モック）を1つだけ作る
     # spec=Config で、本物そっくりな賢い偽物にするのを忘れないでね！

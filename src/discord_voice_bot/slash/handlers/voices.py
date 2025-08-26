@@ -9,11 +9,11 @@ from ..embeds.voices import create_voices_embed
 
 async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> None:
     """Handle voices slash command."""
-    logger.debug(f"Handling /voices command from user '{interaction.user.name}'")
+    logger.debug("Handling /voices command from user id={} name={}", interaction.user.id, interaction.user.display_name)
     try:
         embed = await create_voices_embed()
         _ = await interaction.response.send_message(embed=embed)
 
-    except Exception as e:
-        logger.error(f"Error in voices slash command: {e}")
+    except Exception:
+        logger.exception("Error in voices slash command")
         _ = await interaction.response.send_message("❌ Error retrieving voices", ephemeral=True)

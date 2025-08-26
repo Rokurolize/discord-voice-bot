@@ -36,6 +36,7 @@ class VoiceHandlerInterface(Protocol):
     is_playing: bool
     stats: "StatsTracker"
     connection_state: str
+    synthesizer: Any
 
     async def start(self) -> None:
         """Start the voice handler tasks."""
@@ -133,6 +134,7 @@ class VoiceHandler(VoiceHandlerInterface):
         # Worker instances for graceful shutdown
         self._synthesizer_worker: SynthesizerWorker | None = None
         self._player_worker: PlayerWorker | None = None
+        self.synthesizer = self._synthesizer_worker
 
     @property
     def voice_gateway(self):
