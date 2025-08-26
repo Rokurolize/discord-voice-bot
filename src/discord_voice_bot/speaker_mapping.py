@@ -1,41 +1,57 @@
 """Speaker mapping between different TTS engines."""
 
+from types import MappingProxyType
 from typing import Any
 
 # Mapping table between VOICEVOX and AivisSpeech speakers
 # Based on voice characteristics and style
-SPEAKER_MAPPING = {
-    "voicevox_to_aivis": {
-        # Zundamon variants
-        3: 1512153250,  # Normal -> zunda_normal
-        1: 1512153249,  # Sweet -> zunda_amai
-        7: 1512153252,  # Tsundere -> zunda_tsun
-        5: 1512153251,  # Seductive -> zunda_sexy
-        22: 1512153253,  # Whisper -> zunda_whisper
-        38: 1512153254,  # Murmur -> zunda_hisohiso
-        75: 1512153250,  # Flirty -> zunda_normal (no direct match)
-        76: 1512153250,  # Tearful -> zunda_normal (no direct match)
-    },
-    "aivis_to_voicevox": {
-        # Reverse mapping
-        1512153250: 3,  # zunda_normal -> Normal
-        1512153249: 1,  # zunda_amai -> Sweet
-        1512153252: 7,  # zunda_tsun -> Tsundere
-        1512153251: 5,  # zunda_sexy -> Seductive
-        1512153253: 22,  # zunda_whisper -> Whisper
-        1512153254: 38,  # zunda_hisohiso -> Murmur
-        1512153248: 3,  # zunda_reading -> Normal (no direct match)
-        # Other AIVIS speakers map to VOICEVOX Zundamon Normal as fallback
-        888753760: 3,  # anneli_normal -> Zundamon Normal
-        888753761: 3,  # anneli_normal2 -> Zundamon Normal
-        888753762: 3,  # anneli_tension -> Zundamon Normal
-        888753763: 3,  # anneli_calm -> Zundamon Normal
-        888753764: 3,  # anneli_happy -> Zundamon Normal
-        888753765: 3,  # anneli_angry -> Zundamon Normal
-        1431611904: 3,  # Mai -> Zundamon Normal
-        604166016: 3,  # Chuunibyou -> Zundamon Normal
-    },
-}
+SPEAKER_MAPPING = MappingProxyType(
+    {
+        "voicevox_to_aivis": {
+            # Zundamon variants
+            3: 1512153250,  # Normal -> zunda_normal
+            1: 1512153249,  # Sweet -> zunda_amai
+            7: 1512153252,  # Tsundere -> zunda_tsun
+            5: 1512153251,  # Seductive -> zunda_sexy
+            22: 1512153253,  # Whisper -> zunda_whisper
+            38: 1512153254,  # Murmur -> zunda_hisohiso
+            75: 1512153250,  # Flirty -> zunda_normal (no direct match)
+            76: 1512153250,  # Tearful -> zunda_normal (no direct match)
+        },
+        "aivis_to_voicevox": {
+            # Reverse mapping
+            1512153250: 3,  # zunda_normal -> Normal
+            1512153249: 1,  # zunda_amai -> Sweet
+            1512153252: 7,  # zunda_tsun -> Tsundere
+            1512153251: 5,  # zunda_sexy -> Seductive
+            1512153253: 22,  # zunda_whisper -> Whisper
+            1512153254: 38,  # zunda_hisohiso -> Murmur
+            1512153248: 3,  # zunda_reading -> Normal (no direct match)
+            # Other AIVIS speakers map to VOICEVOX Zundamon Normal as fallback
+            888753760: 3,  # anneli_normal -> Zundamon Normal
+            888753761: 3,  # anneli_normal2 -> Zundamon Normal
+            888753762: 3,  # anneli_tension -> Zundamon Normal
+            888753763: 3,  # anneli_calm -> Zundamon Normal
+            888753764: 3,  # anneli_happy -> Zundamon Normal
+            888753765: 3,  # anneli_angry -> Zundamon Normal
+            1431611904: 3,  # Mai -> Zundamon Normal
+            604166016: 3,  # Chuunibyou -> Zundamon Normal
+        },
+    }
+)
+
+# Centralized defaults per engine
+DEFAULT_SPEAKERS = MappingProxyType(
+    {
+        "voicevox": 3,  # Zundamon (Normal)
+        "aivis": 1512153250,  # Unofficial Zundamon (Normal)
+    }
+)
+
+
+def detect_engine(speaker_id: int) -> str:
+    """Keep heuristic centralized; evolve here when engines/IDs change."""
+    return "aivis" if speaker_id >= 100000 else "voicevox"
 
 
 def get_compatible_speaker(speaker_id: int, from_engine: str, to_engine: str, engine_configs: dict[str, dict[str, Any]]) -> int | None:

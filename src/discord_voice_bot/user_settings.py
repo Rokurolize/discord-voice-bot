@@ -2,12 +2,12 @@
 
 import json
 from pathlib import Path
-from threading import Lock
+from threading import RLock
 from typing import Any
 
 from loguru import logger
 
-from .speaker_mapping import SPEAKER_MAPPING
+from .speaker_mapping import DEFAULT_SPEAKERS, SPEAKER_MAPPING, detect_engine
 
 
 class UserSettings:
@@ -26,7 +26,7 @@ class UserSettings:
         super().__init__()
         self.settings_file = Path(settings_file)
         self.settings: dict[str, dict[str, Any]] = {}
-        self._lock = Lock()
+        self._lock = RLock()
 
         # Ensure directory exists
         self.settings_file.parent.mkdir(parents=True, exist_ok=True)
@@ -41,23 +41,24 @@ class UserSettings:
 
     def _load_settings(self) -> None:
         """Load settings from JSON file."""
-        if self.settings_file.exists():
-            try:
-                with open(self.settings_file, encoding="utf-8") as f:
-                    loaded_settings = json.load(f)
+        with self._lock:
+            if self.settings_file.exists():
+                try:
+                    with open(self.settings_file, encoding="utf-8") as f:
+                        loaded_settings = json.load(f)
                     # Only update if file has changed
                     if loaded_settings != self.settings:
                         self.settings = loaded_settings
                         logger.debug(f"Reloaded settings for {len(self.settings)} users")
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse settings file: {e}")
-                # Don't clear existing settings on parse error
-            except Exception as e:
-                logger.error(f"Failed to load settings: {e}")
-                # Don't clear existing settings on load error
-        else:
-            logger.info("No existing settings file, starting fresh")
-            self.settings = {}
+                except json.JSONDecodeError as e:
+                    logger.error(f"Failed to parse settings file: {e}")
+                    # Don't clear existing settings on parse error
+                except Exception as e:
+                    logger.error(f"Failed to load settings: {e}")
+                    # Don't clear existing settings on load error
+            else:
+                logger.info("No existing settings file, starting fresh")
+                self.settings = {}
 
     def _save_settings(self) -> None:
         """Save settings to JSON file."""
@@ -96,7 +97,8 @@ class UserSettings:
                         user_data["engine"] = "aivis"
 
                     migrated = True
-                    logger.info(f"Migrated user {user_id} settings: {user_data['speaker_name']} -> engine: {user_data['engine']}")
+                    speaker_name = user_data.get("speaker_name", "Unknown")
+                    logger.info(f"Migrated user {user_id} settings: {speaker_name} -> engine: {user_data['engine']}")
 
         if migrated:
             self._save_settings()
@@ -159,13 +161,8 @@ class UserSettings:
         if mapped_id is not None:
             return mapped_id
 
-        # No direct mapping found, use engine defaults
-        if to_engine == "voicevox":
-            return 3  # Zundamon (Normal)
-        elif to_engine == "aivis":
-            return 1512153250  # Unofficial Zundamon (Normal)
-
-        return speaker_id  # Fallback to original
+        # No direct mapping found, use engine defaults from mapping module
+        return DEFAULT_SPEAKERS.get(to_engine, speaker_id)
 
     def set_user_speaker(self, user_id: str, speaker_id: int, speaker_name: str = "", engine: str | None = None) -> bool:
         """Set speaker preference for a user.
@@ -185,20 +182,15 @@ class UserSettings:
 
             # Auto-detect engine if not specified
             if engine is None:
-                if speaker_id in [1, 3, 5, 7]:  # Known VOICEVOX IDs
-                    engine = "voicevox"
-                elif speaker_id >= 100000:  # Typically AIVIS IDs are large numbers
-                    engine = "aivis"
-                else:
-                    # Engine will be determined by caller - fallback to voicevox for compatibility
-                    engine = "voicevox"  # Use voicevox as fallback
+                engine = detect_engine(speaker_id)
 
-            self.settings[user_id] = {
-                "speaker_id": speaker_id,
-                "speaker_name": speaker_name,
-                "engine": engine,
-            }
-            self._save_settings()
+            with self._lock:
+                self.settings[user_id] = {
+                    "speaker_id": speaker_id,
+                    "speaker_name": speaker_name,
+                    "engine": engine,
+                }
+                self._save_settings()
             logger.info(f"Set speaker for user {user_id}: {speaker_name} ({speaker_id}) on {engine} engine")
             return True
         except Exception as e:
@@ -216,11 +208,12 @@ class UserSettings:
 
         """
         user_id = str(user_id)
-        if user_id in self.settings:
-            del self.settings[user_id]
-            self._save_settings()
-            logger.info(f"Removed speaker preference for user {user_id}")
-            return True
+        with self._lock:
+            if user_id in self.settings:
+                del self.settings[user_id]
+                self._save_settings()
+                logger.info(f"Removed speaker preference for user {user_id}")
+                return True
         return False
 
     def get_user_settings(self, user_id: str) -> dict[str, Any] | None:
@@ -255,6 +248,8 @@ class UserSettings:
             Statistics dictionary
 
         """
+        # Reload to get latest settings
+        self._load_settings()
         speaker_counts: dict[str, int] = {}
         engine_counts: dict[str, int] = {}
 
@@ -281,6 +276,8 @@ class UserSettings:
             Dictionary with compatibility information
 
         """
+        # Reload to get latest settings
+        self._load_settings()
         compatible_users: list[dict[str, Any]] = []
         mapped_users: list[dict[str, Any]] = []
 
