@@ -12,9 +12,7 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, spea
         "Handling /voice command from user id={} name={} speaker={}",
         interaction.user.id,
         interaction.user.display_name,
-        (speaker if speaker is None
-         else (speaker[:64] + "…") if len(speaker) > 64
-         else speaker),
+        (speaker if speaker is None else (speaker[:64] + "…") if len(speaker) > 64 else speaker),
     )
     try:
         from ...user_settings import get_user_settings

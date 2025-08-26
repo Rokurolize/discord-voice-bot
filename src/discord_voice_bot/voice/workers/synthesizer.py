@@ -72,6 +72,7 @@ class SynthesizerWorker:
                 # Check buffer size before processing
                 if self.buffer_size >= self.max_buffer_size:
                     logger.warning("Audio buffer size limit reached, dropping synthesis request")
+                    self.voice_handler.stats.increment_errors()
                     continue
 
                 # Get user settings
@@ -99,6 +100,7 @@ class SynthesizerWorker:
                     # Validate audio format
                     if not validate_wav_format(audio_data):
                         logger.error(f"Invalid audio format for: {item['text'][:50]}...")
+                        self.voice_handler.stats.increment_errors()
                         consecutive_errors += 1
                         continue
 
@@ -106,6 +108,7 @@ class SynthesizerWorker:
                     audio_size = get_audio_size(audio_data)
                     if audio_size > 10 * 1024 * 1024:  # 10MB per audio file
                         logger.warning(f"Audio file too large ({audio_size} bytes), skipping")
+                        self.voice_handler.stats.increment_errors()
                         consecutive_errors += 1
                         continue
 
@@ -160,7 +163,14 @@ class SynthesizerWorker:
 
     def decrement_buffer_size(self, size: int) -> None:
         """Decrement the buffer size."""
-        self.buffer_size -= size
+        before = self.buffer_size
+        # Reject negative decrements, then clamp at zero to prevent underflow
+        self.buffer_size = max(before - max(size, 0), 0)
+        # If we went from >0 to 0 due to an excessive decrement, log it
+        if self.buffer_size == 0 and before != 0 and before - size < 0:
+            logger.debug(
+                "Synthesizer buffer underflow prevented; clamped to 0."
+            )
 
     async def _create_temp_audio_file(self, audio_data: bytes) -> str:
         """Create a temporary audio file with the given data."""

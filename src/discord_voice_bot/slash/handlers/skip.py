@@ -16,10 +16,16 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
 
         skipped = await bot.voice_handler.skip_current()
         if skipped:
-            _ = await interaction.response.send_message("⏭️ Skipped current TTS message")
+            _ = await interaction.response.send_message("⏭️ Skipped current TTS message", ephemeral=True)
         else:
             _ = await interaction.response.send_message("❌ No TTS message to skip", ephemeral=True)
 
     except Exception:
         logger.exception("Error in skip slash command")
-        _ = await interaction.response.send_message("❌ Error skipping message", ephemeral=True)
+        try:
+            if interaction.response.is_done():
+                _ = await interaction.followup.send("❌ Error skipping message", ephemeral=True)
+            else:
+                _ = await interaction.response.send_message("❌ Error skipping message", ephemeral=True)
+        except Exception as followup_err:
+            logger.debug(f"Suppressed secondary error while responding to interaction: {followup_err!s}")
