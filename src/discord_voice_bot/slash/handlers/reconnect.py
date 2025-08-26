@@ -10,7 +10,7 @@ from ...bot import DiscordVoiceTTSBot
 
 async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> None:
     """Handle reconnect slash command."""
-    logger.debug(f"Handling /reconnect command from user '{interaction.user}' (id={interaction.user.id})")
+    logger.debug("Handling /reconnect command from user id={} name={}", interaction.user.id, interaction.user.display_name)
     try:
         if not hasattr(bot, "voice_handler") or not bot.voice_handler:
             embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.red(), description="❌ Voice handler not initialized")
@@ -23,7 +23,7 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
 
         try:
             # Attempt reconnection
-            logger.info(f"🔄 MANUAL RECONNECTION - User {interaction.user} (id={interaction.user.id}) requested voice reconnection")
+            logger.info(f"🔄 MANUAL RECONNECTION - User {interaction.user} (id={interaction.user.id}) requested voice reconnection in guild {interaction.guild.id if interaction.guild else 'Unknown'}")
             from ...config import get_config
 
             success = await bot.voice_handler.connect_to_channel(get_config().target_voice_channel_id)

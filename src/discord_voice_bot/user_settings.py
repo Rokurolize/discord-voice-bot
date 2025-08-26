@@ -59,17 +59,18 @@ class UserSettings:
                         self.settings = loaded_settings
                         logger.debug(f"Reloaded settings for {len(self.settings)} users")
                 except json.JSONDecodeError as e:
-                    logger.error(f"Failed to parse settings file: {e}")
+                    logger.error(f"Failed to parse settings file {self.settings_file}: {e}")
                     # Don't clear existing settings on parse error
                 except Exception as e:
-                    logger.error(f"Failed to load settings: {e}")
+                    logger.error(f"Failed to load settings from {self.settings_file}: {e}")
                     # Don't clear existing settings on load error
             else:
-                logger.debug("No existing settings file, starting fresh")
+                logger.debug(f"No existing settings file at {self.settings_file}, starting fresh")
                 self.settings = {}
 
     def _save_settings(self) -> None:
         """Save settings to JSON file."""
+        tmp_path = None
         with self._lock:
             try:
                 tmp_path = self.settings_file.with_name(self.settings_file.name + ".tmp")
@@ -79,13 +80,18 @@ class UserSettings:
                     os.fsync(f.fileno())
                 os.replace(tmp_path, self.settings_file)
                 try:
-                    with open(self.settings_file.parent) as d:
-                        os.fsync(d.fileno())
+                    dir_fd = os.open(self.settings_file.parent, os.O_RDONLY)
+                    try:
+                        os.fsync(dir_fd)
+                    finally:
+                        os.close(dir_fd)
                 except OSError:
-                    pass # fsync on dir not supported on all platforms
+                    pass  # fsync on dir not supported on all platforms
                 logger.debug("Settings saved to file")
             except Exception as e:
                 logger.error(f"Failed to save settings: {e}")
+                if tmp_path and tmp_path.exists():
+                    tmp_path.unlink()
 
     def _initialize_defaults(self) -> None:
         """Initialize default user settings if not already set."""
