@@ -115,6 +115,9 @@ class PlayerWorker:
                             self._running = False
                             break
 
+                except asyncio.CancelledError:
+                    logger.info("Playback task cancelled")
+                    raise
                 except Exception:
                     logger.exception("Playback task error")
                     consecutive_errors += 1
@@ -141,7 +144,7 @@ class PlayerWorker:
         self.voice_handler.current_group_id = None
 
         if error:
-            logger.error(f"Playback error: {error}")
+            logger.opt(exception=error).error("Playback error")
             self.voice_handler.stats.increment_errors()
         else:
             # Count only successful completions

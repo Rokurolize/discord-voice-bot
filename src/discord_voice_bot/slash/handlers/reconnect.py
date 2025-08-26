@@ -10,7 +10,12 @@ from ...bot import DiscordVoiceTTSBot
 
 async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> None:
     """Handle reconnect slash command."""
-    logger.debug("Handling /reconnect command from user id={} name={}", interaction.user.id, interaction.user.display_name)
+    logger.debug(
+        "Handling /reconnect command from user id={} name={} guild_id={}",
+        interaction.user.id,
+        interaction.user.display_name,
+        interaction.guild.id if interaction.guild else None,
+    )
     try:
         if not hasattr(bot, "voice_handler") or not bot.voice_handler:
             embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.red(), description="❌ Voice handler not initialized")
@@ -23,7 +28,12 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
 
         try:
             # Attempt reconnection
-            logger.info(f"🔄 MANUAL RECONNECTION - User {interaction.user} (id={interaction.user.id}) requested voice reconnection in guild {interaction.guild.id if interaction.guild else 'Unknown'}")
+            logger.info(
+                "🔄 MANUAL RECONNECTION - user='{}' user_id={} guild_id={}",
+                interaction.user,
+                interaction.user.id,
+                (interaction.guild_id or "DM"),
+            )
             from ...config import get_config
 
             success = await bot.voice_handler.connect_to_channel(get_config().target_voice_channel_id)
@@ -52,6 +62,8 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
 
                 logger.error("❌ MANUAL RECONNECTION FAILED - Check logs for detailed error information")
 
+        except asyncio.CancelledError:
+            raise
         except Exception:
             embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.red(), description="❌ Error during reconnection. Please try again later.")
             logger.exception("💥 CRITICAL ERROR during manual reconnection")
@@ -68,4 +80,4 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
             else:
                 _ = await interaction.response.send_message("❌ Error during reconnection", ephemeral=True)
         except Exception as followup_err:
-            logger.debug(f"Suppressed secondary error while responding to interaction: {followup_err!s}")
+            logger.opt(exception=followup_err).debug("Suppressed secondary error while responding to interaction")

@@ -8,7 +8,7 @@ from loguru import logger
 
 from ...protocols import ConfigManager
 from ...tts_engine import get_tts_engine
-from ...user_settings import get_user_settings
+from ...user_settings import load_user_settings
 from ..audio_utils import calculate_message_priority, cleanup_file, get_audio_size, validate_wav_format
 
 
@@ -38,7 +38,7 @@ class SynthesizerWorker:
         # Initialize TTS engine and user settings with config manager
         # Note: TTS engine will be initialized asynchronously in run() method
         self._tts_engine = None
-        self._user_settings = get_user_settings()
+        self._user_settings = load_user_settings()
 
     async def run(self) -> None:
         """Run the synthesis worker loop."""
@@ -63,7 +63,7 @@ class SynthesizerWorker:
                 except TimeoutError:
                     self._idle_log_counter += 1
                     now = asyncio.get_running_loop().time()
-                    if now - getattr(self, "_last_idle_log", 0.0) >= 60.0:
+                    if now - self._last_idle_log >= 60.0:
                         logger.debug("SynthesizerWorker is idle, waiting for synthesis tasks in the queue.")
                         self._last_idle_log = now
                     await asyncio.sleep(0.1)

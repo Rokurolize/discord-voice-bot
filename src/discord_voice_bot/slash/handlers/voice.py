@@ -15,10 +15,10 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, spea
         (speaker if speaker is None else (speaker[:64] + "…") if len(speaker) > 64 else speaker),
     )
     try:
-        from ...user_settings import get_user_settings
+        from ...user_settings import load_user_settings
 
         user_id = str(interaction.user.id)
-        user_settings = get_user_settings()
+        user_settings = load_user_settings()
 
         # If no speaker specified, show current setting
         if speaker is None:

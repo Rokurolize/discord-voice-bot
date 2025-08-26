@@ -14,7 +14,7 @@ from .speaker_mapping import SPEAKER_MAPPING
 class UserSettings:
     """Manages user-specific settings like voice preferences."""
 
-    def __init__(self, settings_file: str | None = None) -> None:
+    def __init__(self, settings_file: str | os.PathLike[str] | None = None) -> None:
         """Initialize user settings manager.
 
         Args:
@@ -24,9 +24,9 @@ class UserSettings:
         super().__init__()
         if settings_file is None:
             if os.name == "nt":
-                base = Path(os.getenv("APPDATA", Path.home() / "AppData" / "Roaming"))
+                base = Path(os.environ.get("APPDATA", str(Path.home() / "AppData" / "Roaming")))
             else:
-                base = Path(os.getenv("XDG_CONFIG_HOME", Path.home() / ".config"))
+                base = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config")))
             self.settings_file = base / "discord-voice-bot" / "user_settings.json"
         else:
             self.settings_file = Path(settings_file)
@@ -51,13 +51,13 @@ class UserSettings:
                 try:
                     with open(self.settings_file, encoding="utf-8") as f:
                         loaded_settings = json.load(f)
-                    if not isinstance(loaded_settings, dict):
-                        logger.error(f"Settings file is not a dictionary, but {type(loaded_settings)}")
-                        return
                     # Only update if file has changed
                     if loaded_settings != self.settings:
                         self.settings = loaded_settings
                         logger.debug(f"Reloaded settings for {len(self.settings)} users")
+                        # If any entries are missing 'engine', migrate in place
+                        if any("engine" not in v for v in self.settings.values()):
+                            self._migrate_settings()
                 except json.JSONDecodeError as e:
                     logger.error(f"Failed to parse settings file {self.settings_file}: {e}")
                     # Don't clear existing settings on parse error
@@ -75,7 +75,7 @@ class UserSettings:
             try:
                 tmp_path = self.settings_file.with_name(self.settings_file.name + ".tmp")
                 with open(tmp_path, "w", encoding="utf-8") as f:
-                    json.dump(self.settings, f, indent=2, ensure_ascii=False)
+                    json.dump(self.settings, f, indent=2, ensure_ascii=False, sort_keys=True)
                     f.flush()
                     os.fsync(f.fileno())
                 os.replace(tmp_path, self.settings_file)
@@ -89,7 +89,7 @@ class UserSettings:
                     pass  # fsync on dir not supported on all platforms
                 logger.debug("Settings saved to file")
             except Exception as e:
-                logger.error(f"Failed to save settings: {e}")
+                logger.error(f"Failed to save settings to {self.settings_file}: {e}")
                 if tmp_path and tmp_path.exists():
                     tmp_path.unlink()
 
@@ -119,7 +119,7 @@ class UserSettings:
                         user_data["engine"] = "aivis"
 
                     migrated = True
-                    logger.info(f"Migrated user {user_id} settings: {user_data.get('speaker_name', 'Unknown')} -> engine: {user_data['engine']}")
+                    logger.debug(f"Migrated user {user_id} settings: {user_data.get('speaker_name', 'Unknown')} -> engine: {user_data['engine']}")
         if migrated:
             self._save_settings()
             logger.info("Settings migration completed")
@@ -343,6 +343,6 @@ class UserSettings:
         }
 
 
-def get_user_settings() -> UserSettings:
+def load_user_settings() -> UserSettings:
     """Create new user settings instance."""
     return UserSettings()
