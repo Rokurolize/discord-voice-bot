@@ -38,7 +38,7 @@ class VoiceConnectionManager:
             time_since_last_attempt = now - self._last_connection_attempt
             if time_since_last_attempt < self._reconnection_cooldown:
                 wait_time = self._reconnection_cooldown - time_since_last_attempt
-                logger.debug(".1f")
+                logger.debug(f"⏳ Respecting reconnection cooldown: waiting {wait_time:.1f}s")
                 await asyncio.sleep(wait_time)
 
             self._last_connection_attempt = now
@@ -182,10 +182,20 @@ class VoiceConnectionManager:
 
     @last_connection_attempt.setter
     def last_connection_attempt(self, value: float) -> None:
-        """Set the timestamp of the last connection attempt."""
-        self._last_connection_attempt = value
+        """Set timestamp of the last connection attempt (seconds from asyncio loop's monotonic clock)."""
+        try:
+            self._last_connection_attempt = float(value)
+        except (TypeError, ValueError) as e:
+            raise TypeError("last_connection_attempt must be a float-like value.") from e
 
     @property
     def reconnection_cooldown(self) -> int:
         """Get the reconnection cooldown duration in seconds."""
         return self._reconnection_cooldown
+
+    @reconnection_cooldown.setter
+    def reconnection_cooldown(self, value: int | float) -> None:
+        """Set the reconnection cooldown duration in seconds."""
+        if value < 0:
+            raise ValueError("reconnection_cooldown must be non-negative")
+        self._reconnection_cooldown = int(value)

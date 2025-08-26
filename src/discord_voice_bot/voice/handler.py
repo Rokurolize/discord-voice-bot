@@ -203,11 +203,11 @@ class VoiceHandler(VoiceHandlerInterface):
         self.connection_manager.last_connection_attempt = value
 
     @property
-    def reconnection_cooldown(self) -> float:
+    def reconnection_cooldown(self) -> int:
         return self.connection_manager.reconnection_cooldown
 
     @reconnection_cooldown.setter
-    def reconnection_cooldown(self, value: float) -> None:
+    def reconnection_cooldown(self, value: int | float) -> None:
         self.connection_manager.reconnection_cooldown = value
 
     async def start(self, start_player: bool = True) -> None:  # type: ignore[override]
@@ -250,14 +250,14 @@ class VoiceHandler(VoiceHandlerInterface):
             self._synthesizer_worker = synthesizer_worker
 
             # Start synthesizer worker task
-            synthesizer_task = asyncio.create_task(synthesizer_worker.run())
+            synthesizer_task = asyncio.create_task(synthesizer_worker.run(), name="synthesizer-worker")
             self.add_worker_task(synthesizer_task)
 
             # Start player worker only if requested
             if start_player:
                 player_worker = PlayerWorker(self, synthesizer_worker)
                 self._player_worker = player_worker
-                player_task = asyncio.create_task(player_worker.run())
+                player_task = asyncio.create_task(player_worker.run(), name="player-worker")
                 self.add_worker_task(player_task)
 
             logger.info("✅ Worker tasks started successfully")

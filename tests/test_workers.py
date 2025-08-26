@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import pytest_asyncio
 
 from discord_voice_bot.tts_client import TTSClient
 from discord_voice_bot.voice_handler import VoiceHandler
@@ -29,7 +30,7 @@ class MockTTSEngine:
 
         # Calculate sizes
         fmt_chunk_size = 16  # PCM format
-        sample_rate = 22050
+        sample_rate = 48000
         channels = 1
         bits_per_sample = 16
         bytes_per_sample = bits_per_sample // 8
@@ -38,7 +39,7 @@ class MockTTSEngine:
 
         # Create some minimal audio data (silence)
         audio_samples = 480  # 0.02 seconds at 24kHz
-        audio_data_size = audio_samples * bytes_per_sample
+        audio_data_size = audio_samples * block_align
         audio_data = b"\x00" * audio_data_size  # Silence
 
         # Total file size
@@ -107,10 +108,18 @@ def mock_config_manager() -> MagicMock:
     return config_manager
 
 
-@pytest.fixture
-def mock_tts_client(mock_config_manager: MagicMock) -> TTSClient:
-    """Create a mock TTS client."""
-    return TTSClient(mock_config_manager)
+@pytest_asyncio.fixture
+async def mock_tts_client(mock_config_manager: MagicMock) -> TTSClient:
+    """Create a mock TTS client with proper teardown."""
+    client = TTSClient(mock_config_manager)
+    try:
+        yield client
+    finally:
+        close = getattr(client, "aclose", None) or getattr(client, "close", None)
+        if callable(close):
+            res = close()
+            if asyncio.iscoroutine(res):
+                await res
 
 
 @pytest.fixture
@@ -118,9 +127,7 @@ def voice_handler(mock_bot_client: MagicMock, mock_config_manager: MagicMock, mo
     """Create a VoiceHandler instance with mocked bot client."""
     monkeypatch.setattr(Path, "mkdir", lambda *args, **kwargs: None)
     with patch("discord_voice_bot.voice.workers.synthesizer.get_user_settings") as mock_get_user_settings:
-        mock_user_settings = MagicMock()
-        mock_user_settings.get_user_settings.return_value = {}  # no overrides
-        mock_get_user_settings.return_value = mock_user_settings
+        mock_get_user_settings.return_value.get_user_settings.return_value = {}  # no overrides
 
         handler = VoiceHandler(mock_bot_client, mock_config_manager, mock_tts_client)
         yield handler
@@ -184,8 +191,11 @@ class TestWorkerInitialization:
 
                     await voice_handler.add_to_queue(test_message)
 
-                    # Wait a short time for processing
-                    await asyncio.sleep(0.1)
+                    # Wait deterministically for the item to be processed (≤ ~500ms)
+                    for _ in range(50):
+                        if voice_handler.synthesis_queue.empty():
+                            break
+                        await asyncio.sleep(0.01)
 
                     # Check that synthesis queue is empty (processed)
                     assert voice_handler.synthesis_queue.empty(), "Message was not processed from synthesis queue"

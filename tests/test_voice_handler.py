@@ -491,10 +491,9 @@ class TestComplianceTDD:
         assert voice_handler.connection_state == "CONNECTING"
 
         # Test connection attempt tracking
-        import time
+        import asyncio
 
         old_time: float = voice_handler.last_connection_attempt
-        time.sleep(0.001)  # Small delay to ensure time difference
-        voice_handler.last_connection_attempt = time.time()
+        voice_handler.last_connection_attempt = asyncio.get_event_loop().time()
 
         assert voice_handler.last_connection_attempt > old_time
