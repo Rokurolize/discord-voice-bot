@@ -1,7 +1,7 @@
 """Player worker for voice operations."""
 
 import asyncio
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 import discord
 from loguru import logger
@@ -17,7 +17,9 @@ class VoiceHandlerProtocol(Protocol):
     current_group_id: str | None
     is_playing: bool
     stats: Any
-    synthesizer: Any  # consider: "SynthesizerWorker | None" to match the handler
+    if TYPE_CHECKING:
+        from .synthesizer import SynthesizerWorker
+    synthesizer: "SynthesizerWorker | None"
 
 
 class PlayerWorker:
@@ -84,10 +86,7 @@ class PlayerWorker:
                             _ = l.call_soon_threadsafe(self._playback_complete, error, p, s)
 
                         # Schedule completion handling back onto the event loop thread
-                        self.voice_handler.voice_client.play(
-                            audio_source,
-                            after=after_playback
-                        )
+                        self.voice_handler.voice_client.play(audio_source, after=after_playback)
 
                         # Wait for playback to complete with timeout
                         waited = 0
@@ -102,14 +101,17 @@ class PlayerWorker:
                         logger.debug(f"Playback finished or stopped for: {audio_path} (priority: {priority})")
                         consecutive_errors = 0  # Reset error count on success
 
-                    except Exception as e:
-                        logger.error(f"Playback error: {e}")
+                    except Exception:
+                        logger.exception("Playback error")
                         cleanup_file(audio_path)
                         self.voice_handler.stats.increment_errors()
                         consecutive_errors += 1
                         # Reset state since completion callback won't run
                         self.voice_handler.is_playing = False
                         self.voice_handler.current_group_id = None
+                        # Account for buffered audio which would normally be decremented in completion
+                        if audio_size and self.voice_handler.synthesizer:
+                            self.voice_handler.synthesizer.decrement_buffer_size(audio_size)
 
                         if consecutive_errors >= max_consecutive_errors:
                             logger.error(f"Too many consecutive errors ({consecutive_errors}), stopping worker")

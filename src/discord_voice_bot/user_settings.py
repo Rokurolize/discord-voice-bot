@@ -3,41 +3,18 @@
 import json
 import os
 from pathlib import Path
-from threading import Lock
+from threading import RLock
 from typing import Any
 
 from loguru import logger
 
-# Speaker mapping between engines for consistent voice experience
-SPEAKER_MAPPING = {
-    "voicevox_to_aivis": {
-        1: 1512153249,  # Zundamon (Sweet) -> Unofficial Zundamon (Sweet)
-        3: 1512153250,  # Zundamon (Normal) -> Unofficial Zundamon (Normal)
-        5: 1512153251,  # Zundamon (Seductive) -> Unofficial Zundamon (Seductive)
-        7: 1512153252,  # Zundamon (Tsundere) -> Unofficial Zundamon (Tsundere)
-    },
-    "aivis_to_voicevox": {
-        1512153249: 1,  # Unofficial Zundamon (Sweet) -> Zundamon (Sweet)
-        1512153250: 3,  # Unofficial Zundamon (Normal) -> Zundamon (Normal)
-        1512153251: 5,  # Unofficial Zundamon (Seductive) -> Zundamon (Seductive)
-        1512153252: 7,  # Unofficial Zundamon (Tsundere) -> Zundamon (Tsundere)
-        1512153248: 3,  # Unofficial Zundamon (Reading) -> Zundamon (Normal) (fallback)
-        1512153253: 3,  # Unofficial Zundamon (Whisper) -> Zundamon (Normal) (fallback)
-        1512153254: 3,  # Unofficial Zundamon (Murmur) -> Zundamon (Normal) (fallback)
-        888753760: 3,  # Anneli (Normal) -> Zundamon (Normal) (fallback)
-        1431611904: 3,  # Mai (Normal) -> Zundamon (Normal) (fallback)
-        604166016: 3,  # Chuunibyou (Normal) -> Zundamon (Normal) (fallback)
-    },
-}
+from .speaker_mapping import SPEAKER_MAPPING
 
 
 class UserSettings:
     """Manages user-specific settings like voice preferences."""
 
-    def __init__(
-        self,
-        settings_file: str | None = None,
-    ) -> None:
+    def __init__(self, settings_file: str | None = None) -> None:
         """Initialize user settings manager.
 
         Args:
@@ -45,17 +22,15 @@ class UserSettings:
 
         """
         super().__init__()
-        if settings_file:
-            self.settings_file = Path(settings_file)
-        else:
-            # ~/.config/discord-voice-bot/user_settings.json (POSIX) or %APPDATA%\discord-voice-bot\user_settings.json (Windows)
+        if settings_file is None:
             if os.name == "nt":
-                base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
+                base = Path(os.getenv("APPDATA", Path.home() / "AppData" / "Roaming"))
             else:
-                base = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
-            self.settings_file = base / "discord-voice-bot" / "user_settings.json"
+                base = Path(os.getenv("XDG_CONFIG_HOME", Path.home() / ".config"))
+            settings_file = str(base / "discord-voice-bot" / "user_settings.json")
+        self.settings_file = Path(settings_file)
         self.settings: dict[str, dict[str, Any]] = {}
-        self._lock = Lock()
+        self._lock = RLock()
 
         # Ensure directory exists
         self.settings_file.parent.mkdir(parents=True, exist_ok=True)
@@ -70,23 +45,24 @@ class UserSettings:
 
     def _load_settings(self) -> None:
         """Load settings from JSON file."""
-        if self.settings_file.exists():
-            try:
-                with open(self.settings_file, encoding="utf-8") as f:
-                    loaded_settings = json.load(f)
+        with self._lock:
+            if self.settings_file.exists():
+                try:
+                    with open(self.settings_file, encoding="utf-8") as f:
+                        loaded_settings = json.load(f)
                     # Only update if file has changed
                     if loaded_settings != self.settings:
                         self.settings = loaded_settings
                         logger.debug(f"Reloaded settings for {len(self.settings)} users")
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse settings file: {e}")
-                # Don't clear existing settings on parse error
-            except Exception as e:
-                logger.error(f"Failed to load settings: {e}")
-                # Don't clear existing settings on load error
-        else:
-            logger.info("No existing settings file, starting fresh")
-            self.settings = {}
+                except json.JSONDecodeError as e:
+                    logger.error(f"Failed to parse settings file: {e}")
+                    # Don't clear existing settings on parse error
+                except Exception as e:
+                    logger.error(f"Failed to load settings: {e}")
+                    # Don't clear existing settings on load error
+            else:
+                logger.debug("No existing settings file, starting fresh")
+                self.settings = {}
 
     def _save_settings(self) -> None:
         """Save settings to JSON file."""
@@ -95,6 +71,7 @@ class UserSettings:
                 tmp_path = self.settings_file.with_suffix(self.settings_file.suffix + ".tmp")
                 with open(tmp_path, "w", encoding="utf-8") as f:
                     json.dump(self.settings, f, indent=2, ensure_ascii=False)
+                # Atomic on POSIX and Windows
                 os.replace(tmp_path, self.settings_file)
                 logger.debug("Settings saved to file")
             except Exception as e:
@@ -114,7 +91,6 @@ class UserSettings:
     def _migrate_settings(self) -> None:
         """Migrate existing user settings to include engine information."""
         migrated = False
-
         for user_id, user_data in self.settings.items():
             if "engine" not in user_data:
                 # Determine engine based on speaker_id
@@ -128,7 +104,6 @@ class UserSettings:
 
                     migrated = True
                     logger.info(f"Migrated user {user_id} settings: {user_data.get('speaker_name', 'Unknown')} -> engine: {user_data['engine']}")
-
         if migrated:
             self._save_settings()
             logger.info("Settings migration completed")

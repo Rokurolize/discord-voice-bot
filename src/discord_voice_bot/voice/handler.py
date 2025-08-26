@@ -137,10 +137,7 @@ class VoiceHandler(VoiceHandlerInterface):
         self._synthesizer_worker: SynthesizerWorker | None = None
         self._player_worker: PlayerWorker | None = None
 
-    @property
-    def synthesizer(self) -> SynthesizerWorker | None:  # type: ignore[name-defined]
-        """Get synthesizer worker instance."""
-        return self._synthesizer_worker
+    synthesizer: SynthesizerWorker | None = None
 
     @property
     def voice_gateway(self):
@@ -190,6 +187,7 @@ class VoiceHandler(VoiceHandlerInterface):
 
             # Store worker instances for graceful shutdown
             self._synthesizer_worker = synthesizer_worker
+            self.synthesizer = synthesizer_worker
 
             # Start synthesizer worker task
             synthesizer_task = asyncio.create_task(synthesizer_worker.run())

@@ -51,11 +51,7 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
                 logger.error("❌ MANUAL RECONNECTION FAILED - Check logs for detailed error information")
 
         except Exception:
-            embed = discord.Embed(
-                title="🔄 Voice Reconnection",
-                color=discord.Color.red(),
-                description="❌ Error during reconnection. Please try again later."
-            )
+            embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.red(), description="❌ Error during reconnection. Please try again later.")
             logger.exception("💥 CRITICAL ERROR during manual reconnection")
 
         _ = await interaction.edit_original_response(embed=embed)
