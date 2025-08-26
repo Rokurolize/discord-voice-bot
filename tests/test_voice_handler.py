@@ -197,6 +197,27 @@ class TestQueueManagement:
         tts_client.aclose.assert_not_called()
         tts_client.close_session.assert_not_called()
 
+    @pytest.mark.asyncio
+    async def test_cleanup_voice_client_does_not_close_shared_tts_client(
+        self, mock_bot_client: MagicMock, mock_config_manager: FakeConfigManager
+    ) -> None:
+        """Test that cleanup_voice_client does not close a shared TTSClient."""
+        # Create a mock TTSClient with spies for close methods
+        tts_client = MagicMock(spec=TTSClient)
+        tts_client.close = MagicMock()
+        tts_client.aclose = MagicMock()
+        tts_client.close_session = MagicMock()
+
+        handler = VoiceHandler(mock_bot_client, mock_config_manager, tts_client)
+
+        # Act
+        await handler.cleanup_voice_client()
+
+        # Assert
+        tts_client.close.assert_not_called()
+        tts_client.aclose.assert_not_called()
+        tts_client.close_session.assert_not_called()
+
 
 class TestStatusGeneration:
     """Test status information generation."""
@@ -230,8 +251,9 @@ class TestCleanup:
         await voice_handler.synthesis_queue.put({"text": "item"})
         await voice_handler.audio_queue.put(AudioItem("path", "group", 1, 0, 1024))
 
-        # Mock tasks to avoid cancellation issues
-        voice_handler.tasks = []
+        # Mock the task manager to avoid cancellation issues
+        voice_handler.task_manager = MagicMock()
+        voice_handler.task_manager.cleanup = AsyncMock()
 
         await voice_handler.cleanup()
 
@@ -462,7 +484,7 @@ class TestComplianceTDD:
         """Test proper tracking of voice connection state."""
         # Test initial state
         assert voice_handler.connection_state == "DISCONNECTED"
-        assert voice_handler._last_connection_attempt == 0.0  # type: ignore[attr-defined]
+        assert voice_handler.last_connection_attempt == 0.0
 
         # Test state changes
         voice_handler.connection_state = "CONNECTING"
@@ -471,8 +493,8 @@ class TestComplianceTDD:
         # Test connection attempt tracking
         import time
 
-        old_time: float = voice_handler._last_connection_attempt  # type: ignore[attr-defined]
+        old_time: float = voice_handler.last_connection_attempt
         time.sleep(0.001)  # Small delay to ensure time difference
-        voice_handler._last_connection_attempt = time.time()  # type: ignore[attr-defined]
+        voice_handler.last_connection_attempt = time.time()
 
-        assert voice_handler._last_connection_attempt > old_time  # type: ignore[attr-defined]
+        assert voice_handler.last_connection_attempt > old_time

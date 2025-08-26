@@ -180,6 +180,11 @@ class VoiceConnectionManager:
         """Get the timestamp of the last connection attempt."""
         return self._last_connection_attempt
 
+    @last_connection_attempt.setter
+    def last_connection_attempt(self, value: float) -> None:
+        """Set the timestamp of the last connection attempt."""
+        self._last_connection_attempt = value
+
     @property
     def reconnection_cooldown(self) -> int:
         """Get the reconnection cooldown duration in seconds."""

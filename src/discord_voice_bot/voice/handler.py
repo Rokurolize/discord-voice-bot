@@ -112,23 +112,7 @@ class VoiceHandler(VoiceHandlerInterface):
         # Maintain backward compatibility properties
         self.is_playing = False
 
-        # Delegate properties to managers for backward compatibility
-        self.target_channel = self.connection_manager.target_channel
-        self.connection_state = self.connection_manager.connection_state
-        self.synthesis_queue = self.queue_manager.synthesis_queue
-        self.audio_queue = self.queue_manager.audio_queue
-        self.current_group_id = self.queue_manager.current_group_id
-
-        # Backward compatibility for rate limiter
-        self.rate_limiter = self.rate_limiter_manager.rate_limiter
-        self.circuit_breaker = self.rate_limiter_manager.circuit_breaker
-
-        # Backward compatibility for connection attempt tracking - use properties for proper encapsulation
-        self._last_connection_attempt = self.connection_manager.last_connection_attempt
-        self._reconnection_cooldown = self.connection_manager.reconnection_cooldown
-
-        # Backward compatibility for task management
-        self.tasks = self.task_manager.tasks
+        # Backward-compat properties are provided via accessors below to avoid stale mirrors.
 
         # Worker instances for graceful shutdown
         self._synthesizer_worker: SynthesizerWorker | None = None
@@ -145,7 +129,7 @@ class VoiceHandler(VoiceHandlerInterface):
         return self.stats_tracker
 
     @property
-    def voice_client(self):
+    def voice_client(self) -> discord.VoiceClient | None:
         """Get voice client from connection manager."""
         return self.connection_manager.voice_client
 
@@ -163,6 +147,68 @@ class VoiceHandler(VoiceHandlerInterface):
     def voice_gateway(self, value: "VoiceGatewayManager | None") -> None:
         """Set voice gateway in connection manager."""
         self.connection_manager.voice_gateway = value
+
+    # ----- Backward-compatibility proxies -----
+    @property
+    def target_channel(self):
+        return self.connection_manager.target_channel
+
+    @target_channel.setter
+    def target_channel(self, value):
+        self.connection_manager.target_channel = value
+
+    @property
+    def connection_state(self) -> str:
+        return self.connection_manager.connection_state
+
+    @connection_state.setter
+    def connection_state(self, value: str) -> None:
+        self.connection_manager.connection_state = value
+
+    @property
+    def synthesis_queue(self):
+        return self.queue_manager.synthesis_queue
+
+    @property
+    def audio_queue(self):
+        return self.queue_manager.audio_queue
+
+    @property
+    def current_group_id(self) -> str | None:
+        return self.queue_manager.current_group_id
+
+    @current_group_id.setter
+    def current_group_id(self, value: str | None) -> None:
+        self.queue_manager.current_group_id = value
+
+    @property
+    def rate_limiter(self):
+        return self.rate_limiter_manager.rate_limiter
+
+    @property
+    def circuit_breaker(self):
+        return self.rate_limiter_manager.circuit_breaker
+
+    @property
+    def tasks(self):
+        # Expose list by reference but prevent reassignment that would desync TaskManager
+        return self.task_manager.tasks
+
+    @property
+    def last_connection_attempt(self) -> float:
+        return self.connection_manager.last_connection_attempt
+
+    @last_connection_attempt.setter
+    def last_connection_attempt(self, value: float) -> None:
+        self.connection_manager.last_connection_attempt = value
+
+    @property
+    def reconnection_cooldown(self) -> float:
+        return self.connection_manager.reconnection_cooldown
+
+    @reconnection_cooldown.setter
+    def reconnection_cooldown(self, value: float) -> None:
+        self.connection_manager.reconnection_cooldown = value
 
     async def start(self, start_player: bool = True) -> None:  # type: ignore[override]
         """Start the voice handler tasks."""
@@ -294,7 +340,6 @@ class VoiceHandler(VoiceHandlerInterface):
 
         return {
             "connected": connection_info["connected"],
-            "voice_connected": connection_info["connected"],
             "voice_channel_name": connection_info["channel_name"],
             "voice_channel_id": connection_info["channel_id"],
             "playing": self.is_playing,
@@ -306,8 +351,7 @@ class VoiceHandler(VoiceHandlerInterface):
             "messages_skipped": stats["messages_skipped"],
             "errors": stats["errors"],
             "connection_state": connection_info["connection_state"],
-            "is_playing": self.is_playing,
-            "max_queue_size": 50,
+            "max_queue_size": getattr(self._config_manager, "get_message_queue_size", lambda: 50)(),
         }
 
     async def health_check(self) -> dict[str, Any]:  # type: ignore[override]
@@ -321,8 +365,7 @@ class VoiceHandler(VoiceHandlerInterface):
 
         await self.task_manager.cleanup()
 
-        result = await self.clear_all()
-        _ = result  # Handle unused result
+        await self.clear_all()
 
         await self.connection_manager.cleanup_voice_client()
 

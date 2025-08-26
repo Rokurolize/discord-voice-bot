@@ -219,9 +219,6 @@ class TestWorkerInitialization:
                 # Verify workers are running
                 assert len(voice_handler.tasks) > 0, "No worker tasks were created"
 
-                # Mock tasks to avoid cancellation issues
-                voice_handler.tasks = []
-
                 await voice_handler.cleanup()
 
                 # Workers should be stopped
@@ -361,9 +358,6 @@ class TestWorkerInitialization:
 
                 # Verify workers are running
                 assert len(voice_handler.tasks) > 0, "No worker tasks were created"
-
-                # Mock tasks to avoid cancellation issues
-                voice_handler.tasks = []
 
                 await voice_handler.cleanup()
 
