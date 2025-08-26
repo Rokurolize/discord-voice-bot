@@ -149,7 +149,7 @@ class TestWorkerInitialization:
                 # (SynthesizerWorker + PlayerWorker)
                 assert len(active_tasks) >= 2, f"Expected at least 2 workers, got {len(active_tasks)}"
 
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pytest.fail("Test timed out - voice_handler_initializes_workers took too long")
 
         finally:
@@ -193,7 +193,7 @@ class TestWorkerInitialization:
                     # Check that audio queue has an item (processed by SynthesizerWorker)
                     assert not voice_handler.audio_queue.empty(), "Audio was not queued after synthesis"
 
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pytest.fail("Test timed out - workers_process_queue_items took too long")
 
         finally:
@@ -228,7 +228,7 @@ class TestWorkerInitialization:
                 assert voice_handler._synthesizer_worker is None or voice_handler._synthesizer_worker._running == False
                 assert voice_handler._player_worker is None or voice_handler._player_worker._running == False
 
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pytest.fail("Test timed out - worker_cleanup_on_handler_cleanup took too long")
 
     @pytest.mark.asyncio
@@ -247,7 +247,7 @@ class TestWorkerInitialization:
                 # The test should complete without hanging, even if TTS synthesis times out
                 await asyncio.sleep(0.5)
 
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pytest.fail("Test timed out - worker_timeout_protection took too long")
 
         finally:
@@ -282,7 +282,7 @@ class TestWorkerInitialization:
                 active_tasks = [task for task in voice_handler.tasks if not task.done()]
                 assert len(active_tasks) > 0, "Worker tasks finished immediately"
 
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pytest.fail("Test timed out - voice_handler_initializes_workers_fixed took too long")
 
         finally:
@@ -331,7 +331,7 @@ class TestWorkerInitialization:
                 # Check that audio queue has an item (processed by SynthesizerWorker)
                 assert not voice_handler.audio_queue.empty(), "Audio was not queued after synthesis"
 
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pytest.fail("Test timed out - workers did not process queue items")
 
         finally:
@@ -371,5 +371,5 @@ class TestWorkerInitialization:
                 assert voice_handler._synthesizer_worker is None or voice_handler._synthesizer_worker._running == False
                 assert voice_handler._player_worker is None or voice_handler._player_worker._running == False
 
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pytest.fail("Test timed out - worker_cleanup_on_handler_cleanup_fixed took too long")

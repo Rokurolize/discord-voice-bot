@@ -30,6 +30,8 @@ class PlayerWorker:
         self.voice_handler = voice_handler
         self._synthesizer_worker = synthesizer_worker
         self._running = True
+        self._loop = asyncio.get_running_loop()
+        self._playback_event = asyncio.Event()
 
     async def run(self) -> None:
         """Run the playback worker loop."""
@@ -41,10 +43,21 @@ class PlayerWorker:
                 try:
                     # Add timeout to queue.get() to prevent indefinite blocking
                     try:
-                        audio_path, group_id, priority, chunk_index, audio_size = await asyncio.wait_for(self.voice_handler.audio_queue.get(), timeout=1.0)
-                    except TimeoutError:
+                        item = await asyncio.wait_for(self.voice_handler.audio_queue.get(), timeout=1.0)
+                    except asyncio.TimeoutError:
                         # No items in queue, continue loop
                         await asyncio.sleep(0.1)
+                        continue
+
+                    # Handle different queue item formats for backward compatibility
+                    if isinstance(item, tuple) and len(item) == 5:
+                        audio_path, group_id, priority, chunk_index, audio_size = item
+                    elif isinstance(item, tuple) and len(item) == 3:
+                        audio_path, group_id, priority = item
+                        chunk_index, audio_size = 0, 0  # Default values for older format
+                        logger.warning(f"Processing legacy queue item (3 elements): {audio_path}")
+                    else:
+                        logger.error(f"Invalid item in queue: {item}")
                         continue
 
                     if not self.voice_handler.voice_client or not self.voice_handler.voice_client.is_connected():
@@ -66,26 +79,24 @@ class PlayerWorker:
                     # Play audio with enhanced error handling
                     self.voice_handler.current_group_id = group_id
                     self.voice_handler.is_playing = True
+                    self._playback_event.clear()
 
                     try:
                         audio_source = discord.FFmpegPCMAudio(audio_path)
                         self.voice_handler.voice_client.play(audio_source, after=self._playback_complete)
 
                         # Wait for playback to complete with timeout
-                        waited = 0
-                        while self.voice_handler.voice_client.is_playing() and waited < 300:  # 5 minute timeout
-                            await asyncio.sleep(0.1)
-                            waited += 1
+                        await asyncio.wait_for(self._playback_event.wait(), timeout=300)  # 5 minute timeout
 
-                        if waited >= 300:
-                            logger.warning(f"Audio playback timeout for {audio_path}")
-                            self.voice_handler.voice_client.stop()
-
-                        self._synthesizer_worker.buffer_size -= audio_size
+                        if audio_size > 0:
+                            self._synthesizer_worker.buffer_size -= audio_size
                         self.voice_handler.stats.increment_messages_played()
                         logger.debug(f"Played audio: {audio_path} (priority: {priority})")
                         consecutive_errors = 0
 
+                    except asyncio.TimeoutError:
+                        logger.warning(f"Audio playback timeout for {audio_path}")
+                        self.voice_handler.voice_client.stop()
                     except Exception as e:
                         logger.error(f"Playback error: {e}")
                         cleanup_file(audio_path)
@@ -96,6 +107,9 @@ class PlayerWorker:
                             logger.error(f"Too many consecutive errors ({consecutive_errors}), stopping worker")
                             self._running = False
                             break
+                    finally:
+                        self.voice_handler.is_playing = False
+                        self.voice_handler.current_group_id = None
 
                 except asyncio.CancelledError:
                     logger.info("PlayerWorker cancelled")
@@ -122,9 +136,10 @@ class PlayerWorker:
 
     def _playback_complete(self, error: Exception | None) -> None:
         """Handle playback completion."""
-        self.voice_handler.is_playing = False
-        self.voice_handler.current_group_id = None
-
         if error:
-            logger.error(f"Playback error: {error}")
+            logger.error(f"Playback error in callback: {error}")
             self.voice_handler.stats.increment_errors()
+
+        # This function can be called from a different thread,
+        # so we use call_soon_threadsafe to interact with the event loop.
+        self._loop.call_soon_threadsafe(self._playback_event.set)

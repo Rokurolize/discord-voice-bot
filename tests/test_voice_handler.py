@@ -16,6 +16,29 @@ MockBotClient = MagicMock
 VoiceHandlerFixture = VoiceHandler
 
 
+class FakeConfigManager:
+    """A fake config manager for testing."""
+    def get_tts_engine(self): return "voicevox"
+    def get_engines(self): return {"voicevox": {"url": "http://localhost:50021", "default_speaker": 1, "speakers": {"test": 1}}}
+    def get_audio_sample_rate(self): return 24000
+    def get_audio_channels(self): return 1
+    def get_log_level(self): return "INFO"
+    def get_discord_token(self): return "test_token"
+    def get_target_guild_id(self): return 123456789
+    def get_target_voice_channel_id(self): return 987654321
+    def get_command_prefix(self): return "!tts"
+    def get_engine_config(self): return self.get_engines()["voicevox"]
+    def get_max_message_length(self): return 200
+    def get_message_queue_size(self): return 10
+    def get_reconnect_delay(self): return 5
+    def get_rate_limit_messages(self): return 5
+    def get_rate_limit_period(self): return 60
+    def get_log_file(self): return None
+    def is_debug(self): return False
+    def get_enable_self_message_processing(self): return False
+    def is_test_mode(self): return True
+
+
 @pytest.fixture
 def mock_bot_client() -> MagicMock:
     """Create a mock bot client."""
@@ -25,40 +48,19 @@ def mock_bot_client() -> MagicMock:
 
 
 @pytest.fixture
-def mock_config_manager() -> MagicMock:
-    """Create a mock config manager."""
-    config_manager = MagicMock()
-    # Mock the required configuration methods
-    config_manager.get_tts_engine.return_value = "voicevox"
-    config_manager.get_engines.return_value = {"voicevox": {"url": "http://localhost:50021", "default_speaker": 1}}
-    config_manager.get_audio_sample_rate.return_value = 24000
-    config_manager.get_audio_channels.return_value = 1
-    config_manager.get_log_level.return_value = "INFO"
-    config_manager.get_discord_token.return_value = "test_token"
-    config_manager.get_target_guild_id.return_value = 123456789
-    config_manager.get_target_voice_channel_id.return_value = 987654321
-    config_manager.get_command_prefix.return_value = "!tts"
-    config_manager.get_engine_config.return_value = {"speakers": {"test": 1}}
-    config_manager.get_engines.return_value = {"voicevox": {"url": "http://localhost:50021", "default_speaker": 1}}
-    config_manager.get_max_message_length.return_value = 200
-    config_manager.get_message_queue_size.return_value = 10
-    config_manager.get_reconnect_delay.return_value = 5
-    config_manager.get_rate_limit_messages.return_value = 5
-    config_manager.get_rate_limit_period.return_value = 60
-    config_manager.get_log_file.return_value = None
-    config_manager.is_debug.return_value = False
-    config_manager.get_enable_self_message_processing.return_value = False
-    return config_manager
+def mock_config_manager() -> FakeConfigManager:
+    """Create a fake config manager."""
+    return FakeConfigManager()
 
 
 @pytest.fixture
-def mock_tts_client(mock_config_manager: MagicMock) -> TTSClient:
+def mock_tts_client(mock_config_manager: FakeConfigManager) -> TTSClient:
     """Create a mock TTS client."""
     return TTSClient(mock_config_manager)
 
 
 @pytest.fixture
-def voice_handler(mock_bot_client: MagicMock, mock_config_manager: MagicMock, mock_tts_client: TTSClient) -> VoiceHandler:
+def voice_handler(mock_bot_client: MagicMock, mock_config_manager: FakeConfigManager, mock_tts_client: TTSClient) -> VoiceHandler:
     """Create a VoiceHandler instance with mocked bot client."""
     handler = VoiceHandler(mock_bot_client, mock_config_manager, mock_tts_client)
     return handler
@@ -67,7 +69,7 @@ def voice_handler(mock_bot_client: MagicMock, mock_config_manager: MagicMock, mo
 class TestVoiceHandlerInitialization:
     """Test VoiceHandler initialization."""
 
-    def test_initialization(self, mock_bot_client: MagicMock, mock_config_manager: MagicMock, mock_tts_client: TTSClient) -> None:
+    def test_initialization(self, mock_bot_client: MagicMock, mock_config_manager: FakeConfigManager, mock_tts_client: TTSClient) -> None:
         """Test handler initialization."""
         handler = VoiceHandler(mock_bot_client, mock_config_manager, mock_tts_client)
         assert handler.bot == mock_bot_client
@@ -252,19 +254,25 @@ class TestComplianceTDD:
 
     @pytest.mark.asyncio
     async def test_voice_gateway_event_handling(self, voice_handler: VoiceHandler) -> None:
-        """Test voice gateway event handling doesn't crash."""
-        try:
-            async with asyncio.timeout(2.0):  # 2 second timeout
-                # Test with minimal mock data
-                mock_payload: dict[str, str] = {"token": "test_token", "guild_id": "123456789", "endpoint": "test.endpoint:1234"}
+        """Test voice gateway event handling updates gateway manager state."""
+        # Mock voice client and initialize voice gateway
+        mock_voice_client = MagicMock()
+        mock_voice_client.is_connected.return_value = True
+        voice_handler.voice_client = mock_voice_client
+        from discord_voice_bot.voice.gateway import VoiceGatewayManager
+        voice_handler.voice_gateway = VoiceGatewayManager(mock_voice_client)
 
-                # These should not raise exceptions
-                await voice_handler.handle_voice_server_update(mock_payload)
+        # Test with mock data
+        server_payload = {"token": "test_token", "guild_id": "123456789", "endpoint": "test.endpoint:1234"}
+        await voice_handler.handle_voice_server_update(server_payload)
 
-                mock_state_payload: dict[str, str] = {"session_id": "test_session_id"}
-                await voice_handler.handle_voice_state_update(mock_state_payload)
-        except asyncio.TimeoutError:
-            pytest.fail("Test timed out - voice_gateway_event_handling took too long")
+        state_payload = {"session_id": "test_session_id"}
+        await voice_handler.handle_voice_state_update(state_payload)
+
+        # Assert that the gateway manager's state was updated
+        assert voice_handler.voice_gateway is not None
+        assert voice_handler.voice_gateway._token == "test_token"
+        assert voice_handler.voice_gateway._session_id == "test_session_id"
 
     def test_compliance_components_exist(self, voice_handler: VoiceHandler) -> None:
         """Test that all compliance components are properly initialized."""

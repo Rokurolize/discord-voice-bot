@@ -72,3 +72,5 @@ def mock_env_vars(monkeypatch):
     monkeypatch.setenv("TTS_ENGINE", "voicevox")
     monkeypatch.setenv("VOICEVOX_URL", "http://localhost:50021")
     monkeypatch.setenv("TEST_MODE", "1")  # enables deterministic rate limits
+    monkeypatch.setenv("TTS_REQUEST_RATE_LIMIT", "10")  # Test-friendly rate limit
+    monkeypatch.setenv("TTS_REQUEST_PER", "1")

@@ -17,10 +17,6 @@ async def test_discord_token_validity(mock_login):
         pytest.skip("DISCORD_BOT_TOKEN not set")
 
     print(f"🔍 Testing token from .env (length: {len(token)})")
-    if len(token) >= 20:
-        print(f"🔍 Token preview: {token[:10]}...{token[-10:]}")
-    else:
-        print(f"🔍 Token: {token}")
 
     # Get intents from config
     from discord_voice_bot.config import get_config
@@ -55,10 +51,6 @@ async def test_discord_token_via_config_manager(mock_login):
         pytest.skip("DISCORD_BOT_TOKEN not set in ConfigManager")
 
     print(f"🔍 Testing token from ConfigManager (length: {len(token)})")
-    if len(token) >= 20:
-        print(f"🔍 Token preview: {token[:10]}...{token[-10:]}")
-    else:
-        print(f"🔍 Token: {token}")
 
     # Get intents from config
     from discord_voice_bot.config import get_config
@@ -98,8 +90,6 @@ def test_token_consistency(test_config_manager):
             print("✅ Tokens are identical")
         else:
             print("❌ Tokens are different!")
-            print(f"  .env: {env_token[:10]}...{env_token[-10:] if len(env_token) >= 20 else env_token}")
-            print(f"  Manager: {manager_token[:10]}...{manager_token[-10:] if len(manager_token) >= 20 else manager_token}")
 
     assert env_token is not None, "Token not found in .env"
     assert manager_token is not None, "Token not found in ConfigManager"
@@ -156,9 +146,6 @@ async def test_bot_start_with_config_dry_run(mock_login, test_config_manager):
         # Get the token that would be used
         token = bot.config_manager.get_discord_token()
         print(f"🚀 Token that would be used (length: {len(token)})")
-
-        if len(token) >= 20:
-            print(f"🚀 Token preview: {token[:10]}...{token[-10:]}")
 
         # Test the token one more time
         from discord import Client
@@ -227,9 +214,6 @@ async def test_actual_bot_startup_simulation(mock_login, prod_config_manager):
         # Get the same token that would be used in bot startup
         token = bot_manager.config_manager.get_discord_token()
         print(f"🎯 Token that would be used (length: {len(token)})")
-
-        if len(token) >= 20:
-            print(f"🎯 Token preview: {token[:10]}...{token[-10:]}")
 
         # Check test mode
         test_mode = bot_manager.config_manager.is_test_mode()

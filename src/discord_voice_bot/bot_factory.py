@@ -96,8 +96,9 @@ class BotFactory:
             config_manager = ConfigManagerImpl(test_mode=test_mode)
 
             # Create a shared TTS client
-            self.tts_client = TTSClient(config_manager)
-            assert self.tts_client is not None, "TTSClient creation returned None"
+            tts_client = TTSClient(config_manager)
+            assert tts_client is not None, "TTSClient creation returned None"
+            self.tts_client = tts_client
 
             # Create bot instance with configuration manager
             if bot_class is None:
@@ -105,7 +106,7 @@ class BotFactory:
             bot: Any = bot_class(config_manager)
 
             # Setup all components with config manager
-            await self._setup_components(bot, config_manager, self.tts_client)
+            await self._setup_components(bot, config_manager, tts_client)
 
             # Validate configuration
             await self._validate_configuration(bot, config_manager)
@@ -113,8 +114,16 @@ class BotFactory:
             logger.info("Bot instance created and configured successfully")
             return bot
 
-        except Exception as e:
-            logger.error(f"Failed to create bot instance: {e}")
+        except Exception:
+            logger.exception("Failed to create bot instance")
+            # Best-effort rollback for partially-initialized TTS client
+            if self.tts_client:
+                try:
+                    await self.tts_client.close_session()
+                except Exception as ce:
+                    logger.warning(f"Error closing TTS client during create_bot rollback: {ce}")
+                finally:
+                    self.tts_client = None
             raise
 
     async def _setup_components(self, bot: Any, config_manager: ConfigManagerImpl, tts_client: TTSClient) -> None:

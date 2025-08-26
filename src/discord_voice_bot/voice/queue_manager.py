@@ -85,7 +85,7 @@ class QueueManager:
                 queue_item: dict[str, Any] = await asyncio.wait_for(self.synthesis_queue.get(), timeout=0.1)
                 if queue_item.get("group_id") != group_id:
                     await temp_queue.put(queue_item)
-            except TimeoutError:
+            except asyncio.TimeoutError:
                 break
 
         # Put remaining items back
@@ -93,7 +93,7 @@ class QueueManager:
             try:
                 remaining_item: dict[str, Any] = await asyncio.wait_for(temp_queue.get(), timeout=0.1)
                 await self.synthesis_queue.put(remaining_item)
-            except TimeoutError:
+            except asyncio.TimeoutError:
                 break
 
         return original_size - self.synthesis_queue.qsize()
