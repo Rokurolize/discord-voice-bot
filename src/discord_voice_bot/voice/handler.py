@@ -113,7 +113,6 @@ class VoiceHandler(VoiceHandlerInterface):
         self.is_playing = False
 
         # Delegate properties to managers for backward compatibility
-        self.voice_client = self.connection_manager.voice_client
         self.target_channel = self.connection_manager.target_channel
         self.connection_state = self.connection_manager.connection_state
         self.synthesis_queue = self.queue_manager.synthesis_queue
@@ -144,6 +143,16 @@ class VoiceHandler(VoiceHandlerInterface):
     def stats(self) -> "StatsTracker":
         """Get the stats tracker instance."""
         return self.stats_tracker
+
+    @property
+    def voice_client(self):
+        """Get voice client from connection manager."""
+        return self.connection_manager.voice_client
+
+    @voice_client.setter
+    def voice_client(self, value: "discord.VoiceClient | None") -> None:
+        """Set voice client in connection manager."""
+        self.connection_manager.voice_client = value
 
     @property
     def voice_gateway(self):

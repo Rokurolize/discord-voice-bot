@@ -188,7 +188,6 @@ class TestQueueManagement:
         tts_client.close_session = MagicMock()
 
         handler = VoiceHandler(mock_bot_client, mock_config_manager, tts_client)
-        handler.tasks = []
 
         # Act
         await handler.cleanup()
