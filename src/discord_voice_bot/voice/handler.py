@@ -119,7 +119,6 @@ class VoiceHandler(VoiceHandlerInterface):
         self.synthesis_queue = self.queue_manager.synthesis_queue
         self.audio_queue = self.queue_manager.audio_queue
         self.current_group_id = self.queue_manager.current_group_id
-        self.stats = self.stats_tracker
 
         # Backward compatibility for rate limiter
         self.rate_limiter = self.rate_limiter_manager.rate_limiter
@@ -140,6 +139,11 @@ class VoiceHandler(VoiceHandlerInterface):
     def tts_client(self) -> TTSClient:
         """Get the TTS client instance."""
         return self._tts_client
+
+    @property
+    def stats(self) -> "StatsTracker":
+        """Get the stats tracker instance."""
+        return self.stats_tracker
 
     @property
     def voice_gateway(self):

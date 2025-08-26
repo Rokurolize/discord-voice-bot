@@ -9,16 +9,22 @@ import pytest
 import pytest_asyncio
 
 from discord_voice_bot.tts_client import TTSClient
+from discord_voice_bot.voice.gateway import VoiceGatewayManager
 from discord_voice_bot.voice.ratelimit import SimpleRateLimiter
 from discord_voice_bot.voice_handler import VoiceHandler
 
 # Type aliases for better readability
 MockBotClient = MagicMock
 VoiceHandlerFixture = VoiceHandler
-AudioItem = NamedTuple(
-    "AudioItem",
-    [("path", str), ("group_id", str), ("priority", int), ("chunk_index", int), ("audio_size", int)],
-)
+
+
+class AudioItem(NamedTuple):
+    """A named tuple for audio queue items."""
+    path: str
+    group_id: str
+    priority: int
+    chunk_index: int
+    audio_size: int
 
 
 class FakeConfigManager:
@@ -168,6 +174,7 @@ class TestQueueManagement:
 
         assert voice_handler.synthesis_queue.empty()
         assert voice_handler.audio_queue.empty()
+        assert cleared == 2
 
     @pytest.mark.asyncio
     async def test_cleanup_does_not_close_shared_tts_client(
@@ -315,7 +322,7 @@ class TestComplianceTDD:
         voice_handler.voice_client = mock_voice_client
 
         # Use a MagicMock for the gateway manager to avoid real I/O
-        voice_handler.voice_gateway = AsyncMock()
+        voice_handler.voice_gateway = AsyncMock(spec=VoiceGatewayManager)
 
         # Test with mock data
         server_payload = {"token": "test_token", "guild_id": "123456789", "endpoint": "test.endpoint:1234"}
@@ -370,7 +377,7 @@ class TestComplianceTDD:
         voice_handler.voice_client = mock_voice_client
 
         # Use a MagicMock for the gateway manager to avoid real I/O
-        voice_handler.voice_gateway = AsyncMock()
+        voice_handler.voice_gateway = AsyncMock(spec=VoiceGatewayManager)
 
         # Test voice server update handling (step 1 in Discord flow)
         voice_server_payload: dict[str, str] = {"token": "test_voice_token_123", "guild_id": "123456789012345678", "endpoint": "test-voice-endpoint.example.com:443"}
