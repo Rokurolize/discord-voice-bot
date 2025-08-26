@@ -19,7 +19,13 @@ VoiceHandlerFixture = VoiceHandler
 class FakeConfigManager:
     """A fake config manager for testing."""
     def get_tts_engine(self): return "voicevox"
-    def get_engines(self): return {"voicevox": {"url": "http://localhost:50021", "default_speaker": 1, "speakers": {"test": 1}}}
+    def get_engines(self): return {
+        "voicevox": {
+            "url": "http://localhost:50021",
+            "default_speaker": 1,
+            "speakers": {"test": 1},
+        }
+    }
     def get_audio_sample_rate(self): return 24000
     def get_audio_channels(self): return 1
     def get_log_level(self): return "INFO"
@@ -27,12 +33,14 @@ class FakeConfigManager:
     def get_target_guild_id(self): return 123456789
     def get_target_voice_channel_id(self): return 987654321
     def get_command_prefix(self): return "!tts"
-    def get_engine_config(self): return self.get_engines()["voicevox"]
+    def get_engine_config(self, name=None):
+        engines = self.get_engines()
+        return engines[name or self.get_tts_engine()]
     def get_max_message_length(self): return 200
     def get_message_queue_size(self): return 10
     def get_reconnect_delay(self): return 5
-    def get_rate_limit_messages(self): return 5
-    def get_rate_limit_period(self): return 60
+    def get_rate_limit_messages(self): return 50
+    def get_rate_limit_period(self): return 1
     def get_log_file(self): return None
     def is_debug(self): return False
     def get_enable_self_message_processing(self): return False
