@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, Mock
 
 import discord
 import pytest
+import pytest_asyncio
 
 from discord_voice_bot.tts_client import TTSClient
 from discord_voice_bot.voice.ratelimit import SimpleRateLimiter
@@ -18,33 +19,33 @@ VoiceHandlerFixture = VoiceHandler
 
 class FakeConfigManager:
     """A fake config manager for testing."""
-    def get_tts_engine(self): return "voicevox"
-    def get_engines(self): return {
+    def get_tts_engine(self) -> str: return "voicevox"
+    def get_engines(self) -> dict[str, Any]: return {
         "voicevox": {
             "url": "http://localhost:50021",
             "default_speaker": 1,
             "speakers": {"test": 1},
         }
     }
-    def get_audio_sample_rate(self): return 24000
-    def get_audio_channels(self): return 1
-    def get_log_level(self): return "INFO"
-    def get_discord_token(self): return "test_token"
-    def get_target_guild_id(self): return 123456789
-    def get_target_voice_channel_id(self): return 987654321
-    def get_command_prefix(self): return "!tts"
-    def get_engine_config(self, name=None):
+    def get_audio_sample_rate(self) -> int: return 24000
+    def get_audio_channels(self) -> int: return 1
+    def get_log_level(self) -> str: return "INFO"
+    def get_discord_token(self) -> str: return "test_token"
+    def get_target_guild_id(self) -> int: return 123456789
+    def get_target_voice_channel_id(self) -> int: return 987654321
+    def get_command_prefix(self) -> str: return "!tts"
+    def get_engine_config(self, name: str | None = None) -> dict[str, Any]:
         engines = self.get_engines()
         return engines[name or self.get_tts_engine()]
-    def get_max_message_length(self): return 200
-    def get_message_queue_size(self): return 10
-    def get_reconnect_delay(self): return 5
-    def get_rate_limit_messages(self): return 50
-    def get_rate_limit_period(self): return 1
-    def get_log_file(self): return None
-    def is_debug(self): return False
-    def get_enable_self_message_processing(self): return False
-    def is_test_mode(self): return True
+    def get_max_message_length(self) -> int: return 200
+    def get_message_queue_size(self) -> int: return 10
+    def get_reconnect_delay(self) -> int: return 5
+    def get_rate_limit_messages(self) -> int: return 50
+    def get_rate_limit_period(self) -> int: return 1
+    def get_log_file(self) -> str | None: return None
+    def is_debug(self) -> bool: return False
+    def get_enable_self_message_processing(self) -> bool: return False
+    def is_test_mode(self) -> bool: return True
 
 
 @pytest.fixture
@@ -55,23 +56,40 @@ def mock_bot_client() -> MagicMock:
     return bot
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def mock_config_manager() -> FakeConfigManager:
     """Create a fake config manager."""
     return FakeConfigManager()
 
 
 @pytest.fixture
-def mock_tts_client(mock_config_manager: FakeConfigManager) -> TTSClient:
-    """Create a mock TTS client."""
-    return TTSClient(mock_config_manager)
+async def mock_tts_client(mock_config_manager: FakeConfigManager) -> TTSClient:
+    """Create a mock TTS client with proper teardown."""
+    client = TTSClient(mock_config_manager)
+    try:
+        yield client
+    finally:
+        # Gracefully close resources regardless of the method name/signature
+        close = getattr(client, "aclose", None) or getattr(client, "close", None)
+        if callable(close):
+            res = close()
+            if asyncio.iscoroutine(res):
+                await res
 
 
-@pytest.fixture
-def voice_handler(mock_bot_client: MagicMock, mock_config_manager: FakeConfigManager, mock_tts_client: TTSClient) -> VoiceHandler:
+@pytest_asyncio.fixture
+async def voice_handler(
+    mock_bot_client: MagicMock,
+    mock_config_manager: FakeConfigManager,
+    mock_tts_client: TTSClient,
+) -> VoiceHandler:
     """Create a VoiceHandler instance with mocked bot client."""
     handler = VoiceHandler(mock_bot_client, mock_config_manager, mock_tts_client)
-    return handler
+    try:
+        yield handler
+    finally:
+        # Ensure any background tasks/queues are closed
+        await handler.cleanup()
 
 
 class TestVoiceHandlerInitialization:
@@ -86,6 +104,7 @@ class TestVoiceHandlerInitialization:
         assert handler.audio_queue.empty()
         assert handler.is_playing is False
         assert handler.current_group_id is None
+        assert getattr(handler, "_tts_client", None) is mock_tts_client
 
 
 class TestQueueManagement:
@@ -197,13 +216,13 @@ class TestComplianceTDD:
         """Test that rate limiter meets Discord's 50 req/sec requirement."""
         import time
 
-        start_time: float = time.time()
+        start_time: float = time.perf_counter()
 
         # Make 10 requests - should take at least 0.2 seconds (10/50)
         for _ in range(10):
             await voice_handler.rate_limiter.wait_if_needed()
 
-        elapsed: float = time.time() - start_time
+        elapsed: float = time.perf_counter() - start_time
 
         # Should have taken at least ~0.15 seconds (10 requests at 50/sec = 0.2 sec; allow margin)
         assert elapsed >= 0.15
