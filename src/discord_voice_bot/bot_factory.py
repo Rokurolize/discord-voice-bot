@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 from loguru import logger
 
 from .config_manager import ConfigManagerImpl
+from .tts_client import TTSClient
 
 if TYPE_CHECKING:
     from .command_handler import CommandHandler
@@ -66,6 +67,7 @@ class BotFactory:
         """Initialize bot factory."""
         super().__init__()
         self.registry = ComponentRegistry()
+        self.tts_client: TTSClient | None = None
         logger.info("Bot factory initialized")
 
     async def create_bot(self, bot_class: type[Any] | None = None, test_mode: bool | None = None) -> Any:
@@ -91,13 +93,16 @@ class BotFactory:
             # Prepare configuration manager first
             config_manager = ConfigManagerImpl(test_mode=test_mode)
 
+            # Create a shared TTS client
+            self.tts_client = TTSClient(config_manager)
+
             # Create bot instance with configuration manager
             if bot_class is None:
                 raise ValueError("Bot class cannot be None")
             bot: Any = bot_class(config_manager)
 
             # Setup all components with config manager
-            await self._setup_components(bot, config_manager)
+            await self._setup_components(bot, config_manager, self.tts_client)
 
             # Validate configuration
             await self._validate_configuration(bot, config_manager)
@@ -109,12 +114,13 @@ class BotFactory:
             logger.error(f"Failed to create bot instance: {e}")
             raise
 
-    async def _setup_components(self, bot: Any, config_manager: ConfigManagerImpl) -> None:
+    async def _setup_components(self, bot: Any, config_manager: ConfigManagerImpl, tts_client: TTSClient) -> None:
         """Setup all bot components.
 
         Args:
             bot: Bot instance to setup components for
             config_manager: Configuration manager used by components during initialization.
+            tts_client: Shared TTS client instance.
 
         """
         logger.info("Setting up bot components...")
@@ -133,7 +139,9 @@ class BotFactory:
         for component_name, creator_func in components_to_setup:
             try:
                 # Pass config_manager to components that need it
-                if component_name in ["event_handler", "voice_handler", "health_monitor"]:
+                if component_name in ["voice_handler", "health_monitor"]:
+                    component = await creator_func(bot, config_manager, tts_client)  # type: ignore[call-arg]
+                elif component_name == "event_handler":
                     component = await creator_func(bot, config_manager)  # type: ignore[call-arg]
                 else:
                     component = await creator_func(bot)  # type: ignore[call-arg]
@@ -223,17 +231,17 @@ class BotFactory:
         """Create status manager."""
         return self._create_component("discord_voice_bot.status_manager", "StatusManager")
 
-    async def _create_voice_handler(self, bot: Any, config_manager: ConfigManagerImpl) -> Any:
+    async def _create_voice_handler(self, bot: Any, config_manager: ConfigManagerImpl, tts_client: TTSClient) -> Any:
         """Create voice handler."""
         try:
-            return self._create_component("discord_voice_bot.voice.handler", "VoiceHandler", bot, config_manager)
+            return self._create_component("discord_voice_bot.voice.handler", "VoiceHandler", bot, config_manager, tts_client)
         except Exception as e:
             logger.error(f"Failed to create voice handler: {e}")
             raise
 
-    async def _create_health_monitor(self, bot: Any, config_manager: ConfigManagerImpl) -> Any:
+    async def _create_health_monitor(self, bot: Any, config_manager: ConfigManagerImpl, tts_client: TTSClient) -> Any:
         """Create health monitor."""
-        return self._create_component("discord_voice_bot.health_monitor", "HealthMonitor", bot, config_manager)
+        return self._create_component("discord_voice_bot.health_monitor", "HealthMonitor", bot, config_manager, tts_client)
 
     async def _setup_existing_components(self, bot: Any) -> None:
         """Setup existing components that are already part of the bot.
@@ -289,14 +297,10 @@ class BotFactory:
         logger.info("Initializing external services...")
 
         try:
-            # Initialize TTS engine
-            from .tts_engine import get_tts_engine
-
-            # Use the bot's existing config manager
-            config_manager = bot.config_manager
-            tts_engine = await get_tts_engine(config_manager)
-            await tts_engine.start()
-            logger.debug("TTS engine initialized")
+            # Initialize TTS client session
+            if self.tts_client:
+                await self.tts_client.start_session()
+                logger.debug("TTS client session initialized")
 
             # Initialize voice handler
             if hasattr(bot, "voice_handler") and getattr(bot, "voice_handler", None):
@@ -395,6 +399,11 @@ class BotFactory:
                     logger.debug(f"Shutdown component: {component_name}")
                 except Exception as e:
                     logger.error(f"Error shutting down {component_name}: {e}")
+
+        # Shutdown TTS client session
+        if self.tts_client:
+            await self.tts_client.close_session()
+            logger.debug("Shutdown TTS client session")
 
         # Clear registry
         self.registry.clear()

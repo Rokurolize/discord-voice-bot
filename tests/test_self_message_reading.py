@@ -26,6 +26,15 @@ from src.discord_voice_bot.voice.handler import VoiceHandler
 from tests.base_test import AsyncTestCase, MockDiscordObjects
 
 
+@pytest.fixture(autouse=True)
+def mock_env_vars(monkeypatch):
+    """Mock environment variables for tests."""
+    monkeypatch.setenv("DISCORD_BOT_TOKEN", "test_token")
+    monkeypatch.setenv("TARGET_VOICE_CHANNEL_ID", "1350964414286921749")
+    monkeypatch.setenv("TTS_ENGINE", "voicevox")
+    monkeypatch.setenv("VOICEVOX_URL", "http://localhost:50021")
+
+
 class TestSelfMessageReading(AsyncTestCase):
     """Test cases for bot reading its own messages."""
 

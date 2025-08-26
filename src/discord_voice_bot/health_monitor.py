@@ -9,6 +9,7 @@ import discord
 from loguru import logger
 
 from .protocols import ConfigManager, DiscordBotClient
+from .tts_client import TTSClient
 
 
 @dataclass
@@ -37,11 +38,12 @@ class HealthStatus:
 class HealthMonitor:
     """Comprehensive health monitoring system with automatic termination."""
 
-    def __init__(self, bot_client: discord.Client | DiscordBotClient, config_manager: ConfigManager):
+    def __init__(self, bot_client: discord.Client | DiscordBotClient, config_manager: ConfigManager, tts_client: TTSClient):
         """Initialize health monitor."""
         super().__init__()
         self.bot = bot_client
         self._config_manager = config_manager
+        self._tts_client = tts_client
         self.status = HealthStatus()
         self._monitoring_task: asyncio.Task[None] | None = None
         self._permission_check_task: asyncio.Task[None] | None = None
@@ -163,22 +165,15 @@ class HealthMonitor:
 
         # Check TTS API health
         try:
-            from .tts_engine import get_tts_engine
-
-            logger.debug("🔍 Creating new TTS engine for health check")
-            tts_engine = await get_tts_engine(self._config_manager)
-            api_healthy = await tts_engine.health_check()
-            logger.debug("🔍 TTS engine health check completed, closing engine")
-            await tts_engine.close()  # Close the engine after use
-            logger.debug("🔍 TTS engine closed successfully")
+            api_healthy, error_detail = await self._tts_client.check_api_availability()
             if not api_healthy:
-                issues.append("TTS API health check failed")
+                issues.append(f"TTS API health check failed: {error_detail}")
                 recommendations.append("Check TTS server status and network connectivity")
                 self.record_api_failure()
             else:
                 self.record_api_success()
         except Exception as e:
-            issues.append("TTS API check error: " + str(e))
+            issues.append(f"TTS API check error: {e}")
             recommendations.append("Verify TTS engine configuration")
 
         # Check voice connection health
@@ -410,12 +405,7 @@ class HealthMonitor:
                     except Exception as e:
                         logger.warning(f"Voice handler cleanup failed: {e}")
 
-            # Stop TTS engine
-            from .tts_engine import get_tts_engine
-
-            tts_engine = await get_tts_engine(self._config_manager)
-            await tts_engine.close()
-
+            # Stop TTS engine - no longer needed here, handled by BotFactory
             # Close Discord connection
             if not self.bot.is_closed():
                 await self.bot.close()

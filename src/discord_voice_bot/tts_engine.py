@@ -20,13 +20,13 @@ class TTSEngineError(Exception):
 class TTSEngine:
     """TTS Engine for synthesizing speech using VOICEVOX or AivisSpeech."""
 
-    def __init__(self, config_manager: ConfigManager) -> None:
+    def __init__(self, config_manager: ConfigManager, tts_client: TTSClient | None = None) -> None:
         """Initialize TTS engine with configuration manager and managers."""
         super().__init__()
         self._config_manager = config_manager
 
         # Initialize manager components
-        self._tts_client = TTSClient(config_manager)
+        self._tts_client = tts_client or TTSClient(config_manager)
         self._audio_processor = AudioProcessor(config_manager)
         self._temp_file_manager = TempFileManager(config_manager, self._audio_processor)
         self._health_monitor = TTSHealthMonitor(config_manager, self._tts_client)
@@ -254,8 +254,8 @@ class TTSEngine:
         return await self._health_monitor.perform_health_check()
 
 
-async def get_tts_engine(config_manager: ConfigManager) -> TTSEngine:
+async def get_tts_engine(config_manager: ConfigManager, tts_client: TTSClient | None = None) -> TTSEngine:
     """Create and start new TTS engine instance with configuration manager."""
-    engine = TTSEngine(config_manager)
+    engine = TTSEngine(config_manager, tts_client=tts_client)
     await engine.start()
     return engine

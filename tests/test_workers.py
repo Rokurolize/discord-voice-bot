@@ -1,10 +1,12 @@
 """Unit tests for voice workers."""
 
 import asyncio
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from discord_voice_bot.tts_client import TTSClient
 from discord_voice_bot.voice_handler import VoiceHandler
 
 
@@ -107,10 +109,23 @@ def mock_config_manager() -> MagicMock:
 
 
 @pytest.fixture
-def voice_handler(mock_bot_client: MagicMock, mock_config_manager: MagicMock) -> VoiceHandler:
+def mock_tts_client(mock_config_manager: MagicMock) -> TTSClient:
+    """Create a mock TTS client."""
+    return TTSClient(mock_config_manager)
+
+
+@pytest.fixture
+def voice_handler(mock_bot_client: MagicMock, mock_config_manager: MagicMock, mock_tts_client: TTSClient, monkeypatch) -> VoiceHandler:
     """Create a VoiceHandler instance with mocked bot client."""
-    handler = VoiceHandler(mock_bot_client, mock_config_manager)
-    return handler
+    print("<<<<< USING PATCHED voice_handler FIXTURE >>>>>")
+    monkeypatch.setattr(Path, "mkdir", lambda *args, **kwargs: None)
+    with patch("discord_voice_bot.voice.workers.synthesizer.get_user_settings") as mock_get_user_settings:
+        mock_user_settings = MagicMock()
+        mock_user_settings.get_user_speaker.return_value = None
+        mock_get_user_settings.return_value = mock_user_settings
+
+        handler = VoiceHandler(mock_bot_client, mock_config_manager, mock_tts_client)
+        yield handler
 
 
 class TestWorkerInitialization:

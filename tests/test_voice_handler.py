@@ -71,6 +71,7 @@ class MockTTSEngine:
         """Mock cleanup."""
 
 
+from discord_voice_bot.tts_client import TTSClient
 from discord_voice_bot.voice.ratelimit import SimpleRateLimiter
 from discord_voice_bot.voice_handler import VoiceHandler
 
@@ -115,18 +116,24 @@ def mock_config_manager() -> MagicMock:
 
 
 @pytest.fixture
-def voice_handler(mock_bot_client: MagicMock, mock_config_manager: MagicMock) -> VoiceHandler:
+def mock_tts_client(mock_config_manager: MagicMock) -> TTSClient:
+    """Create a mock TTS client."""
+    return TTSClient(mock_config_manager)
+
+
+@pytest.fixture
+def voice_handler(mock_bot_client: MagicMock, mock_config_manager: MagicMock, mock_tts_client: TTSClient) -> VoiceHandler:
     """Create a VoiceHandler instance with mocked bot client."""
-    handler = VoiceHandler(mock_bot_client, mock_config_manager)
+    handler = VoiceHandler(mock_bot_client, mock_config_manager, mock_tts_client)
     return handler
 
 
 class TestVoiceHandlerInitialization:
     """Test VoiceHandler initialization."""
 
-    def test_initialization(self, mock_bot_client: MagicMock, mock_config_manager: MagicMock) -> None:
+    def test_initialization(self, mock_bot_client: MagicMock, mock_config_manager: MagicMock, mock_tts_client: TTSClient) -> None:
         """Test handler initialization."""
-        handler = VoiceHandler(mock_bot_client, mock_config_manager)
+        handler = VoiceHandler(mock_bot_client, mock_config_manager, mock_tts_client)
         assert handler.bot == mock_bot_client
         assert handler.voice_client is None
         assert handler.synthesis_queue.empty()

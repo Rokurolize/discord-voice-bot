@@ -5,16 +5,18 @@ from typing import Any
 from loguru import logger
 
 from ..protocols import ConfigManager
+from ..tts_client import TTSClient
 
 
 class HealthMonitor:
     """Monitors the health of voice-related components."""
 
-    def __init__(self, connection_manager: Any, config_manager: ConfigManager) -> None:
+    def __init__(self, connection_manager: Any, config_manager: ConfigManager, tts_client: TTSClient) -> None:
         """Initialize health monitor."""
         super().__init__()
         self.connection_manager = connection_manager
         self._config_manager = config_manager
+        self._tts_client = tts_client
 
     async def perform_health_check(self) -> dict[str, Any]:
         """Perform comprehensive voice system health check."""
@@ -70,17 +72,12 @@ class HealthMonitor:
 
         # Check TTS synthesis capability
         try:
-            from ..config_manager import ConfigManagerImpl
-            from ..tts_engine import get_tts_engine
-
-            config_manager = ConfigManagerImpl()
-            tts_engine = await get_tts_engine(config_manager)
-
-            if await tts_engine.health_check():
+            api_healthy, error_detail = await self._tts_client.check_api_availability()
+            if api_healthy:
                 health_status["can_synthesize"] = True
                 logger.debug("✅ TTS engine is healthy")
             else:
-                health_status["issues"].append("TTS engine health check failed")
+                health_status["issues"].append(f"TTS engine health check failed: {error_detail}")
                 health_status["recommendations"].append("Check TTS API availability and configuration")
         except Exception as e:
             health_status["issues"].append(f"TTS engine check failed: {e}")

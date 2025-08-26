@@ -7,6 +7,7 @@ import discord
 from loguru import logger
 
 from ..protocols import ConfigManager
+from ..tts_client import TTSClient
 
 if TYPE_CHECKING:
     from .gateway import VoiceGatewayManager
@@ -93,11 +94,12 @@ class VoiceHandlerInterface(Protocol):
 class VoiceHandler(VoiceHandlerInterface):
     """Manages Discord voice connections and audio playback using facade pattern."""
 
-    def __init__(self, bot_client: discord.Client, config_manager: ConfigManager) -> None:
+    def __init__(self, bot_client: discord.Client, config_manager: ConfigManager, tts_client: TTSClient) -> None:
         """Initialize voice handler with manager components."""
         super().__init__()
         self.bot = bot_client
         self._config_manager = config_manager
+        self._tts_client = tts_client
 
         # Initialize manager components
         self.connection_manager = VoiceConnectionManager(bot_client, config_manager)
@@ -105,7 +107,7 @@ class VoiceHandler(VoiceHandlerInterface):
         self.rate_limiter_manager = RateLimiterManager()
         self.stats_tracker = StatsTracker()
         self.task_manager = TaskManager()
-        self.health_monitor = HealthMonitor(self.connection_manager, config_manager)
+        self.health_monitor = HealthMonitor(self.connection_manager, config_manager, tts_client)
 
         # Maintain backward compatibility properties
         self.is_playing = False
@@ -178,7 +180,7 @@ class VoiceHandler(VoiceHandlerInterface):
         """Start the worker tasks for processing queues."""
         try:
             # Create workers
-            synthesizer_worker = SynthesizerWorker(self, self._config_manager)
+            synthesizer_worker = SynthesizerWorker(self, self._config_manager, self._tts_client)
 
             # Store worker instances for graceful shutdown
             self._synthesizer_worker = synthesizer_worker
