@@ -192,7 +192,7 @@ class MessageHandler:
 
                 logger.debug("🔍 VALIDATION: Message validation completed successfully")
             else:
-                logger.debug("🔍 VALIDATION: Message processor returned None")
+                logger.debug(f"Message from '{message.author.name}' was valid but returned no processable content (e.g., URL only).")
 
             return processed_message
 

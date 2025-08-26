@@ -8,6 +8,7 @@ from ...bot import DiscordVoiceTTSBot
 
 async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, text: str) -> None:
     """Handle test slash command."""
+    logger.debug(f"Handling /test_tts command from user '{interaction.user.name}'. Text: '{text}'")
     try:
         if not hasattr(bot, "voice_handler") or not bot.voice_handler:
             _ = await interaction.response.send_message("❌ Voice handler not available", ephemeral=True)

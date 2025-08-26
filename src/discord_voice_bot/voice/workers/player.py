@@ -26,6 +26,7 @@ class PlayerWorker:
         super().__init__()
         self.voice_handler = voice_handler
         self._running = True  # Flag to control the worker loop
+        self._idle_log_counter = 0
 
     async def run(self) -> None:
         """Run the playback worker loop."""
@@ -38,8 +39,11 @@ class PlayerWorker:
                     # Add timeout to queue.get() to prevent indefinite blocking
                     try:
                         audio_path, group_id, priority, chunk_index = await asyncio.wait_for(self.voice_handler.audio_queue.get(), timeout=1.0)
+                        self._idle_log_counter = 0
                     except TimeoutError:
-                        # No items in queue, continue loop
+                        self._idle_log_counter += 1
+                        if self._idle_log_counter % 60 == 0:  # Log once every 60 seconds of idling
+                            logger.debug("PlayerWorker is idle, waiting for audio chunks in the queue.")
                         await asyncio.sleep(0.1)
                         continue
 

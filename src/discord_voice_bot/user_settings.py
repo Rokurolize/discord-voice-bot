@@ -30,12 +30,15 @@ SPEAKER_MAPPING = {
 }
 
 
+import tempfile
+
+
 class UserSettings:
     """Manages user-specific settings like voice preferences."""
 
     def __init__(
         self,
-        settings_file: str = "/home/ubuntu/.config/discord-voice-bot/user_settings.json",
+        settings_file: str | None = None,
     ) -> None:
         """Initialize user settings manager.
 
@@ -44,7 +47,10 @@ class UserSettings:
 
         """
         super().__init__()
-        self.settings_file = Path(settings_file)
+        if settings_file:
+            self.settings_file = Path(settings_file)
+        else:
+            self.settings_file = Path(tempfile.gettempdir()) / "discord-voice-bot/user_settings.json"
         self.settings: dict[str, dict[str, Any]] = {}
         self._lock = Lock()
 

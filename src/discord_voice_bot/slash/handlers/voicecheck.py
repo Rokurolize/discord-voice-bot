@@ -8,6 +8,7 @@ from ...bot import DiscordVoiceTTSBot
 
 async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> None:
     """Handle voicecheck slash command."""
+    logger.debug(f"Handling /voicecheck command from user '{interaction.user.name}'")
     try:
         if not hasattr(bot, "voice_handler") or not bot.voice_handler:
             embed = discord.Embed(title="🔍 Voice Health Check", color=discord.Color.red(), description="❌ Voice handler not initialized")

@@ -8,6 +8,7 @@ from ...bot import DiscordVoiceTTSBot
 
 async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> None:
     """Handle skip slash command."""
+    logger.debug(f"Handling /skip command from user '{interaction.user.name}'")
     try:
         if not hasattr(bot, "voice_handler") or not bot.voice_handler:
             _ = await interaction.response.send_message("❌ Voice handler not available", ephemeral=True)

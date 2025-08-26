@@ -9,6 +9,7 @@ from ..embeds.voices import create_voices_embed
 
 async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> None:
     """Handle voices slash command."""
+    logger.debug(f"Handling /voices command from user '{interaction.user.name}'")
     try:
         embed = await create_voices_embed()
         _ = await interaction.response.send_message(embed=embed)

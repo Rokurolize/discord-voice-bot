@@ -1,64 +1,34 @@
-"""Pytest configuration and fixtures for the Discord Voice Bot."""
-
-import os
+from unittest.mock import MagicMock
 
 import pytest
 
-# Don't modify global environment variables
-# Instead, use fixtures to provide test-specific configuration
+from discord_voice_bot.config import Config  # 本物のConfigクラスをインポート
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create an instance of the default event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+@pytest.fixture(autouse=True)
+def mock_config_get(monkeypatch: pytest.MonkeyPatch):
+    """
+    Globally mocks the get_config() function for the entire test session.
+    Any call to get_config() anywhere in the code will return this mock instance.
+    """
+    # 1. 偽物のConfigオブジェクト（モック）を1つだけ作る
+    # spec=Config で、本物そっくりな賢い偽物にするのを忘れないでね！
+    mock_instance = MagicMock(spec=Config)
 
+    # 2. テストで共通して使う、基本的な値を設定しておく
+    mock_instance.discord_token = "test_token_from_conftest"
+    mock_instance.target_voice_channel_id = 1234567890
+    mock_instance.tts_engine = "voicevox"
+    mock_instance.log_level = "DEBUG"
+    mock_instance.rate_limit_messages = 5
+    mock_instance.rate_limit_period = 60
+    # ... 他の必要な設定もここに追加！
 
-def pytest_configure(config: pytest.Config) -> None:
-    """Configure pytest with custom markers."""
-    config.addinivalue_line("markers", "integration: mark test as integration test requiring Discord API")
-    config.addinivalue_line("markers", "requires_credentials: mark test as requiring Discord credentials")
+    # 3. これが一番大事な魔法！
+    # 'discord_voice_bot.config.get_config' という名前の関数を、
+    # いつでもさっき作った偽物を返すだけの単純な関数にすり替える
+    monkeypatch.setattr("discord_voice_bot.config.get_config", lambda: mock_instance)
 
-
-def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    """Modify test collection to handle integration tests."""
-    # Skip integration tests if credentials are not available
-    skip_integration = pytest.mark.skip(reason="Discord credentials not configured or integration test disabled")
-
-    for item in items:
-        # Check if test is marked as integration test
-        if item.get_closest_marker("integration"):
-            # Check if required environment variables are set
-            required_vars = ["DISCORD_BOT_TOKEN", "TARGET_VOICE_CHANNEL_ID", "TTS_ENGINE"]
-            missing_vars = [var for var in required_vars if not os.getenv(var)]
-
-            if missing_vars:
-                item.add_marker(skip_integration)
-                continue
-
-        # Check if test requires credentials but credentials are missing
-        if item.get_closest_marker("requires_credentials"):
-            if not os.getenv("DISCORD_BOT_TOKEN"):
-                item.add_marker(pytest.mark.skip(reason="Discord bot token not configured"))
-
-
-# Import asyncio here to avoid import issues
-import asyncio
-
-
-@pytest.fixture(scope="session")
-def test_config_manager():
-    """Provide a ConfigManagerImpl instance with test mode enabled."""
-    from discord_voice_bot.config_manager import ConfigManagerImpl
-
-    return ConfigManagerImpl(test_mode=True)
-
-
-@pytest.fixture(scope="session")
-def prod_config_manager():
-    """Provide a ConfigManagerImpl instance with test mode disabled."""
-    from discord_voice_bot.config_manager import ConfigManagerImpl
-
-    return ConfigManagerImpl(test_mode=False)
+    # 4. この偽物を他のテストでも使えるように、一応返しておく
+    # これで、テスト関数でこのフィクスチャを要求すれば、設定をイジれるようになるよ
+    return mock_instance

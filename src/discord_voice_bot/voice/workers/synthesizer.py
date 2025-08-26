@@ -32,6 +32,7 @@ class SynthesizerWorker:
         self.max_buffer_size = 50 * 1024 * 1024  # 50MB limit
         self.buffer_size = 0
         self._running = True  # Flag to control the worker loop
+        self._idle_log_counter = 0
 
         # Initialize TTS engine and user settings with config manager
         # Note: TTS engine will be initialized asynchronously in run() method
@@ -57,8 +58,11 @@ class SynthesizerWorker:
                 # Add timeout to queue.get() to prevent indefinite blocking
                 try:
                     item = await asyncio.wait_for(self.voice_handler.synthesis_queue.get(), timeout=1.0)
+                    self._idle_log_counter = 0
                 except TimeoutError:
-                    # No items in queue, continue loop
+                    self._idle_log_counter += 1
+                    if self._idle_log_counter % 60 == 0:  # Log once every 60 seconds of idling
+                        logger.debug("SynthesizerWorker is idle, waiting for synthesis tasks in the queue.")
                     await asyncio.sleep(0.1)
                     continue
 

@@ -8,6 +8,7 @@ from ...bot import DiscordVoiceTTSBot
 
 async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, speaker: str | None = None) -> None:
     """Handle voice slash command."""
+    logger.debug(f"Handling /voice command from user '{interaction.user.name}'. Speaker provided: '{speaker}'")
     try:
         from ...user_settings import get_user_settings
 
