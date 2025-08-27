@@ -4,7 +4,7 @@ from typing import TypedDict
 
 from loguru import logger
 
-from .protocols import ConfigManager
+from .config import Config
 
 
 class AudioQuery(TypedDict, total=False):
@@ -31,10 +31,10 @@ class AudioFormatInfo(TypedDict):
 class AudioProcessor:
     """Handles audio processing and optimization for TTS."""
 
-    def __init__(self, config_manager: ConfigManager) -> None:
-        """Initialize audio processor with configuration manager."""
+    def __init__(self, config: Config) -> None:
+        """Initialize audio processor with a configuration object."""
         super().__init__()
-        self._config_manager = config_manager
+        self.config = config
 
     def optimize_audio_parameters(self, audio_query: AudioQuery) -> None:
         """Optimize audio parameters for Discord voice quality.
@@ -47,7 +47,7 @@ class AudioProcessor:
             return
 
         # Set optimal sample rate for Discord (48kHz)
-        audio_query["outputSamplingRate"] = self._config_manager.get_audio_sample_rate()
+        audio_query["outputSamplingRate"] = self.config.audio_sample_rate
 
         # Adjust volume to prevent clipping
         if "volumeScale" in audio_query:
@@ -167,7 +167,7 @@ class AudioProcessor:
         optimized = audio_query.copy()
 
         # Discord-specific optimizations
-        sample_rate = self._config_manager.get_audio_sample_rate()
+        sample_rate = self.config.audio_sample_rate
         optimized["outputSamplingRate"] = sample_rate
 
         # Ensure the audio is suitable for real-time voice communication

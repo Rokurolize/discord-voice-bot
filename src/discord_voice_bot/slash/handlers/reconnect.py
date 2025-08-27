@@ -29,14 +29,13 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
         try:
             # Attempt reconnection
             logger.info(
-                "🔄 MANUAL RECONNECTION - user='{}' user_id={} guild_id={}",
+                "🔄 MANUAL RECONNECTION - request_id={} user='{}' user_id={} guild_id={}",
+                interaction.id,
                 interaction.user,
                 interaction.user.id,
                 (interaction.guild_id or "DM"),
             )
-            from ...config import get_config
-
-            success = await bot.voice_handler.connect_to_channel(get_config().target_voice_channel_id)
+            success = await bot.voice_handler.connect_to_channel(bot.config.target_voice_channel_id)
 
             # Get new status
             new_status = bot.voice_handler.get_status()
@@ -65,8 +64,17 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
         except asyncio.CancelledError:
             raise
         except Exception:
-            embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.red(), description="❌ Error during reconnection. Please try again later.")
-            logger.exception("💥 CRITICAL ERROR during manual reconnection")
+            embed = discord.Embed(
+                title="🔄 Voice Reconnection",
+                color=discord.Color.red(),
+                description="❌ Error during reconnection. Please try again later.",
+            )
+            logger.exception(
+                "💥 CRITICAL ERROR during manual reconnection (request_id={}, user_id={}, guild_id={})",
+                interaction.id,
+                interaction.user.id,
+                getattr(interaction, "guild_id", None),
+            )
 
         _ = await interaction.edit_original_response(embed=embed)
 

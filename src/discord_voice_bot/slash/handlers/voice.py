@@ -1,5 +1,7 @@
 """Voice slash command handler."""
 
+import asyncio
+
 import discord
 from loguru import logger
 
@@ -97,6 +99,14 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, spea
         else:
             _ = await interaction.response.send_message(f"❌ Voice '{speaker}' not found. Use `/voices` to see available options.", ephemeral=True)
 
+    except asyncio.CancelledError:
+        raise
     except Exception:
         logger.exception("Error in voice slash command")
-        _ = await interaction.response.send_message("❌ Error setting voice preference", ephemeral=True)
+        try:
+            if interaction.response.is_done():
+                _ = await interaction.followup.send("❌ Error setting voice preference", ephemeral=True)
+            else:
+                _ = await interaction.response.send_message("❌ Error setting voice preference", ephemeral=True)
+        except Exception as followup_err:
+            logger.opt(exception=followup_err).debug("Suppressed secondary error while responding to interaction")

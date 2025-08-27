@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
-from .config_manager import ConfigManagerImpl
+from .config import Config
 
 if TYPE_CHECKING:
     from .command_handler import CommandHandler
@@ -68,12 +68,12 @@ class BotFactory:
         self.registry = ComponentRegistry()
         logger.info("Bot factory initialized")
 
-    async def create_bot(self, bot_class: type[Any] | None = None, test_mode: bool | None = None) -> Any:
+    async def create_bot(self, config: Config, bot_class: type[Any] | None = None) -> Any:
         """Create and configure a new bot instance.
 
         Args:
+            config: Configuration object
             bot_class: Bot class to instantiate (defaults to DiscordVoiceTTSBot)
-            test_mode: Explicitly set test mode for ConfigManagerImpl
 
         Returns:
             Configured bot instance
@@ -88,19 +88,16 @@ class BotFactory:
                 bot_module = importlib.import_module(".bot", package="discord_voice_bot")
                 bot_class = bot_module.DiscordVoiceTTSBot
 
-            # Prepare configuration manager first
-            config_manager = ConfigManagerImpl(test_mode=test_mode)
-
-            # Create bot instance with configuration manager
+            # Create bot instance with configuration
             if bot_class is None:
                 raise ValueError("Bot class cannot be None")
-            bot: Any = bot_class(config_manager)
+            bot: Any = bot_class(config)
 
-            # Setup all components with config manager
-            await self._setup_components(bot, config_manager)
+            # Setup all components with config
+            await self._setup_components(bot, config)
 
             # Validate configuration
-            await self._validate_configuration(bot, config_manager)
+            await self._validate_configuration(bot, config)
 
             logger.info("Bot instance created and configured successfully")
             return bot
@@ -109,12 +106,12 @@ class BotFactory:
             logger.error(f"Failed to create bot instance: {e}")
             raise
 
-    async def _setup_components(self, bot: Any, config_manager: ConfigManagerImpl) -> None:
+    async def _setup_components(self, bot: Any, config: Config) -> None:
         """Setup all bot components.
 
         Args:
             bot: Bot instance to setup components for
-            config_manager: Configuration manager used by components during initialization.
+            config: Configuration object used by components during initialization.
 
         """
         logger.info("Setting up bot components...")
@@ -132,9 +129,9 @@ class BotFactory:
 
         for component_name, creator_func in components_to_setup:
             try:
-                # Pass config_manager to components that need it
+                # Pass config to components that need it
                 if component_name in ["event_handler", "voice_handler", "health_monitor"]:
-                    component = await creator_func(bot, config_manager)  # type: ignore[call-arg]
+                    component = await creator_func(bot, config)  # type: ignore[call-arg]
                 else:
                     component = await creator_func(bot)  # type: ignore[call-arg]
                 if component is not None:
@@ -199,9 +196,9 @@ class BotFactory:
             logger.error(f"Operation failed: {e}")
             raise
 
-    async def _create_event_handler(self, bot: Any, config_manager: ConfigManagerImpl) -> "EventHandler":
+    async def _create_event_handler(self, bot: Any, config: Config) -> "EventHandler":
         """Create event handler."""
-        return self._create_component("discord_voice_bot.event_handler", "EventHandler", bot, config_manager)
+        return self._create_component("discord_voice_bot.event_handler", "EventHandler", bot, config)
 
     async def _create_command_handler(self, bot: Any) -> "CommandHandler":
         """Create command handler."""
@@ -223,17 +220,17 @@ class BotFactory:
         """Create status manager."""
         return self._create_component("discord_voice_bot.status_manager", "StatusManager")
 
-    async def _create_voice_handler(self, bot: Any, config_manager: ConfigManagerImpl) -> Any:
+    async def _create_voice_handler(self, bot: Any, config: Config) -> Any:
         """Create voice handler."""
         try:
-            return self._create_component("discord_voice_bot.voice.handler", "VoiceHandler", bot, config_manager)
+            return self._create_component("discord_voice_bot.voice.handler", "VoiceHandler", bot, config)
         except Exception as e:
             logger.error(f"Failed to create voice handler: {e}")
             raise
 
-    async def _create_health_monitor(self, bot: Any, config_manager: ConfigManagerImpl) -> Any:
+    async def _create_health_monitor(self, bot: Any, config: Config) -> Any:
         """Create health monitor."""
-        return self._create_component("discord_voice_bot.health_monitor", "HealthMonitor", bot, config_manager)
+        return self._create_component("discord_voice_bot.health_monitor", "HealthMonitor", bot, config)
 
     async def _setup_existing_components(self, bot: Any) -> None:
         """Setup existing components that are already part of the bot.
@@ -254,14 +251,13 @@ class BotFactory:
             self.registry.register("health_monitor", health_monitor)
             logger.debug("Registered existing health_monitor component")
 
-    async def _validate_configuration(self, bot: Any, config_manager: ConfigManagerImpl) -> None:
+    async def _validate_configuration(self, bot: Any, config: Config) -> None:
         """Validate bot configuration and components."""
-        await self._execute_with_logging("Validating bot configuration...", lambda: self._perform_configuration_validation(config_manager), "Bot configuration validation completed successfully")
+        await self._execute_with_logging("Validating bot configuration...", lambda: self._perform_configuration_validation(config), "Bot configuration validation completed successfully")
 
-    def _perform_configuration_validation(self, config_manager: ConfigManagerImpl) -> None:
+    def _perform_configuration_validation(self, config: Config) -> None:
         """Perform the actual configuration validation."""
-        # Validate config
-        config_manager.validate()
+        # The new Config dataclass will handle validation in its creation
         logger.debug("Configuration validation passed")
 
         # Validate required components
@@ -292,9 +288,8 @@ class BotFactory:
             # Initialize TTS engine
             from .tts_engine import get_tts_engine
 
-            # Use the bot's existing config manager
-            config_manager = bot.config_manager
-            tts_engine = await get_tts_engine(config_manager)
+            # Use the bot's existing config
+            tts_engine = await get_tts_engine(bot.config)
             await tts_engine.start()
             logger.debug("TTS engine initialized")
 

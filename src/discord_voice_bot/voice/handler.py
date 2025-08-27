@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 import discord
 from loguru import logger
 
-from ..protocols import ConfigManager
+from ..config import Config
 
 if TYPE_CHECKING:
     from .gateway import VoiceGatewayManager
@@ -29,7 +29,7 @@ class VoiceHandlerInterface(Protocol):
 
     synthesis_queue: Any
     audio_queue: Any
-    _config_manager: ConfigManager
+    config: Config
     voice_client: Any
     target_channel: Any
     current_group_id: str | None
@@ -94,19 +94,19 @@ class VoiceHandlerInterface(Protocol):
 class VoiceHandler(VoiceHandlerInterface):
     """Manages Discord voice connections and audio playback using facade pattern."""
 
-    def __init__(self, bot_client: discord.Client, config_manager: ConfigManager) -> None:
+    def __init__(self, bot_client: discord.Client, config: Config) -> None:
         """Initialize voice handler with manager components."""
         super().__init__()
         self.bot = bot_client
-        self._config_manager = config_manager
+        self.config = config
 
         # Initialize manager components
-        self.connection_manager = VoiceConnectionManager(bot_client, config_manager)
+        self.connection_manager = VoiceConnectionManager(bot_client, config)
         self.queue_manager = QueueManager()
         self.rate_limiter_manager = RateLimiterManager()
         self.stats_tracker = StatsTracker()
         self.task_manager = TaskManager()
-        self.health_monitor = HealthMonitor(self.connection_manager, config_manager)
+        self.health_monitor = HealthMonitor(self.connection_manager, config)
 
         # Maintain backward compatibility properties
         self.is_playing = False
@@ -181,7 +181,7 @@ class VoiceHandler(VoiceHandlerInterface):
         """Start the worker tasks for processing queues."""
         try:
             # Create workers
-            synthesizer_worker = SynthesizerWorker(self, self._config_manager)
+            synthesizer_worker = SynthesizerWorker(self, self.config)
 
             # Store worker instances for graceful shutdown
             self._synthesizer_worker = synthesizer_worker

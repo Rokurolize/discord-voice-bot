@@ -13,7 +13,7 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
     try:
         if hasattr(bot, "status_manager") and bot.status_manager:
             status = bot.status_manager.get_statistics()
-            embed = await create_status_embed(status)
+            embed = await create_status_embed(status, bot.config)
         else:
             # Fallback to basic status
             embed = await create_basic_status_embed()

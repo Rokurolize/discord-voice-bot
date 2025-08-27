@@ -7,37 +7,33 @@ from typing import Any
 import aiohttp
 from loguru import logger
 
-from .protocols import ConfigManager
+from .config import Config
 
 
 class TTSClient:
     """Manages TTS API communication and requests."""
 
-    def __init__(self, config_manager: ConfigManager) -> None:
-        """Initialize TTS client with configuration manager."""
+    def __init__(self, config: Config) -> None:
+        """Initialize TTS client with a configuration object."""
         super().__init__()
-        self._config_manager = config_manager
+        self.config = config
         self._session: aiohttp.ClientSession | None = None
 
     @property
     def api_url(self) -> str:
-        """Get current API URL from config manager."""
-        # Get from environment variable directly to avoid early Config creation
-        import os
-
-        return os.environ.get("VOICEVOX_URL", "http://localhost:50021")
+        """Get current API URL from config."""
+        engine_config = self.config.engines.get(self.config.tts_engine, {})
+        return engine_config.get("url", "http://localhost:50021")
 
     @property
     def speaker_id(self) -> int:
-        """Get current speaker ID from config manager."""
-        return self._config_manager.get_speaker_id()
+        """Get current speaker ID from config."""
+        return int(self.config.tts_speaker)
 
     @property
     def engine_name(self) -> str:
-        """Get current engine name from environment variable."""
-        import os
-
-        return os.environ.get("TTS_ENGINE", "voicevox").upper()
+        """Get current engine name from config."""
+        return self.config.tts_engine.upper()
 
     @property
     def session(self) -> aiohttp.ClientSession | None:
@@ -176,8 +172,8 @@ class TTSClient:
             await self.start_session()
 
         # Determine engine and speaker
-        target_engine = engine_name or self._config_manager.get_tts_engine()
-        engines = self._config_manager.get_engines()
+        target_engine = engine_name or self.config.tts_engine
+        engines = self.config.engines
         engine_config = engines.get(target_engine, engines["voicevox"])
 
         # Use provided speaker ID or engine default

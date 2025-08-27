@@ -3,29 +3,25 @@
 import discord
 
 
-async def create_voices_embed() -> discord.Embed:
+from ...config import Config
+from ...tts_engine import TTSEngine
+from ...user_settings import UserSettings
+
+
+async def create_voices_embed(
+    user_id: str | int | None, config: Config, tts_engine: TTSEngine, user_settings: UserSettings
+) -> discord.Embed:
     """Create voices embed showing available speakers."""
     try:
-        from ...config import get_config
-
-        # Create TTS engine instance
-        from ...config_manager import ConfigManagerImpl
-        from ...tts_engine import get_tts_engine
-        from ...user_settings import load_user_settings
-
-        config_manager = ConfigManagerImpl()
-        tts_engine = await get_tts_engine(config_manager)
-        user_settings = load_user_settings()
-
         speakers = await tts_engine.get_available_speakers()
 
         # Get user's current setting
-        user_id = str(getattr(getattr(None, "user", None), "id", None) or "unknown")
-        current_settings = user_settings.get_user_settings(user_id)
-        current_speaker = current_settings["speaker_name"] if current_settings else None
+        user_id_str = str(user_id) if user_id is not None else "unknown"
+        current_settings = user_settings.get_user_settings(user_id_str)
+        current_speaker = current_settings.get("speaker_name") if current_settings else None
 
         embed = discord.Embed(
-            title=f"🎭 Available Voices ({get_config().tts_engine.upper()})",
+            title=f"🎭 Available Voices ({config.tts_engine.upper()})",
             color=discord.Color.blue(),
             description="Use `/voice <name>` to set your personal voice",
         )
@@ -56,8 +52,8 @@ async def create_voices_embed() -> discord.Embed:
 
         return embed
 
-    except Exception as e:
+    except Exception:
         from loguru import logger
 
-        logger.error(f"Error creating voices embed: {e}")
+        logger.exception("Error creating voices embed")
         return discord.Embed(title="🎭 Available Voices", color=discord.Color.red(), description="❌ Error retrieving voice information")

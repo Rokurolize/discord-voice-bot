@@ -6,7 +6,7 @@ from typing import Any, Protocol
 
 from loguru import logger
 
-from ...protocols import ConfigManager
+from ...config import Config
 from ...tts_engine import get_tts_engine
 from ...user_settings import load_user_settings
 from ..audio_utils import calculate_message_priority, cleanup_file, get_audio_size, validate_wav_format
@@ -25,10 +25,10 @@ class VoiceHandlerProtocol(Protocol):
 class SynthesizerWorker:
     """Worker for processing TTS synthesis requests."""
 
-    def __init__(self, voice_handler: VoiceHandlerProtocol, config_manager: ConfigManager):
+    def __init__(self, voice_handler: VoiceHandlerProtocol, config: Config):
         super().__init__()
         self.voice_handler = voice_handler
-        self._config_manager = config_manager
+        self.config = config
         self.max_buffer_size = 50 * 1024 * 1024  # 50MB limit
         self.buffer_size = 0
         self._running = True  # Flag to control the worker loop
@@ -48,7 +48,7 @@ class SynthesizerWorker:
         # Initialize TTS engine if not already initialized
         if self._tts_engine is None:
             try:
-                self._tts_engine = await get_tts_engine(self._config_manager)
+                self._tts_engine = await get_tts_engine(self.config)
             except Exception:
                 logger.exception("Failed to initialize TTS engine")
                 self._running = False

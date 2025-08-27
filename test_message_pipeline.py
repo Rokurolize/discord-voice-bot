@@ -1,26 +1,18 @@
 #!/usr/bin/env python3
 """Test script to verify message processing pipeline works."""
 
-import asyncio
-import sys
-from pathlib import Path
 from unittest.mock import AsyncMock, Mock
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
-
 import discord
+import pytest
 
-from discord_voice_bot.config_manager import ConfigManagerImpl
+from discord_voice_bot.config import Config
 from discord_voice_bot.event_message_handler import MessageHandler
 
 
-async def test_message_pipeline():
+@pytest.mark.asyncio
+async def test_message_pipeline(config: Config):
     """Test message processing pipeline."""
-    print("🔧 Testing Message Processing Pipeline...")
-
-    config = ConfigManagerImpl()
-
     # Create a mock bot with required components
     bot = Mock()
     bot.user = Mock()
@@ -40,59 +32,35 @@ async def test_message_pipeline():
     bot.voice_handler = voice_handler
     bot.command_handler = command_handler
 
-    try:
-        # Create message handler
-        message_handler = MessageHandler(bot, config)
+    # Create message handler
+    message_handler = MessageHandler(bot, config)
 
-        # Create a mock Discord message
-        message = Mock(spec=discord.Message)
-        message.author = Mock()
-        message.author.name = "TestUser"
-        message.author.bot = False
-        message.author.id = 987654321
-        message.content = "こんにちは、テストメッセージです！"
-        message.id = 12345
-        message.channel = Mock()
-        message.channel.id = 123456
-        message.channel.name = "general"
-        message.type = discord.MessageType.default
-        message.created_at = discord.utils.utcnow()
+    # Create a mock Discord message
+    message = Mock(spec=discord.Message)
+    message.author = Mock()
+    message.author.name = "TestUser"
+    message.author.bot = False
+    message.author.id = 987654321
+    message.content = "こんにちは、テストメッセージです！"
+    message.id = 12345
+    message.channel = Mock()
+    message.channel.id = config.target_voice_channel_id  # Use the ID from the config
+    message.channel.name = "general"
+    message.type = discord.MessageType.default
+    message.created_at = discord.utils.utcnow()
 
-        print(f"📝 Testing message: '{message.content}'")
+    # Process the message
+    await message_handler.handle_message(message)
 
-        # Process the message
-        await message_handler.handle_message(message)
+    # Check if message was processed and added to the queue
+    voice_handler.add_to_queue.assert_called_once()
+    call_args = voice_handler.add_to_queue.call_args[0][0]
 
-        # Check if message was processed
-        if voice_handler.add_to_queue.called:
-            print("✅ Message was successfully added to TTS queue")
-            call_args = voice_handler.add_to_queue.call_args[0][0]
+    # Verify processed message structure
+    assert isinstance(call_args, dict)
+    expected_keys = ["content", "author_name", "channel_name", "message_id"]
+    for key in expected_keys:
+        assert key in call_args
+        assert call_args[key] is not None
 
-            # Verify processed message structure
-            if isinstance(call_args, dict):
-                print("✅ Processed message has correct structure")
-                expected_keys = ["content", "author_name", "channel_name", "message_id"]
-                for key in expected_keys:
-                    if key in call_args:
-                        print(f"  - {key}: {call_args[key]}")
-                    else:
-                        print(f"  ❌ Missing key: {key}")
-                        return False
-                return True
-            else:
-                print("❌ Processed message is not a dictionary")
-                return False
-        else:
-            print("❌ Message was not added to TTS queue")
-            return False
-
-    except Exception as e:
-        print(f"❌ Message pipeline test failed: {e}")
-        import traceback
-
-        traceback.print_exc()
-        return False
-
-
-if __name__ == "__main__":
-    _ = asyncio.run(test_message_pipeline())
+    assert call_args["content"] == message.content

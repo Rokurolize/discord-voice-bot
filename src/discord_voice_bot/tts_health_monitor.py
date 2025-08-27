@@ -4,17 +4,17 @@ from typing import Any
 
 from loguru import logger
 
-from .protocols import ConfigManager
+from .config import Config
 from .tts_client import TTSClient
 
 
 class TTSHealthMonitor:
     """Monitors the health of TTS engine components."""
 
-    def __init__(self, config_manager: ConfigManager, tts_client: TTSClient) -> None:
+    def __init__(self, config: Config, tts_client: TTSClient) -> None:
         """Initialize TTS health monitor with configuration and TTS client."""
         super().__init__()
-        self._config_manager = config_manager
+        self.config = config
         self._tts_client = tts_client
 
     async def perform_health_check(self) -> bool:
@@ -162,7 +162,7 @@ class TTSHealthMonitor:
 
             # Check configuration
             try:
-                engines = self._config_manager.get_engines()
+                engines = self.config.engines
                 if not engines:
                     issues.append("🔴 No TTS engines configured")
                     issues.append("   💡 Check configuration file for engine settings")

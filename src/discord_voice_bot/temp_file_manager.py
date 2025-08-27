@@ -9,16 +9,16 @@ from loguru import logger
 
 from .audio_debugger import audio_debugger
 from .audio_processor import AudioProcessor
-from .protocols import ConfigManager
+from .config import Config
 
 
 class TempFileManager:
     """Manages temporary files for TTS audio processing."""
 
-    def __init__(self, config_manager: ConfigManager, audio_processor: AudioProcessor) -> None:
+    def __init__(self, config: Config, audio_processor: AudioProcessor) -> None:
         """Initialize temp file manager with configuration and audio processor."""
         super().__init__()
-        self._config_manager = config_manager
+        self.config = config
         self._audio_processor = audio_processor
 
     async def create_audio_source(self, text: str, audio_data: bytes, speaker_id: int | None = None, engine_name: str | None = None) -> Any:
@@ -63,8 +63,8 @@ class TempFileManager:
                 logger.warning(f"Failed to save pre-Discord debug audio: {e}")
 
             # Create Discord audio source with corrected FFmpeg options
-            sample_rate = self._config_manager.get_audio_sample_rate()
-            channels = self._config_manager.get_audio_channels()
+            sample_rate = self.config.audio_sample_rate
+            channels = self.config.audio_channels
             ffmpeg_options = f"-ar {sample_rate} -ac {channels} -f s16le"
 
             logger.debug(f"FFmpeg options: {ffmpeg_options}")
@@ -116,9 +116,9 @@ class TempFileManager:
                 "-i",
                 temp_path,
                 "-ar",
-                str(self._config_manager.get_audio_sample_rate()),
+                str(self.config.audio_sample_rate),
                 "-ac",
-                str(self._config_manager.get_audio_channels()),
+                str(self.config.audio_channels),
                 "-f",
                 "s16le",
                 "-",
@@ -132,8 +132,8 @@ class TempFileManager:
                     "conversion_success": True,
                 }
                 # Save as raw PCM data (add WAV header for playability)
-                sample_rate = self._config_manager.get_audio_sample_rate()
-                channels = self._config_manager.get_audio_channels()
+                sample_rate = self.config.audio_sample_rate
+                channels = self.config.audio_channels
                 wav_header = self._audio_processor.create_wav_header(
                     len(result.stdout),
                     sample_rate,

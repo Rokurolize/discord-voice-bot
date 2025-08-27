@@ -21,24 +21,28 @@ class BaseEventBot(commands.Bot):
                 await method(*args, **kwargs)
 
 
+from .config import Config
+
 class DiscordVoiceTTSBot(BaseEventBot):
     """Main Discord Voice TTS Bot class."""
 
-    def __init__(self, config_manager: Any) -> None:
+    def __init__(self, config: Config) -> None:
         """Initialize the bot.
 
         Args:
-            config_manager: Configuration manager instance
+            config: Configuration object
 
         """
         # Get intents and command prefix from config
-        intents = config_manager.get_intents()
-        command_prefix = config_manager.get_command_prefix()
+        intents = discord.Intents.default()
+        intents.message_content = True
+        intents.voice_states = True
+        intents.guilds = True
 
-        super().__init__(command_prefix=command_prefix, intents=intents)
+        super().__init__(command_prefix=config.command_prefix, intents=intents)
 
-        # Store config manager
-        self.config_manager = config_manager
+        # Store config
+        self.config = config
 
         # Initialize component placeholders (will be set by factory)
         self.voice_handler: Any = None
@@ -65,11 +69,11 @@ class DiscordVoiceTTSBot(BaseEventBot):
     async def start_with_config(self) -> None:
         """Start the bot using the stored configuration."""
         # Skip Discord connection in test mode
-        if self.config_manager.is_test_mode():
+        if self.config.test_mode:
             print("🧪 Test mode enabled - skipping Discord connection")
             return
 
-        token = self.config_manager.get_discord_token()
+        token = self.config.discord_token
         print(f"Debug: Starting bot with token (length: {len(token)})")  # Debug logging
         # Show first 10 and last 10 characters for debugging
         if len(token) >= 20:
@@ -146,10 +150,6 @@ class DiscordVoiceTTSBot(BaseEventBot):
         """Change bot presence (required by StartupBot protocol)."""
         await super().change_presence(status=status, activity=activity)
 
-    @property
-    def config(self) -> Any:
-        """Backward compatibility property for config access."""
-        return self.config_manager
 
     @override
     async def on_message(self, message: Any) -> None:  # discord.Message at runtime
@@ -186,11 +186,11 @@ class DiscordVoiceTTSBot(BaseEventBot):
         await self._delegate_event_async("event_handler", "handle_error", event, *args, **kwargs)
 
 
-async def run_bot(test_mode: bool | None = None) -> None:
+async def run_bot(config: Config) -> None:
     """Create and run the Discord bot."""
     try:
         factory = BotFactory()
-        bot = await factory.create_bot(test_mode=test_mode)
+        bot = await factory.create_bot(config)
         await bot.start_with_config()
     except Exception as e:
         print(f"Failed to start bot: {e}")

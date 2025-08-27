@@ -7,7 +7,7 @@ __all__ = ["TTSEngine", "TTSEngineError", "get_tts_engine"]
 from loguru import logger
 
 from .audio_processor import AudioProcessor, AudioQuery
-from .protocols import ConfigManager
+from .config import Config
 from .temp_file_manager import TempFileManager
 from .tts_client import TTSClient
 from .tts_health_monitor import TTSHealthMonitor
@@ -20,16 +20,16 @@ class TTSEngineError(Exception):
 class TTSEngine:
     """TTS Engine for synthesizing speech using VOICEVOX or AivisSpeech."""
 
-    def __init__(self, config_manager: ConfigManager) -> None:
-        """Initialize TTS engine with configuration manager and managers."""
+    def __init__(self, config: Config) -> None:
+        """Initialize TTS engine with configuration and managers."""
         super().__init__()
-        self._config_manager = config_manager
+        self.config = config
 
         # Initialize manager components
-        self._tts_client = TTSClient(config_manager)
-        self._audio_processor = AudioProcessor(config_manager)
-        self._temp_file_manager = TempFileManager(config_manager, self._audio_processor)
-        self._health_monitor = TTSHealthMonitor(config_manager, self._tts_client)
+        self._tts_client = TTSClient(config)
+        self._audio_processor = AudioProcessor(config)
+        self._temp_file_manager = TempFileManager(config, self._audio_processor)
+        self._health_monitor = TTSHealthMonitor(config, self._tts_client)
 
         # Engine state management
         self._started = False
@@ -148,8 +148,8 @@ class TTSEngine:
     async def _generate_audio_query(self, text: str, speaker_id: int | None = None, engine_name: str | None = None) -> AudioQuery | None:
         """Generate audio query from text using TTS client."""
         # Determine engine and speaker
-        target_engine = engine_name or self._config_manager.get_tts_engine()
-        engines = self._config_manager.get_engines()
+        target_engine = engine_name or self.config.tts_engine
+        engines = self.config.engines
         engine_config = engines.get(target_engine, engines["voicevox"])
 
         # Use provided speaker ID or engine default
@@ -162,8 +162,8 @@ class TTSEngine:
     async def _synthesize_from_query(self, audio_query: AudioQuery, speaker_id: int | None = None, engine_name: str | None = None) -> bytes | None:
         """Synthesize audio from audio query using TTS client."""
         # Determine engine and speaker
-        target_engine = engine_name or self._config_manager.get_tts_engine()
-        engines = self._config_manager.get_engines()
+        target_engine = engine_name or self.config.tts_engine
+        engines = self.config.engines
         engine_config = engines.get(target_engine, engines["voicevox"])
 
         # Use provided speaker ID or engine default
@@ -246,16 +246,16 @@ class TTSEngine:
             Dictionary mapping speaker names to IDs
 
         """
-        engine_config = self._config_manager.get_engine_config()
-        return engine_config["speakers"].copy()
+        engine_config = self.config.engines.get(self.config.tts_engine, {})
+        return engine_config.get("speakers", {}).copy()
 
     async def health_check(self) -> bool:
         """Perform health check on TTS engine using health monitor."""
         return await self._health_monitor.perform_health_check()
 
 
-async def get_tts_engine(config_manager: ConfigManager) -> TTSEngine:
-    """Create and start new TTS engine instance with configuration manager."""
-    engine = TTSEngine(config_manager)
+async def get_tts_engine(config: Config) -> TTSEngine:
+    """Create and start new TTS engine instance with a config object."""
+    engine = TTSEngine(config)
     await engine.start()
     return engine
