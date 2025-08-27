@@ -80,20 +80,20 @@ class QueueManager:
         temp_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=self.synthesis_queue.maxsize)
 
         # Filter out items with the specified group_id
-        while not self.synthesis_queue.empty():
+        while True:
             try:
-                queue_item: dict[str, Any] = await asyncio.wait_for(self.synthesis_queue.get(), timeout=0.1)
+                queue_item = self.synthesis_queue.get_nowait()
                 if queue_item.get("group_id") != group_id:
-                    await temp_queue.put(queue_item)
-            except TimeoutError:
+                    temp_queue.put_nowait(queue_item)
+            except asyncio.QueueEmpty:
                 break
 
         # Put remaining items back
-        while not temp_queue.empty():
+        while True:
             try:
-                remaining_item: dict[str, Any] = await asyncio.wait_for(temp_queue.get(), timeout=0.1)
+                remaining_item = temp_queue.get_nowait()
                 await self.synthesis_queue.put(remaining_item)
-            except TimeoutError:
+            except asyncio.QueueEmpty:
                 break
 
         return original_size - self.synthesis_queue.qsize()

@@ -7,6 +7,7 @@ from typing import Any, Protocol
 from loguru import logger
 
 from ...protocols import ConfigManager
+from ...tts_client import TTSClient
 from ...tts_engine import get_tts_engine
 from ...user_settings import get_user_settings
 from ..audio_utils import calculate_message_priority, cleanup_file, get_audio_size, validate_wav_format
@@ -25,10 +26,11 @@ class VoiceHandlerProtocol(Protocol):
 class SynthesizerWorker:
     """Worker for processing TTS synthesis requests."""
 
-    def __init__(self, voice_handler: VoiceHandlerProtocol, config_manager: ConfigManager):
+    def __init__(self, voice_handler: VoiceHandlerProtocol, config_manager: ConfigManager, tts_client: TTSClient):
         super().__init__()
         self.voice_handler = voice_handler
         self._config_manager = config_manager
+        self._tts_client = tts_client
         self.max_buffer_size = 50 * 1024 * 1024  # 50MB limit
         self.buffer_size = 0
         self._running = True  # Flag to control the worker loop
@@ -46,7 +48,7 @@ class SynthesizerWorker:
         # Initialize TTS engine if not already initialized
         if self._tts_engine is None:
             try:
-                self._tts_engine = await get_tts_engine(self._config_manager)
+                self._tts_engine = await get_tts_engine(self._config_manager, tts_client=self._tts_client)
             except Exception as e:
                 logger.error(f"Failed to initialize TTS engine: {e}")
                 self._running = False
@@ -57,7 +59,7 @@ class SynthesizerWorker:
                 # Add timeout to queue.get() to prevent indefinite blocking
                 try:
                     item = await asyncio.wait_for(self.voice_handler.synthesis_queue.get(), timeout=1.0)
-                except TimeoutError:
+                except asyncio.TimeoutError:
                     # No items in queue, continue loop
                     await asyncio.sleep(0.1)
                     continue
@@ -82,7 +84,7 @@ class SynthesizerWorker:
                         self._tts_engine.synthesize_audio(item["text"], speaker_id=speaker_id, engine_name=engine_name),
                         timeout=30.0,  # 30 second timeout for TTS synthesis
                     )
-                except TimeoutError:
+                except asyncio.TimeoutError:
                     logger.error(f"TTS synthesis timeout for: {item['text'][:50]}...")
                     self.voice_handler.stats.increment_errors()
                     consecutive_errors += 1
@@ -111,8 +113,8 @@ class SynthesizerWorker:
                     # Calculate priority and add to audio queue with timeout protection
                     priority = calculate_message_priority(item)
                     try:
-                        await asyncio.wait_for(self.voice_handler.audio_queue.put((audio_path, item["group_id"], priority, item["chunk_index"])), timeout=1.0)
-                    except TimeoutError:
+                        await asyncio.wait_for(self.voice_handler.audio_queue.put((audio_path, item["group_id"], priority, item["chunk_index"], audio_size)), timeout=1.0)
+                    except asyncio.TimeoutError:
                         logger.warning(f"Audio queue full, dropping synthesized audio for: {item['text'][:50]}...")
                         cleanup_file(audio_path)
                         continue

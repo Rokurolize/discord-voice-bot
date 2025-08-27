@@ -14,6 +14,7 @@ sys.path.insert(0, "/home/ubuntu/workbench/projects/discord-voice-bot/src")
 
 from discord_voice_bot.config_manager import ConfigManagerImpl
 from discord_voice_bot.message_processor import MessageProcessor
+from discord_voice_bot.tts_client import TTSClient
 from discord_voice_bot.voice_handler import VoiceHandler
 
 
@@ -56,7 +57,7 @@ class PerformanceMonitor:
         }
 
 
-def test_memory_usage_message_processing() -> None:
+def test_memory_usage_message_processing(mock_env_vars) -> None:
     """Test memory usage during message processing."""
     print("🧠 Testing message processing memory usage...")
 
@@ -110,7 +111,7 @@ def test_memory_usage_message_processing() -> None:
     print("✅ Memory usage test passed!")
 
 
-def test_memory_usage_voice_handler() -> None:
+def test_memory_usage_voice_handler(mock_env_vars) -> None:
     """Test memory usage during voice handler operations."""
     print("\n🎵 Testing voice handler memory usage...")
 
@@ -127,7 +128,8 @@ def test_memory_usage_voice_handler() -> None:
 
     mock_bot = MockBot()
     config_manager = ConfigManagerImpl()
-    voice_handler = VoiceHandler(mock_bot, config_manager)
+    tts_client = TTSClient(config_manager)
+    voice_handler = VoiceHandler(mock_bot, config_manager, tts_client)
 
     monitor.record_measurement("After voice handler init")
 
@@ -156,7 +158,7 @@ def test_memory_usage_voice_handler() -> None:
     print("✅ Voice handler memory test passed!")
 
 
-def test_tts_engine_memory_performance() -> None:
+def test_tts_engine_memory_performance(mock_env_vars) -> None:
     """Test TTS engine memory performance."""
     print("\n🗣️ Testing TTS engine memory performance...")
 
@@ -167,7 +169,8 @@ def test_tts_engine_memory_performance() -> None:
         from discord_voice_bot.tts_engine import get_tts_engine
 
         config_manager = ConfigManagerImpl()
-        tts_engine = asyncio.run(get_tts_engine(config_manager))
+        tts_client = TTSClient(config_manager)
+        tts_engine = asyncio.run(get_tts_engine(config_manager, tts_client))
 
         monitor.record_measurement("After TTS engine init")
 
@@ -202,14 +205,14 @@ def test_tts_engine_memory_performance() -> None:
         traceback.print_exc()
 
 
-def test_concurrent_message_processing() -> None:
+def test_concurrent_message_processing(mock_env_vars) -> None:
     """Test concurrent message processing performance."""
     print("\n⚡ Testing concurrent message processing...")
 
     monitor = PerformanceMonitor()
     monitor.start_monitoring()
 
-    config_manager = ConfigManagerImpl()
+    config_manager = ConfigManagerImpl(test_mode=True)
     processor = MessageProcessor(config_manager)
 
     monitor.record_measurement("After processor init")
@@ -255,14 +258,14 @@ def test_concurrent_message_processing() -> None:
     print("✅ Concurrent processing test passed!")
 
 
-def test_rate_limiting_performance() -> None:
+def test_rate_limiting_performance(mock_env_vars) -> None:
     """Test rate limiting performance under load."""
     print("\n🚦 Testing rate limiting performance...")
 
     monitor = PerformanceMonitor()
     monitor.start_monitoring()
 
-    config_manager = ConfigManagerImpl()
+    config_manager = ConfigManagerImpl(test_mode=True)
     processor = MessageProcessor(config_manager)
 
     monitor.record_measurement("After rate limiter init")
@@ -327,14 +330,14 @@ def test_rate_limiting_performance() -> None:
     print("✅ Rate limiting test passed!")
 
 
-def test_long_running_memory_stability() -> None:
+def test_long_running_memory_stability(mock_env_vars) -> None:
     """Test memory stability during long running operations."""
     print("\n⏰ Testing long-running memory stability...")
 
     monitor = PerformanceMonitor()
     monitor.start_monitoring()
 
-    config_manager = ConfigManagerImpl()
+    config_manager = ConfigManagerImpl(test_mode=True)
     processor = MessageProcessor(config_manager)
 
     monitor.record_measurement("After long-running test setup")
@@ -391,13 +394,25 @@ if __name__ == "__main__":
     print("🚀 Starting Discord Voice TTS Bot Performance Tests")
     print("=" * 60)
 
+    # Set up test environment
+    import os
+
+    os.environ["DISCORD_BOT_TOKEN"] = "test_token"
+    os.environ["TARGET_VOICE_CHANNEL_ID"] = "123456789"
+    os.environ["TTS_ENGINE"] = "voicevox"
+    os.environ["VOICEVOX_URL"] = "http://localhost:50021"
+    os.environ["TEST_MODE"] = "1"
+
     try:
-        test_memory_usage_message_processing()
-        test_memory_usage_voice_handler()
-        test_tts_engine_memory_performance()
-        test_concurrent_message_processing()
-        test_rate_limiting_performance()
-        test_long_running_memory_stability()
+        # Since we are not using pytest, we don't have the monkeypatch fixture.
+        # The tests will use the environment variables we just set.
+        # We pass None because the fixture is not available.
+        test_memory_usage_message_processing(None)
+        test_memory_usage_voice_handler(None)
+        test_tts_engine_memory_performance(None)
+        test_concurrent_message_processing(None)
+        test_rate_limiting_performance(None)
+        test_long_running_memory_stability(None)
 
         print("\n" + "=" * 60)
         print("🎉 All performance tests passed!")

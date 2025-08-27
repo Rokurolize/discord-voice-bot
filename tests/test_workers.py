@@ -1,10 +1,14 @@
 """Unit tests for voice workers."""
 
 import asyncio
+import inspect
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import pytest_asyncio
 
+from discord_voice_bot.tts_client import TTSClient
 from discord_voice_bot.voice_handler import VoiceHandler
 
 
@@ -27,7 +31,7 @@ class MockTTSEngine:
 
         # Calculate sizes
         fmt_chunk_size = 16  # PCM format
-        sample_rate = 22050
+        sample_rate = 48000
         channels = 1
         bits_per_sample = 16
         bytes_per_sample = bits_per_sample // 8
@@ -35,8 +39,8 @@ class MockTTSEngine:
         byte_rate = sample_rate * block_align
 
         # Create some minimal audio data (silence)
-        audio_samples = 480  # 0.02 seconds at 24kHz
-        audio_data_size = audio_samples * bytes_per_sample
+        audio_samples = 480  # ~0.01 seconds at 48 kHz
+        audio_data_size = audio_samples * block_align
         audio_data = b"\x00" * audio_data_size  # Silence
 
         # Total file size
@@ -94,7 +98,6 @@ def mock_config_manager() -> MagicMock:
     config_manager.get_target_voice_channel_id.return_value = 987654321
     config_manager.get_command_prefix.return_value = "!tts"
     config_manager.get_engine_config.return_value = {"speakers": {"test": 1}}
-    config_manager.get_engines.return_value = {"voicevox": {"url": "http://localhost:50021", "default_speaker": 1}}
     config_manager.get_max_message_length.return_value = 200
     config_manager.get_message_queue_size.return_value = 10
     config_manager.get_reconnect_delay.return_value = 5
@@ -106,11 +109,31 @@ def mock_config_manager() -> MagicMock:
     return config_manager
 
 
+@pytest_asyncio.fixture
+async def mock_tts_client(mock_config_manager: MagicMock) -> TTSClient:
+    """Create a mock TTS client with proper teardown."""
+    client = TTSClient(mock_config_manager)
+    try:
+        yield client
+    finally:
+        close = getattr(client, "aclose", None) or getattr(client, "close", None)
+        if callable(close):
+            res = close()
+            if inspect.isawaitable(res):
+                await res
+
+
 @pytest.fixture
-def voice_handler(mock_bot_client: MagicMock, mock_config_manager: MagicMock) -> VoiceHandler:
+def voice_handler(mock_bot_client: MagicMock, mock_config_manager: MagicMock, mock_tts_client: TTSClient, monkeypatch) -> VoiceHandler:
     """Create a VoiceHandler instance with mocked bot client."""
-    handler = VoiceHandler(mock_bot_client, mock_config_manager)
-    return handler
+    monkeypatch.setattr(Path, "mkdir", lambda *args, **kwargs: None)
+    with patch("discord_voice_bot.voice.workers.synthesizer.get_user_settings") as mock_get_user_settings:
+        mock_user_settings = MagicMock()
+        mock_user_settings.get_user_settings.return_value = {}  # no overrides
+        mock_get_user_settings.return_value = mock_user_settings
+
+        handler = VoiceHandler(mock_bot_client, mock_config_manager, mock_tts_client)
+        yield handler
 
 
 class TestWorkerInitialization:
@@ -136,7 +159,7 @@ class TestWorkerInitialization:
                 # (SynthesizerWorker + PlayerWorker)
                 assert len(active_tasks) >= 2, f"Expected at least 2 workers, got {len(active_tasks)}"
 
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pytest.fail("Test timed out - voice_handler_initializes_workers took too long")
 
         finally:
@@ -171,8 +194,11 @@ class TestWorkerInitialization:
 
                     await voice_handler.add_to_queue(test_message)
 
-                    # Wait a short time for processing
-                    await asyncio.sleep(0.1)
+                    # Wait deterministically for the item to be processed (≤ ~500ms)
+                    for _ in range(50):
+                        if voice_handler.synthesis_queue.empty():
+                            break
+                        await asyncio.sleep(0.01)
 
                     # Check that synthesis queue is empty (processed)
                     assert voice_handler.synthesis_queue.empty(), "Message was not processed from synthesis queue"
@@ -180,7 +206,7 @@ class TestWorkerInitialization:
                     # Check that audio queue has an item (processed by SynthesizerWorker)
                     assert not voice_handler.audio_queue.empty(), "Audio was not queued after synthesis"
 
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pytest.fail("Test timed out - workers_process_queue_items took too long")
 
         finally:
@@ -206,16 +232,13 @@ class TestWorkerInitialization:
                 # Verify workers are running
                 assert len(voice_handler.tasks) > 0, "No worker tasks were created"
 
-                # Mock tasks to avoid cancellation issues
-                voice_handler.tasks = []
-
                 await voice_handler.cleanup()
 
                 # Workers should be stopped
                 assert voice_handler._synthesizer_worker is None or voice_handler._synthesizer_worker._running == False
                 assert voice_handler._player_worker is None or voice_handler._player_worker._running == False
 
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pytest.fail("Test timed out - worker_cleanup_on_handler_cleanup took too long")
 
     @pytest.mark.asyncio
@@ -234,7 +257,7 @@ class TestWorkerInitialization:
                 # The test should complete without hanging, even if TTS synthesis times out
                 await asyncio.sleep(0.5)
 
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pytest.fail("Test timed out - worker_timeout_protection took too long")
 
         finally:
@@ -250,7 +273,7 @@ class TestWorkerInitialization:
                 await asyncio.gather(*voice_handler.tasks, return_exceptions=True)
 
     @pytest.mark.asyncio
-    @patch("discord_voice_bot.voice.workers.synthesizer.get_tts_engine")
+    @patch("discord_voice_bot.voice.workers.synthesizer.get_tts_engine", new_callable=AsyncMock)
     async def test_voice_handler_initializes_workers_fixed(self, mock_get_engine, voice_handler: VoiceHandler) -> None:
         """Test that VoiceHandler initializes and starts worker tasks with fixed mocking."""
         try:
@@ -269,7 +292,7 @@ class TestWorkerInitialization:
                 active_tasks = [task for task in voice_handler.tasks if not task.done()]
                 assert len(active_tasks) > 0, "Worker tasks finished immediately"
 
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pytest.fail("Test timed out - voice_handler_initializes_workers_fixed took too long")
 
         finally:
@@ -285,7 +308,7 @@ class TestWorkerInitialization:
                 await asyncio.gather(*voice_handler.tasks, return_exceptions=True)
 
     @pytest.mark.asyncio
-    @patch("discord_voice_bot.voice.workers.synthesizer.get_tts_engine")
+    @patch("discord_voice_bot.voice.workers.synthesizer.get_tts_engine", new_callable=AsyncMock)
     @patch("discord_voice_bot.voice.workers.player.PlayerWorker")
     async def test_workers_process_queue_items_fixed(self, mock_player_worker, mock_get_engine, voice_handler: VoiceHandler) -> None:
         """Test that workers actually process items from queues with fixed mocking."""
@@ -318,7 +341,7 @@ class TestWorkerInitialization:
                 # Check that audio queue has an item (processed by SynthesizerWorker)
                 assert not voice_handler.audio_queue.empty(), "Audio was not queued after synthesis"
 
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pytest.fail("Test timed out - workers did not process queue items")
 
         finally:
@@ -334,7 +357,7 @@ class TestWorkerInitialization:
                 await asyncio.gather(*voice_handler.tasks, return_exceptions=True)
 
     @pytest.mark.asyncio
-    @patch("discord_voice_bot.voice.workers.synthesizer.get_tts_engine")
+    @patch("discord_voice_bot.voice.workers.synthesizer.get_tts_engine", new_callable=AsyncMock)
     async def test_worker_cleanup_on_handler_cleanup_fixed(self, mock_get_engine, voice_handler: VoiceHandler) -> None:
         """Test that workers are properly cleaned up when handler is cleaned up with fixed mocking."""
         try:
@@ -349,14 +372,11 @@ class TestWorkerInitialization:
                 # Verify workers are running
                 assert len(voice_handler.tasks) > 0, "No worker tasks were created"
 
-                # Mock tasks to avoid cancellation issues
-                voice_handler.tasks = []
-
                 await voice_handler.cleanup()
 
                 # Workers should be stopped
                 assert voice_handler._synthesizer_worker is None or voice_handler._synthesizer_worker._running == False
                 assert voice_handler._player_worker is None or voice_handler._player_worker._running == False
 
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pytest.fail("Test timed out - worker_cleanup_on_handler_cleanup_fixed took too long")

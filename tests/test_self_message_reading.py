@@ -67,7 +67,7 @@ class TestSelfMessageReading(AsyncTestCase):
         mock_message.author.bot = True  # This is the key issue - bot messages are filtered
         mock_message.author.name = "TestBot"
         mock_message.author.display_name = "TestBot"
-        mock_message.channel.id = 1350964414286921749  # Target voice channel
+        mock_message.channel.id = 123456789  # Target voice channel
 
         return mock_message
 
@@ -84,7 +84,7 @@ class TestSelfMessageReading(AsyncTestCase):
         mock_message = MockDiscordObjects.create_mock_message(content, "RegularUser")
         mock_message.author.id = 99999  # Different ID from bot
         mock_message.author.bot = False  # Regular user message
-        mock_message.channel.id = 1350964414286921749  # Target voice channel
+        mock_message.channel.id = 123456789  # Target voice channel
 
         return mock_message
 
