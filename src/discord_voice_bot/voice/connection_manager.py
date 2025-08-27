@@ -34,7 +34,7 @@ class VoiceConnectionManager:
         """Connect to a voice channel with comprehensive error handling."""
         try:
             # Check reconnection cooldown
-            now = asyncio.get_event_loop().time()
+            now = asyncio.get_running_loop().time()
             time_since_last_attempt = now - self._last_connection_attempt
             if time_since_last_attempt < self._reconnection_cooldown:
                 wait_time = self._reconnection_cooldown - time_since_last_attempt

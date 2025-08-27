@@ -3,6 +3,7 @@
 
 import asyncio
 import sys
+import traceback
 from pathlib import Path
 
 # Add src to path
@@ -28,7 +29,6 @@ async def test_bot_startup():
 
     except Exception as e:
         print(f"❌ Bot startup failed: {e}")
-        import traceback
 
         traceback.print_exc()
         return False

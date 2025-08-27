@@ -1,6 +1,7 @@
 """Unit tests for voice workers."""
 
 import asyncio
+import inspect
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -38,7 +39,7 @@ class MockTTSEngine:
         byte_rate = sample_rate * block_align
 
         # Create some minimal audio data (silence)
-        audio_samples = 480  # 0.02 seconds at 24kHz
+        audio_samples = 480  # ~0.01 seconds at 48 kHz
         audio_data_size = audio_samples * block_align
         audio_data = b"\x00" * audio_data_size  # Silence
 
@@ -118,7 +119,7 @@ async def mock_tts_client(mock_config_manager: MagicMock) -> TTSClient:
         close = getattr(client, "aclose", None) or getattr(client, "close", None)
         if callable(close):
             res = close()
-            if asyncio.iscoroutine(res):
+            if inspect.isawaitable(res):
                 await res
 
 
@@ -127,7 +128,9 @@ def voice_handler(mock_bot_client: MagicMock, mock_config_manager: MagicMock, mo
     """Create a VoiceHandler instance with mocked bot client."""
     monkeypatch.setattr(Path, "mkdir", lambda *args, **kwargs: None)
     with patch("discord_voice_bot.voice.workers.synthesizer.get_user_settings") as mock_get_user_settings:
-        mock_get_user_settings.return_value.get_user_settings.return_value = {}  # no overrides
+        mock_user_settings = MagicMock()
+        mock_user_settings.get_user_settings.return_value = {}  # no overrides
+        mock_get_user_settings.return_value = mock_user_settings
 
         handler = VoiceHandler(mock_bot_client, mock_config_manager, mock_tts_client)
         yield handler

@@ -1,6 +1,7 @@
 """Unit tests for voice_handler module."""
 
 import asyncio
+import inspect
 from typing import Any, NamedTuple
 from unittest.mock import AsyncMock, MagicMock, Mock
 
@@ -83,7 +84,7 @@ async def mock_tts_client(mock_config_manager: FakeConfigManager) -> TTSClient:
         close = getattr(client, "aclose", None) or getattr(client, "close", None)
         if callable(close):
             res = close()
-            if asyncio.iscoroutine(res):
+            if inspect.isawaitable(res):
                 await res
 
 
@@ -343,7 +344,9 @@ class TestComplianceTDD:
         voice_handler.voice_client = mock_voice_client
 
         # Use a MagicMock for the gateway manager to avoid real I/O
-        voice_handler.voice_gateway = AsyncMock(spec=VoiceGatewayManager)
+        voice_handler.voice_gateway = MagicMock(spec=VoiceGatewayManager)
+        voice_handler.voice_gateway.handle_voice_server_update = AsyncMock()
+        voice_handler.voice_gateway.handle_voice_state_update = AsyncMock()
 
         # Test with mock data
         server_payload = {"token": "test_token", "guild_id": "123456789", "endpoint": "test.endpoint:1234"}
@@ -398,7 +401,9 @@ class TestComplianceTDD:
         voice_handler.voice_client = mock_voice_client
 
         # Use a MagicMock for the gateway manager to avoid real I/O
-        voice_handler.voice_gateway = AsyncMock(spec=VoiceGatewayManager)
+        voice_handler.voice_gateway = MagicMock(spec=VoiceGatewayManager)
+        voice_handler.voice_gateway.handle_voice_server_update = AsyncMock()
+        voice_handler.voice_gateway.handle_voice_state_update = AsyncMock()
 
         # Test voice server update handling (step 1 in Discord flow)
         voice_server_payload: dict[str, str] = {"token": "test_voice_token_123", "guild_id": "123456789012345678", "endpoint": "test-voice-endpoint.example.com:443"}
