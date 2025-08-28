@@ -64,3 +64,6 @@ async def test_message_pipeline(config: Config):
         assert call_args[key] is not None
 
     assert call_args["content"] == message.content
+    assert call_args["author_name"] == message.author.name
+    assert call_args["channel_name"] == message.channel.name
+    assert call_args["message_id"] == message.id

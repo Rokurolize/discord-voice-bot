@@ -1,5 +1,6 @@
 """TTS API client for managing communication with TTS services."""
 
+import asyncio
 import json
 import urllib.parse
 from typing import Any
@@ -22,6 +23,10 @@ class TTSClient:
     @property
     def api_url(self) -> str:
         """Get current API URL from config."""
+        if self.config.tts_engine not in self.config.engines:
+            logger.warning(f"Configured TTS engine '{self.config.tts_engine}' not found in engines. Falling back to default URL.")
+            return "http://localhost:50021"
+
         engine_config = self.config.engines.get(self.config.tts_engine, {})
         return engine_config.get("url", "http://localhost:50021")
 
@@ -82,7 +87,7 @@ class TTSClient:
             logger.error(f"{self.engine_name} TTS API: {error_msg}")
             return False, error_msg
 
-        except TimeoutError:
+        except asyncio.TimeoutError:
             error_msg = "connection timeout - server may be starting up"
             logger.error(f"{self.engine_name} TTS API: {error_msg}")
             return False, error_msg
@@ -173,6 +178,10 @@ class TTSClient:
 
         # Determine engine and speaker
         target_engine = engine_name or self.config.tts_engine
+        if target_engine not in self.config.engines:
+            logger.error(f"Unknown TTS engine '{target_engine}' requested. Falling back to default '{self.config.tts_engine}'.")
+            target_engine = self.config.tts_engine
+
         engines = self.config.engines
         engine_config = engines.get(target_engine, engines["voicevox"])
 

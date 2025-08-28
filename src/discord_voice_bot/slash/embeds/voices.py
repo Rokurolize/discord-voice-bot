@@ -9,14 +9,14 @@ from ...user_settings import UserSettings
 
 
 async def create_voices_embed(
-    user_id: str | int | None, config: Config, tts_engine: TTSEngine, user_settings: UserSettings
+    user_id: str | int, config: Config, tts_engine: TTSEngine, user_settings: UserSettings
 ) -> discord.Embed:
     """Create voices embed showing available speakers."""
     try:
         speakers = await tts_engine.get_available_speakers()
 
         # Get user's current setting
-        user_id_str = str(user_id) if user_id is not None else "unknown"
+        user_id_str = str(user_id)
         current_settings = user_settings.get_user_settings(user_id_str)
         current_speaker = current_settings.get("speaker_name") if current_settings else None
 

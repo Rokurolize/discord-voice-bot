@@ -72,3 +72,43 @@ class TestConfig:
 
             # Development defaults
             assert config.debug is False
+
+    @patch("discord_voice_bot.config.load_dotenv")
+    @patch("discord_voice_bot.config.Path.exists", return_value=True)
+    def test_dotenv_override_precedence(self, mock_exists, mock_load_dotenv) -> None:
+        """Test that .env file overrides secrets.env."""
+        # Simulate that secrets.env sets a value, then .env overrides it
+        def load_dotenv_side_effect(dotenv_path, override=False):
+            if "secrets.env" in str(dotenv_path):
+                os.environ["TTS_ENGINE"] = "secrets_engine"
+            elif ".env" in str(dotenv_path) and override:
+                os.environ["TTS_ENGINE"] = "dotenv_engine"
+
+        mock_load_dotenv.side_effect = load_dotenv_side_effect
+
+        with patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "test_token"}, clear=True):
+            config = Config.from_env()
+            assert config.tts_engine == "dotenv_engine"
+
+    @pytest.mark.parametrize(
+        "field_name, env_value, expected",
+        [
+            ("debug", "true", True),
+            ("debug", "1", True),
+            ("debug", "false", False),
+            ("debug", "0", False),
+            ("test_mode", "yes", True),
+            ("test_mode", "no", False),
+            ("enable_self_message_processing", "TRUE", True),
+            ("enable_self_message_processing", "FALSE", False),
+        ],
+    )
+    @patch("discord_voice_bot.config.Path.exists", return_value=False)
+    def test_boolean_parsing(self, mock_exists, field_name, env_value, expected) -> None:
+        """Test boolean parsing for various config fields."""
+        # The env var name in config.py is the uppercase version of the field name
+        env_var = field_name.upper()
+
+        with patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "test_token", env_var: env_value}, clear=True):
+            config = Config.from_env()
+            assert getattr(config, field_name) is expected

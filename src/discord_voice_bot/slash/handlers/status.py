@@ -9,7 +9,7 @@ from ..embeds.status import create_basic_status_embed, create_status_embed
 
 async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> None:
     """Handle status slash command."""
-    logger.debug(f"Handling /status command from user '{interaction.user}' (id={interaction.user.id})")
+    logger.debug("Handling /status command from user='{}' (id={})", interaction.user, interaction.user.id)
     try:
         if hasattr(bot, "status_manager") and bot.status_manager:
             status = bot.status_manager.get_statistics()

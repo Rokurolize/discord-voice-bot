@@ -3,11 +3,19 @@ import pytest
 from discord_voice_bot.config import Config
 
 
+import dataclasses
+
+
 @pytest.fixture
 def config() -> Config:
     """
-    Returns a default, test-safe Config object.
-    Tests that need to override specific values can do so on the returned object.
+    Returns a default, test-safe, immutable Config object.
+
+    Since Config is a frozen dataclass, tests that need to override specific
+    values must create a new config object using `dataclasses.replace()`.
+
+    Example:
+        new_config = dataclasses.replace(config, tts_engine="aivis")
     """
     return Config(
         discord_token="test_discord_token",

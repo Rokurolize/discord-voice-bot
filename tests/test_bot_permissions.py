@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Test script to verify bot permissions and connectivity to target Discord server/channel."""
+import asyncio
 import logging
 import os
 

@@ -11,7 +11,7 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
     """Handle voices slash command."""
     logger.debug("Handling /voices command from user id={} name={}", interaction.user.id, interaction.user.display_name)
     try:
-        if not hasattr(bot, "tts_engine") or not hasattr(bot, "user_settings"):
+        if not getattr(bot, "tts_engine", None) or not getattr(bot, "user_settings", None):
             _ = await interaction.response.send_message("❌ Bot components not ready.", ephemeral=True)
             return
 
@@ -25,4 +25,7 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
 
     except Exception:
         logger.exception("Error in voices slash command")
-        _ = await interaction.response.send_message("❌ Error retrieving voices", ephemeral=True)
+        if interaction.response.is_done():
+            await interaction.followup.send("❌ Error retrieving voices", ephemeral=True)
+        else:
+            await interaction.response.send_message("❌ Error retrieving voices", ephemeral=True)

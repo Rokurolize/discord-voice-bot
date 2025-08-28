@@ -28,7 +28,6 @@ class MessageValidator:
 
     def __init__(self, config: Config) -> None:
         """Initialize message validator."""
-        super().__init__()
         self.config = config
 
         # Initialize components
@@ -49,11 +48,12 @@ class MessageValidator:
             r"document\.cookie",
             r"document\.write",
         ]
+        self._compiled_suspicious_patterns = [re.compile(p, re.IGNORECASE) for p in self._suspicious_patterns]
 
         # Content limits
         self._max_special_chars_ratio = 0.8  # Max ratio of special chars to total chars
 
-        logger.info("Message validator initialized")
+        logger.debug("Message validator initialized")
 
     @property
     def max_message_length(self) -> int:
@@ -181,11 +181,10 @@ class MessageValidator:
             return False
 
         # Check for suspicious patterns
-        content_lower = message.content.lower()
-        for pattern in self._suspicious_patterns:
-            if re.search(pattern, content_lower, re.IGNORECASE):
+        for pattern in self._compiled_suspicious_patterns:
+            if pattern.search(message.content):
                 result.is_valid = False
-                result.reason = f"Suspicious content pattern detected: {pattern}"
+                result.reason = f"Suspicious content pattern detected: {pattern.pattern}"
                 result.warnings.append("Message contains potentially harmful content")
                 return False
 

@@ -54,15 +54,11 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, spea
             return
 
         # Get available speakers
-        from ...config_manager import ConfigManagerImpl
         from ...tts_engine import get_tts_engine
 
-        config_manager = ConfigManagerImpl()
-        tts_engine = await get_tts_engine(config_manager)
+        config = bot.config
+        tts_engine = await get_tts_engine(config)
         speakers = await tts_engine.get_available_speakers()
-        from ...config import get_config
-
-        config = get_config()
 
         # Find matching speaker (case-insensitive)
         speaker_lower = speaker.lower()
@@ -81,11 +77,8 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, spea
                 _ = await interaction.response.send_message(f"✅ Voice set to **{matched_speaker}** (ID: {matched_id}) on {config.tts_engine.upper()}", ephemeral=True)
                 # Test the new voice
                 test_text = f"{matched_speaker}の声です"
-                if hasattr(bot, "voice_handler") and bot.voice_handler:
-                    from ...message_processor import get_message_processor
-
-                    message_processor = get_message_processor(bot.config_manager)
-                    chunks = message_processor.chunk_message(test_text)
+                if hasattr(bot, "voice_handler") and bot.voice_handler and hasattr(bot, "message_processor"):
+                    chunks = bot.message_processor.chunk_message(test_text)
                     processed_message = {
                         "text": test_text,
                         "user_id": interaction.user.id,

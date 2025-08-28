@@ -46,12 +46,13 @@ class AudioProcessor:
         if not audio_query:
             return
 
-        # Set optimal sample rate for Discord (48kHz)
+        # Set optimal sample rate from config for Discord
         audio_query["outputSamplingRate"] = self.config.audio_sample_rate
 
         # Adjust volume to prevent clipping
         if "volumeScale" in audio_query:
-            audio_query["volumeScale"] = min(1.0, audio_query["volumeScale"] * 0.8)
+            volume = audio_query["volumeScale"]
+            audio_query["volumeScale"] = min(max(volume, 0.0), 1.0) * 0.8
 
         # Ensure reasonable speed (not too fast or slow)
         if "speedScale" in audio_query:

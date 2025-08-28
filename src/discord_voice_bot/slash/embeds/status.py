@@ -25,9 +25,13 @@ async def create_status_embed(status: dict[str, Any], config: Config) -> discord
     )
 
     # TTS status
+    engine = getattr(config, 'tts_engine', None)
+    speaker = getattr(config, 'tts_speaker', None)
+    engine_display = engine.upper() if engine else "Unknown"
+    speaker_display = speaker if speaker else "Unknown"
     _ = embed.add_field(
         name="🎤 TTS状態",
-        value=f"Engine: {config.tts_engine.upper()}\nSpeaker: {config.tts_speaker}\nPlaying: {'✅' if voice_status.get('is_playing') else '❌'}",
+        value=f"Engine: {engine_display}\nSpeaker: {speaker_display}\nPlaying: {'✅' if voice_status.get('is_playing') else '❌'}",
         inline=True,
     )
 

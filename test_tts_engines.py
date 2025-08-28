@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Test script to verify TTS engines are working properly."""
 
+import dataclasses
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -21,8 +22,8 @@ async def test_tts_engine_factory_and_synthesis(
     mock_aivis_synth.return_value = b"aivis_audio_data"
 
     # 1. Test the factory function `get_tts_engine`
-    config.tts_engine = "voicevox"
-    tts_engine: TTSEngine = await get_tts_engine(config)
+    voicevox_config = dataclasses.replace(config, tts_engine="voicevox")
+    tts_engine: TTSEngine = await get_tts_engine(voicevox_config)
     assert isinstance(tts_engine, TTSEngine)
     assert tts_engine.current_engine_name == "voicevox"
 
@@ -44,6 +45,7 @@ async def test_tts_engine_factory_and_synthesis(
     assert audio_data_aivis == b"aivis_audio_data"
     mock_aivis_synth.assert_called_once_with(test_text, "normal")
     mock_voicevox_synth.assert_not_called()
+    assert getattr(tts_engine, "current_engine_name", "aivis") == "aivis"
 
     # 4. Test cleanup
     with patch.object(tts_engine.voicevox_client.session, "close") as mock_vv_close, patch.object(

@@ -11,6 +11,7 @@ from src.discord_voice_bot.config import Config
 @pytest.mark.asyncio
 async def test_bot_creation(config: Config):
     """Test creating a bot instance."""
+    bot = None
     try:
         # The bot now takes the config object directly
         bot = DiscordVoiceTTSBot(config=config)
@@ -19,6 +20,6 @@ async def test_bot_creation(config: Config):
         assert bot.command_prefix == config.command_prefix
         assert isinstance(bot.intents, Intents)
         assert hasattr(bot, "http")
-
-    except Exception as e:
-        pytest.fail(f"Error creating bot: {e}")
+    finally:
+        if bot:
+            await bot.close()

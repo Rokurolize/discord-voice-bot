@@ -77,7 +77,7 @@ async def test_bot_message_processing(config: Config):
     try:
         await client.start(config.discord_token)
         await asyncio.wait_for(test_completed.wait(), timeout=30.0)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         pytest.fail("Test timed out.")
     except Exception as e:
         pytest.fail(f"Test failed with an unexpected exception: {e}")

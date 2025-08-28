@@ -13,7 +13,6 @@ class TTSHealthMonitor:
 
     def __init__(self, config: Config, tts_client: TTSClient) -> None:
         """Initialize TTS health monitor with configuration and TTS client."""
-        super().__init__()
         self.config = config
         self._tts_client = tts_client
 
@@ -167,11 +166,12 @@ class TTSHealthMonitor:
                     issues.append("🔴 No TTS engines configured")
                     issues.append("   💡 Check configuration file for engine settings")
                 else:
-                    # Check each engine configuration
+                    # Check each engine configuration (dict or object/dataclass)
                     for engine_name, engine_config in engines.items():
-                        if "url" not in engine_config:
+                        getter = engine_config.get if isinstance(engine_config, dict) else (lambda k, d=None: getattr(engine_config, k, d))
+                        if not getter("url"):
                             issues.append(f"🔴 Engine '{engine_name}' missing URL configuration")
-                        if "default_speaker" not in engine_config:
+                        if not getter("default_speaker"):
                             issues.append(f"🔴 Engine '{engine_name}' missing default speaker")
             except Exception as e:
                 issues.append(f"🔴 Configuration error: {e}")
