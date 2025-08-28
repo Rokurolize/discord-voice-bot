@@ -75,14 +75,10 @@ class MessageHandler:
                     logger.error(f"❌ Processed message keys: {list(processed_message.keys())}")
             else:
                 logger.warning("Voice handler not initialized, cannot queue TTS message")
-                logger.warning("Available bot attributes: {[attr for attr in dir(self.bot) if 'handler' in attr.lower()]}")
+                logger.warning(f"Available bot attributes: {[attr for attr in dir(self.bot) if 'handler' in attr.lower()]}")
 
-        except Exception as e:
-            logger.error(f"❌ CRITICAL ERROR processing message {message.id} from {message.author.name}: {e!s}")
-            logger.error(f"❌ Exception type: {type(e).__name__}")
-            import traceback
-
-            logger.error(f"❌ Full traceback: {traceback.format_exc()}")
+        except Exception:
+            logger.exception(f"❌ CRITICAL ERROR processing message {message.id} from {message.author.name}")
 
             # Try to update stats if possible
             try:
@@ -146,8 +142,8 @@ class MessageHandler:
             logger.debug("🔍 FILTERING: Message passed all filters")
             return True
 
-        except Exception as e:
-            logger.error(f"🔍 FILTERING ERROR: Error in message filtering: {e!s}")
+        except Exception:
+            logger.exception("🔍 FILTERING ERROR: Error in message filtering")
             return False
 
     async def _validate_and_process_message(self, message: discord.Message) -> dict[str, Any] | None:
@@ -192,13 +188,12 @@ class MessageHandler:
 
                 logger.debug("🔍 VALIDATION: Message validation completed successfully")
             else:
-                logger.debug("🔍 VALIDATION: Message processor returned None")
+                logger.debug(f"Message from '{message.author.name}' was valid but returned no processable content (e.g., URL only).")
 
             return processed_message
 
-        except Exception as e:
-            logger.error(f"🔍 VALIDATION ERROR: Error in message validation: {e!s}")
-            logger.error(f"🔍 VALIDATION ERROR: Exception type: {type(e).__name__}")
+        except Exception:
+            logger.exception("🔍 VALIDATION ERROR: Error in message validation")
             return None
 
     def _sanitize_message_content(self, content: str) -> str:
@@ -234,6 +229,6 @@ class MessageHandler:
 
             return content.strip()
 
-        except Exception as e:
-            logger.error(f"Error sanitizing message content: {e!s}")
+        except Exception:
+            logger.exception("Error sanitizing message content")
             return content[:100] + "..." if len(content) > 100 else content

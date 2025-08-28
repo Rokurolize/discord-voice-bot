@@ -1,5 +1,7 @@
 """Voice slash command handler."""
 
+import asyncio
+
 import discord
 from loguru import logger
 
@@ -8,11 +10,17 @@ from ...bot import DiscordVoiceTTSBot
 
 async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, speaker: str | None = None) -> None:
     """Handle voice slash command."""
+    logger.debug(
+        "Handling /voice command from user id={} name={} speaker={}",
+        interaction.user.id,
+        interaction.user.display_name,
+        (speaker if speaker is None else (speaker[:64] + "…") if len(speaker) > 64 else speaker),
+    )
     try:
-        from ...user_settings import get_user_settings
+        from ...user_settings import load_user_settings
 
         user_id = str(interaction.user.id)
-        user_settings = get_user_settings()
+        user_settings = load_user_settings()
 
         # If no speaker specified, show current setting
         if speaker is None:
@@ -46,15 +54,11 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, spea
             return
 
         # Get available speakers
-        from ...config_manager import ConfigManagerImpl
         from ...tts_engine import get_tts_engine
 
-        config_manager = ConfigManagerImpl()
-        tts_engine = await get_tts_engine(config_manager)
+        config = bot.config
+        tts_engine = await get_tts_engine(config)
         speakers = await tts_engine.get_available_speakers()
-        from ...config import get_config
-
-        config = get_config()
 
         # Find matching speaker (case-insensitive)
         speaker_lower = speaker.lower()
@@ -73,11 +77,8 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, spea
                 _ = await interaction.response.send_message(f"✅ Voice set to **{matched_speaker}** (ID: {matched_id}) on {config.tts_engine.upper()}", ephemeral=True)
                 # Test the new voice
                 test_text = f"{matched_speaker}の声です"
-                if hasattr(bot, "voice_handler") and bot.voice_handler:
-                    from ...message_processor import get_message_processor
-
-                    message_processor = get_message_processor(bot.config_manager)
-                    chunks = message_processor.chunk_message(test_text)
+                if hasattr(bot, "voice_handler") and bot.voice_handler and hasattr(bot, "message_processor"):
+                    chunks = bot.message_processor.chunk_message(test_text)
                     processed_message = {
                         "text": test_text,
                         "user_id": interaction.user.id,
@@ -91,6 +92,14 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, spea
         else:
             _ = await interaction.response.send_message(f"❌ Voice '{speaker}' not found. Use `/voices` to see available options.", ephemeral=True)
 
-    except Exception as e:
-        logger.error(f"Error in voice slash command: {e}")
-        _ = await interaction.response.send_message("❌ Error setting voice preference", ephemeral=True)
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        logger.exception("Error in voice slash command")
+        try:
+            if interaction.response.is_done():
+                _ = await interaction.followup.send("❌ Error setting voice preference", ephemeral=True)
+            else:
+                _ = await interaction.response.send_message("❌ Error setting voice preference", ephemeral=True)
+        except Exception as followup_err:
+            logger.opt(exception=followup_err).debug("Suppressed secondary error while responding to interaction")

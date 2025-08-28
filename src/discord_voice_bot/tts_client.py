@@ -8,37 +8,43 @@ from typing import Any
 import aiohttp
 from loguru import logger
 
-from .protocols import ConfigManager
+from .config import Config
 
 
 class TTSClient:
     """Manages TTS API communication and requests."""
 
-    def __init__(self, config_manager: ConfigManager) -> None:
-        """Initialize TTS client with configuration manager."""
-        super().__init__()
-        self._config_manager = config_manager
+    def __init__(self, config: Config) -> None:
+        """Initialize TTS client with a configuration object."""
+        self.config = config
         self._session: aiohttp.ClientSession | None = None
 
     @property
     def api_url(self) -> str:
-        """Get current API URL from config manager."""
-        # Get from environment variable directly to avoid early Config creation
-        import os
+        """Get current API URL from config."""
+        if self.config.tts_engine not in self.config.engines:
+            logger.warning(f"Configured TTS engine '{self.config.tts_engine}' not found in engines. Falling back to default URL.")
+            return "http://localhost:50021"
 
-        return os.environ.get("VOICEVOX_URL", "http://localhost:50021")
+        engine_config = self.config.engines.get(self.config.tts_engine, {})
+        return engine_config.get("url", "http://localhost:50021")
 
     @property
     def speaker_id(self) -> int:
-        """Get current speaker ID from config manager."""
-        return self._config_manager.get_speaker_id()
+        """Get current speaker ID from config."""
+        val = str(self.config.tts_speaker).strip()
+        if val.isdigit():
+            return int(val)
+        engines = self.config.engines
+        engine = self.config.tts_engine
+        engine_cfg = engines.get(engine, {})  # MappingProxyType is dict-like
+        speakers = engine_cfg.get("speakers", {}) if isinstance(engine_cfg, dict) else {}
+        return int(speakers.get(val, engine_cfg.get("default_speaker", 3)))
 
     @property
     def engine_name(self) -> str:
-        """Get current engine name from environment variable."""
-        import os
-
-        return os.environ.get("TTS_ENGINE", "voicevox").upper()
+        """Get current engine name from config."""
+        return self.config.tts_engine.upper()
 
     @property
     def session(self) -> aiohttp.ClientSession | None:
@@ -181,9 +187,17 @@ class TTSClient:
             await self.start_session()
 
         # Determine engine and speaker
-        target_engine = engine_name or self._config_manager.get_tts_engine()
-        engines = self._config_manager.get_engines()
-        engine_config = engines.get(target_engine, engines["voicevox"])
+        target_engine = (engine_name or self.config.tts_engine).lower()
+        engines = self.config.engines
+        engine_config = engines.get(target_engine)
+        if not engine_config:
+            fallback = "voicevox" if "voicevox" in engines else (next(iter(engines.keys()), None))
+            logger.error("Unknown TTS engine requested; target={} fallback={}", target_engine, fallback)
+            if not fallback:
+                logger.error("No TTS engines configured; aborting synthesis")
+                return None
+            target_engine = fallback
+            engine_config = engines[target_engine]
 
         # Use provided speaker ID or engine default
         current_speaker_id = speaker_id or engine_config["default_speaker"]

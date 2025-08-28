@@ -2,96 +2,82 @@
 
 import asyncio
 import os
+from unittest.mock import Mock
 
 import discord
 import pytest
-from dotenv import load_dotenv
-from src.discord_voice_bot.config_manager import ConfigManagerImpl
 
-# Load environment variables
-load_dotenv()
-
-
-@pytest.fixture
-def discord_token():
-    """Get Discord bot token from environment."""
-    token = os.getenv("DISCORD_BOT_TOKEN")
-    if not token:
-        pytest.skip("DISCORD_BOT_TOKEN not set")
-    return token
+from src.discord_voice_bot.config import Config
 
 
 @pytest.mark.skipif(
-    os.getenv("RUN_DISCORD_INTEGRATION_TESTS", "").lower() not in ("true", "1", "yes"),
-    reason="Discord integration test - requires valid bot token and server access. Set RUN_DISCORD_INTEGRATION_TESTS=true to run manually",
+    os.getenv("RUN_DISCORD_INTEGRATION_TESTS", "false").lower() != "true",
+    reason="Discord integration test - requires valid bot token and server access.",
 )
 @pytest.mark.asyncio
-async def test_bot_message_processing(discord_token):
-    """Test bot message processing capabilities."""
-    # Initialize configuration
-    config_manager = ConfigManagerImpl()
-    target_guild_id = config_manager.get_target_guild_id()
-    target_channel_id = config_manager.get_target_voice_channel_id()
-
-    # Create Discord client with required intents
+async def test_bot_message_processing(config: Config):
+    """Test bot message processing capabilities by mocking an incoming message."""
     intents = discord.Intents.default()
     intents.message_content = True
     intents.guilds = True
     intents.voice_states = True
 
     client = discord.Client(intents=intents)
-    messages_processed = []
+    test_completed = asyncio.Event()
+    message_was_processed = False
 
     @client.event
     async def on_ready():
-        # Find target guild and channel
-        target_guild = client.get_guild(target_guild_id)
-        assert target_guild, f"Target guild {target_guild_id} not found!"
+        nonlocal message_was_processed
+        try:
+            target_guild = client.get_guild(config.target_guild_id)
+            assert target_guild, f"Target guild {config.target_guild_id} not found."
 
-        target_channel = client.get_channel(target_channel_id)
-        assert target_channel, f"Target channel {target_channel_id} not found!"
+            target_channel = client.get_channel(config.target_voice_channel_id)
+            assert target_channel, f"Target channel {config.target_voice_channel_id} not found."
 
-        # Create a mock message instead of sending real message to avoid unnecessary TTS
-        from unittest.mock import Mock
+            # Create a mock message to avoid actual TTS processing
+            test_message = Mock(spec=discord.Message)
+            test_message.content = "Test message for processing verification"
+            test_message.author = Mock(spec=discord.Member)
+            test_message.author.name = "TestUser"
+            test_message.author.bot = False
+            test_message.channel = target_channel
+            test_message.id = 12345
+            test_message.created_at = discord.utils.utcnow()
 
-        test_message = Mock()
-        test_message.content = "Test message for processing verification"
-        test_message.author = Mock()
-        test_message.author.name = "TestUser"
-        test_message.author.bot = False
-        test_message.channel = target_channel
-        test_message.id = 12345
-        test_message.created_at = discord.utils.utcnow()
+            # Simulate message processing by calling the on_message handler directly
+            await on_message(test_message)
 
-        # Simulate message processing by calling on_message directly
-        await on_message(test_message)
+            # The on_message handler below will set this to True
+            assert message_was_processed, "The on_message handler did not process the message."
 
-        # Wait briefly for processing
-        await asyncio.sleep(1)
-
-        # Note: No cleanup needed for mock message
-
-        await client.close()
+        except AssertionError as e:
+            pytest.fail(str(e))
+        finally:
+            await client.close()
+            test_completed.set()
 
     @client.event
-    async def on_message(message):
-        """Handle incoming messages."""
-        # Don't process our own messages to avoid loops
+    async def on_message(message: discord.Message):
+        """A simplified handler to confirm the message is received and valid."""
+        nonlocal message_was_processed
+        # Don't process our own messages
         if message.author == client.user:
             return
 
         # Only process messages from the target channel
-        if message.channel.id == target_channel_id:
-            messages_processed.append({"content": message.content, "author": str(message.author), "channel": str(message.channel), "timestamp": message.created_at})
+        if message.channel.id == config.target_voice_channel_id:
+            message_was_processed = True
 
     @client.event
     async def on_error(event, *args, **kwargs):
         pytest.fail(f"Discord client error in {event}: {args}")
 
-    # Start the bot
-    await client.start(discord_token)
-    await client.wait_until_ready()
-
-    # Verify that messages were processed
-    assert len(messages_processed) > 0, "No messages were processed"
-    assert messages_processed[0]["content"], "Message content is empty"
+    try:
+        await client.start(config.discord_token)
+        await asyncio.wait_for(test_completed.wait(), timeout=30.0)
+    except TimeoutError:
+        pytest.fail("Test timed out.")
+    except Exception as e:
+        pytest.fail(f"Test failed with an unexpected exception: {e}")

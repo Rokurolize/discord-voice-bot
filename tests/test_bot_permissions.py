@@ -1,128 +1,73 @@
 #!/usr/bin/env python3
 """Test script to verify bot permissions and connectivity to target Discord server/channel."""
-
 import asyncio
+import logging
+import os
 
 import discord
 import pytest
-from src.discord_voice_bot.config_manager import ConfigManagerImpl
+
+from discord_voice_bot.config import Config
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.mark.skipif(
-    True,  # Always skip this test - it's too slow for regular testing
-    reason="This integration test is too slow for regular test runs - run manually when needed",
+    os.getenv("RUN_DISCORD_INTEGRATION_TESTS", "false").lower() != "true",
+    reason="This is a slow integration test that requires a live Discord bot token and server.",
 )
-async def test_bot_permissions():
+@pytest.mark.asyncio
+async def test_bot_permissions(config: Config):
     """Test bot permissions and connectivity."""
-    try:
-        # Initialize configuration
-        config_manager = ConfigManagerImpl()
-        token = config_manager.get_discord_token()
-        target_guild_id = config_manager.get_target_guild_id()
-        target_channel_id = config_manager.get_target_voice_channel_id()
+    intents = discord.Intents.default()
+    intents.guilds = True
+    intents.voice_states = True
+    intents.members = True
 
-        print("🤖 Bot Configuration Test")
-        print(f"   Target Guild ID: {target_guild_id}")
-        print(f"   Target Channel ID: {target_channel_id}")
-        print()
+    client = discord.Client(intents=intents)
+    test_completed = asyncio.Event()
 
-        # Create Discord client with minimal intents
-        intents = discord.Intents.default()
-        intents.guilds = True
-        intents.voice_states = True
+    @client.event
+    async def on_ready():
+        try:
+            logger.info(f"Bot connected as: {client.user}")
+            assert len(client.guilds) > 0, "Bot is not in any guilds."
 
-        client = discord.Client(intents=intents)
+            target_guild = client.get_guild(config.target_guild_id)
+            assert target_guild, f"Target guild {config.target_guild_id} not found!"
+            logger.info(f"Found target guild: {target_guild.name}")
 
-        @client.event
-        async def on_ready():
-            print(f"✅ Bot connected as: {client.user}")
-            print(f"   Bot is in {len(client.guilds)} servers")
-            print()
+            bot_member = await target_guild.fetch_member(client.user.id)
+            assert bot_member, "Bot is not a member of the target guild!"
 
-            # Find target guild
-            target_guild = client.get_guild(target_guild_id)
-            if not target_guild:
-                print(f"❌ Target guild {target_guild_id} not found!")
-                print("   Bot may not be invited to this server or the Guild ID may be incorrect.")
-                for guild in client.guilds:
-                    print(f"   Available guild: {guild.name} (ID: {guild.id})")
-                await client.close()
-                return
+            target_channel = client.get_channel(config.target_voice_channel_id)
+            assert target_channel, f"Target channel {config.target_voice_channel_id} not found!"
+            assert isinstance(
+                target_channel, discord.VoiceChannel
+            ), "Target channel is not a voice channel."
 
-            print(f"✅ Found target guild: {target_guild.name}")
-            print(f"   Guild member count: {target_guild.member_count}")
-            print()
+            chan_perms = target_channel.permissions_for(bot_member)
+            assert chan_perms.connect, "Bot is missing 'connect' permission on the target channel."
+            assert chan_perms.speak, "Bot is missing 'speak' permission on the target channel."
+            logger.info(f"Bot has required voice permissions on: {target_channel.name}")
 
-            # Check bot's permissions in the guild
-            bot_member = target_guild.get_member(client.user.id)
-            if not bot_member:
-                print("❌ Bot is not a member of the target guild!")
-                await client.close()
-                return
-
-            print("🔐 Bot Permissions Check:")
-
-            # Check voice permissions
-            voice_permissions = bot_member.guild_permissions
-            voice_perms_ok = voice_permissions.connect and voice_permissions.speak and voice_permissions.use_voice_activation
-
-            print(f"   Connect to voice channels: {'✅' if voice_permissions.connect else '❌'}")
-            print(f"   Speak in voice channels: {'✅' if voice_permissions.speak else '❌'}")
-            print(f"   Use voice activation: {'✅' if voice_permissions.use_voice_activation else '❌'}")
-
-            if not voice_perms_ok:
-                print("❌ Bot is missing required voice permissions!")
-            else:
-                print("✅ Bot has required voice permissions")
-
-            print()
-
-            # Find target voice channel
-            target_channel = client.get_channel(target_channel_id)
-            if not target_channel:
-                print(f"❌ Target channel {target_channel_id} not found!")
-                print("   Channel may not exist or the Channel ID may be incorrect.")
-                for channel in target_guild.channels:
-                    if isinstance(channel, discord.VoiceChannel):
-                        print(f"   Available voice channel: {channel.name} (ID: {channel.id})")
-                await client.close()
-                return
-
-            print(f"✅ Found target voice channel: {target_channel.name}")
-            print(f"   Channel type: {type(target_channel).__name__}")
-            print(f"   User limit: {getattr(target_channel, 'user_limit', 'N/A')}")
-            print()
-
-            # Test message sending to a text channel (if available)
-            text_channels = [c for c in target_guild.channels if isinstance(c, discord.TextChannel)]
-            if text_channels:
-                test_channel = text_channels[0]  # Use first available text channel
-                try:
-                    await test_channel.send("🔧 Bot permission test - this message can be deleted")
-                    print(f"✅ Successfully sent test message to {test_channel.name}")
-                except Exception as e:
-                    print(f"❌ Failed to send test message: {e}")
-            else:
-                print("⚠️ No text channels available for message test")
-
-            print()
-            print("🎉 Bot permissions and connectivity test completed!")
+        except AssertionError as e:
+            pytest.fail(str(e))
+        finally:
             await client.close()
+            test_completed.set()
 
-        @client.event
-        async def on_error(event, *args, **kwargs):
-            print(f"❌ Discord client error in {event}: {args}")
+    @client.event
+    async def on_error(event, *args, **kwargs):
+        try:
+            await client.close()
+        finally:
+            pytest.fail(f"Discord client error in {event}: {args}")
 
-        # Start the bot
-        print("🔌 Connecting to Discord...")
-        await client.start(token)
-
+    try:
+        await client.start(config.discord_token)
+        await asyncio.wait_for(test_completed.wait(), timeout=30.0)
+    except TimeoutError:
+        pytest.fail("Test timed out.")
     except Exception as e:
-        print(f"💥 Test failed with error: {e}")
-        import traceback
-
-        traceback.print_exc()
-
-
-if __name__ == "__main__":
-    asyncio.run(test_bot_permissions())
+        pytest.fail(f"Test failed with an unexpected exception: {e}")

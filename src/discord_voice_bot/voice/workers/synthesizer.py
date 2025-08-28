@@ -6,10 +6,9 @@ from typing import Any, Protocol
 
 from loguru import logger
 
-from ...protocols import ConfigManager
-from ...tts_client import TTSClient
+from ...config import Config
 from ...tts_engine import get_tts_engine
-from ...user_settings import get_user_settings
+from ...user_settings import load_user_settings
 from ..audio_utils import calculate_message_priority, cleanup_file, get_audio_size, validate_wav_format
 
 
@@ -26,19 +25,20 @@ class VoiceHandlerProtocol(Protocol):
 class SynthesizerWorker:
     """Worker for processing TTS synthesis requests."""
 
-    def __init__(self, voice_handler: VoiceHandlerProtocol, config_manager: ConfigManager, tts_client: TTSClient):
+    def __init__(self, voice_handler: VoiceHandlerProtocol, config: Config):
         super().__init__()
         self.voice_handler = voice_handler
-        self._config_manager = config_manager
-        self._tts_client = tts_client
+        self.config = config
         self.max_buffer_size = 50 * 1024 * 1024  # 50MB limit
         self.buffer_size = 0
         self._running = True  # Flag to control the worker loop
+        self._idle_log_counter = 0
+        self._last_idle_log = 0.0
 
         # Initialize TTS engine and user settings with config manager
         # Note: TTS engine will be initialized asynchronously in run() method
         self._tts_engine = None
-        self._user_settings = get_user_settings()
+        self._user_settings = load_user_settings()
 
     async def run(self) -> None:
         """Run the synthesis worker loop."""
@@ -48,9 +48,9 @@ class SynthesizerWorker:
         # Initialize TTS engine if not already initialized
         if self._tts_engine is None:
             try:
-                self._tts_engine = await get_tts_engine(self._config_manager, tts_client=self._tts_client)
-            except Exception as e:
-                logger.error(f"Failed to initialize TTS engine: {e}")
+                self._tts_engine = await get_tts_engine(self.config)
+            except Exception:
+                logger.exception("Failed to initialize TTS engine")
                 self._running = False
                 return
 
@@ -59,14 +59,20 @@ class SynthesizerWorker:
                 # Add timeout to queue.get() to prevent indefinite blocking
                 try:
                     item = await asyncio.wait_for(self.voice_handler.synthesis_queue.get(), timeout=1.0)
-                except asyncio.TimeoutError:
-                    # No items in queue, continue loop
+                    self._idle_log_counter = 0
+                except TimeoutError:
+                    self._idle_log_counter += 1
+                    now = asyncio.get_running_loop().time()
+                    if now - self._last_idle_log >= 60.0:
+                        logger.debug("SynthesizerWorker is idle, waiting for synthesis tasks in the queue.")
+                        self._last_idle_log = now
                     await asyncio.sleep(0.1)
                     continue
 
                 # Check buffer size before processing
                 if self.buffer_size >= self.max_buffer_size:
                     logger.warning("Audio buffer size limit reached, dropping synthesis request")
+                    self.voice_handler.stats.increment_errors()
                     continue
 
                 # Get user settings
@@ -84,7 +90,7 @@ class SynthesizerWorker:
                         self._tts_engine.synthesize_audio(item["text"], speaker_id=speaker_id, engine_name=engine_name),
                         timeout=30.0,  # 30 second timeout for TTS synthesis
                     )
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     logger.error(f"TTS synthesis timeout for: {item['text'][:50]}...")
                     self.voice_handler.stats.increment_errors()
                     consecutive_errors += 1
@@ -94,6 +100,7 @@ class SynthesizerWorker:
                     # Validate audio format
                     if not validate_wav_format(audio_data):
                         logger.error(f"Invalid audio format for: {item['text'][:50]}...")
+                        self.voice_handler.stats.increment_errors()
                         consecutive_errors += 1
                         continue
 
@@ -101,6 +108,7 @@ class SynthesizerWorker:
                     audio_size = get_audio_size(audio_data)
                     if audio_size > 10 * 1024 * 1024:  # 10MB per audio file
                         logger.warning(f"Audio file too large ({audio_size} bytes), skipping")
+                        self.voice_handler.stats.increment_errors()
                         consecutive_errors += 1
                         continue
 
@@ -113,10 +121,15 @@ class SynthesizerWorker:
                     # Calculate priority and add to audio queue with timeout protection
                     priority = calculate_message_priority(item)
                     try:
-                        await asyncio.wait_for(self.voice_handler.audio_queue.put((audio_path, item["group_id"], priority, item["chunk_index"], audio_size)), timeout=1.0)
-                    except asyncio.TimeoutError:
+                        await asyncio.wait_for(
+                            self.voice_handler.audio_queue.put((audio_path, item["group_id"], priority, item["chunk_index"], audio_size)),
+                            timeout=1.0,
+                        )
+                    except TimeoutError:
                         logger.warning(f"Audio queue full, dropping synthesized audio for: {item['text'][:50]}...")
                         cleanup_file(audio_path)
+                        self.voice_handler.stats.increment_errors()
+                        self.decrement_buffer_size(audio_size)
                         continue
 
                     logger.debug(f"Synthesized chunk {item['chunk_index'] + 1}/{item['total_chunks']} (size: {audio_size} bytes)")
@@ -124,6 +137,7 @@ class SynthesizerWorker:
 
                 else:
                     logger.error(f"Failed to synthesize: {item['text'][:50]}...")
+                    self.voice_handler.stats.increment_errors()
                     consecutive_errors += 1
 
                 # Check for too many consecutive errors
@@ -135,8 +149,8 @@ class SynthesizerWorker:
             except asyncio.CancelledError:
                 logger.info("SynthesizerWorker cancelled")
                 break
-            except Exception as e:
-                logger.error(f"Synthesis error: {e}")
+            except Exception:
+                logger.exception("Synthesis error")
                 self.voice_handler.stats.increment_errors()
                 consecutive_errors += 1
 
@@ -151,6 +165,19 @@ class SynthesizerWorker:
     def stop(self) -> None:
         """Stop the worker loop."""
         self._running = False
+
+    def decrement_buffer_size(self, size: int) -> None:
+        """Decrement the buffer size."""
+        before = self.buffer_size
+        # Reject negative decrements, then clamp at zero to prevent underflow
+        self.buffer_size = max(before - max(size, 0), 0)
+        # If we went from >0 to 0 due to an excessive decrement, log it
+        if self.buffer_size == 0 and before != 0 and before - size < 0:
+            logger.debug(
+                "Synthesizer buffer underflow prevented; clamped to 0 (before={}, decrement={}).",
+                before,
+                size,
+            )
 
     async def _create_temp_audio_file(self, audio_data: bytes) -> str:
         """Create a temporary audio file with the given data."""

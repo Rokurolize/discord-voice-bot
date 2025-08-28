@@ -5,7 +5,10 @@ from typing import Any
 import discord
 
 
-async def create_status_embed(status: dict[str, Any]) -> discord.Embed:
+from ...config import Config
+
+
+async def create_status_embed(status: dict[str, Any], config: Config) -> discord.Embed:
     """Create status embed from status data."""
     embed = discord.Embed(
         title="🤖 Discord Voice TTS Bot Status",
@@ -22,12 +25,13 @@ async def create_status_embed(status: dict[str, Any]) -> discord.Embed:
     )
 
     # TTS status
-    from ...config import get_config
-
-    config_instance = get_config()
+    engine = getattr(config, 'tts_engine', None)
+    speaker = getattr(config, 'tts_speaker', None)
+    engine_display = engine.upper() if engine else "Unknown"
+    speaker_display = speaker if speaker else "Unknown"
     _ = embed.add_field(
         name="🎤 TTS状態",
-        value=f"Engine: {config_instance.tts_engine.upper()}\nSpeaker: {config_instance.tts_speaker}\nPlaying: {'✅' if voice_status.get('is_playing') else '❌'}",
+        value=f"Engine: {engine_display}\nSpeaker: {speaker_display}\nPlaying: {'✅' if voice_status.get('is_playing') else '❌'}",
         inline=True,
     )
 

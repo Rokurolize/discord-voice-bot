@@ -11,23 +11,21 @@ from types import FrameType
 from loguru import logger
 
 from .bot import run_bot
-
-# Import our bot modules
-from .config_manager import ConfigManagerImpl
+from .config import Config
 from .health_monitor import HealthMonitor
 
 
 class BotManager:
     """Manages bot lifecycle and graceful shutdown."""
 
-    def __init__(self, test_mode: bool | None = None) -> None:
+    def __init__(self, config: Config) -> None:
         """Initialize bot manager."""
         super().__init__()
         self.bot_task: asyncio.Task[None] | None = None
         self.shutdown_event = asyncio.Event()
         self.is_shutting_down = False
         self.health_monitor: HealthMonitor | None = None
-        self.config_manager = ConfigManagerImpl(test_mode=test_mode)
+        self.config = config
 
     def setup_logging(self) -> None:
         """Set up structured logging."""
@@ -107,20 +105,15 @@ class BotManager:
         logger.info("Starting Discord Voice TTS Bot...")
 
         try:
-            # Validate configuration
-            logger.info("Validating configuration...")
-            self.config_manager.validate()
-            logger.info("Configuration validated successfully")
-
             # Log configuration summary
-            logger.info(f"Target voice channel ID: {self.config_manager.get_target_voice_channel_id()}")
-            logger.info(f"TTS Engine: {self.config_manager.get_tts_engine().upper()}")
-            logger.info(f"TTS API URL: {self.config_manager.get_api_url()}")
-            logger.info(f"Speaker: {self.config_manager.get('tts_speaker')} (ID: {self.config_manager.get_speaker_id()})")
-            logger.info(f"Command prefix: {self.config_manager.get_command_prefix()}")
+            logger.info(f"Target voice channel ID: {self.config.target_voice_channel_id}")
+            logger.info(f"TTS Engine: {self.config.tts_engine.upper()}")
+            logger.info(f"TTS API URL: {self.config.engines[self.config.tts_engine]['url']}")
+            logger.info(f"Speaker: {self.config.tts_speaker} (ID: {self.config.engines[self.config.tts_engine]['speakers'][self.config.tts_speaker]})")
+            logger.info(f"Command prefix: {self.config.command_prefix}")
 
             # Start bot
-            self.bot_task = asyncio.create_task(run_bot(test_mode=self.config_manager.is_test_mode()))
+            self.bot_task = asyncio.create_task(run_bot(config=self.config))
 
             # Wait for bot to be ready, then initialize health monitor
             await asyncio.sleep(5)  # Give bot time to initialize and connect
@@ -169,8 +162,8 @@ class BotManager:
             # Import TTS engine for health check
             from .tts_engine import get_tts_engine
 
-            # Initialize TTS engine with config manager
-            tts_engine = await get_tts_engine(self.config_manager)
+            # Initialize TTS engine with config
+            tts_engine = await get_tts_engine(self.config)
 
             # Check TTS API availability
             logger.info("Checking TTS API availability...")
@@ -210,9 +203,10 @@ class BotManager:
         return True
 
 
-async def main(test_mode: bool | None = None) -> None:
+async def main() -> None:
     """Main entry point."""
-    bot_manager = BotManager(test_mode=test_mode)
+    config = Config.from_env()
+    bot_manager = BotManager(config)
 
     # Set up logging
     bot_manager.setup_logging()

@@ -8,6 +8,12 @@ from ...bot import DiscordVoiceTTSBot
 
 async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, text: str) -> None:
     """Handle test slash command."""
+    logger.debug(
+        "Handling /test_tts command from user id={} name={} text_len={}",
+        interaction.user.id,
+        interaction.user.display_name,
+        len(text),
+    )
     try:
         if not hasattr(bot, "voice_handler") or not bot.voice_handler:
             _ = await interaction.response.send_message("❌ Voice handler not available", ephemeral=True)
@@ -54,6 +60,6 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, text
             result = bot.status_manager.record_tts_played()
             _ = result  # Handle unused result
 
-    except Exception as e:
-        logger.error(f"Error in test slash command: {e}")
+    except Exception:
+        logger.exception("Error in test slash command")
         _ = await interaction.response.send_message("❌ Error testing TTS", ephemeral=True)

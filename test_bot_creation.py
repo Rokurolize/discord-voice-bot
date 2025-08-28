@@ -1,42 +1,25 @@
 #!/usr/bin/env python3
 """Test script to create DiscordVoiceTTSBot instance."""
 
-import asyncio
+import pytest
+from discord import Intents
 
 from src.discord_voice_bot.bot import DiscordVoiceTTSBot
+from src.discord_voice_bot.config import Config
 
 
-class MockConfigManager:
-    """Mock configuration manager for testing."""
-
-    def get_intents(self):
-        from discord import Intents
-
-        return Intents.default()
-
-    def get_command_prefix(self):
-        return "!"
-
-    def get_discord_token(self):
-        return "mock_token"
-
-
-async def test_bot_creation():
+@pytest.mark.asyncio
+async def test_bot_creation(config: Config):
     """Test creating a bot instance."""
+    bot = None
     try:
-        config_manager = MockConfigManager()
-        bot = DiscordVoiceTTSBot(config_manager)
-        print("✅ Bot created successfully!")
-        print(f"Bot type: {type(bot)}")
-        print(f"Bot has http attribute: {hasattr(bot, 'http')}")
-        if hasattr(bot, "http"):
-            print(f"HTTP client type: {type(bot.http)}")
-    except Exception as e:
-        print(f"❌ Error creating bot: {e}")
-        import traceback
-
-        traceback.print_exc()
-
-
-if __name__ == "__main__":
-    asyncio.run(test_bot_creation())
+        # The bot now takes the config object directly
+        bot = DiscordVoiceTTSBot(config=config)
+        assert isinstance(bot, DiscordVoiceTTSBot)
+        assert bot.config == config
+        assert bot.command_prefix == config.command_prefix
+        assert isinstance(bot.intents, Intents)
+        assert hasattr(bot, "http")
+    finally:
+        if bot:
+            await bot.close()

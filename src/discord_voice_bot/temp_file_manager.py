@@ -9,16 +9,16 @@ from loguru import logger
 
 from .audio_debugger import audio_debugger
 from .audio_processor import AudioProcessor
-from .protocols import ConfigManager
+from .config import Config
 
 
 class TempFileManager:
     """Manages temporary files for TTS audio processing."""
 
-    def __init__(self, config_manager: ConfigManager, audio_processor: AudioProcessor) -> None:
+    def __init__(self, config: Config, audio_processor: AudioProcessor) -> None:
         """Initialize temp file manager with configuration and audio processor."""
         super().__init__()
-        self._config_manager = config_manager
+        self.config = config
         self._audio_processor = audio_processor
 
     async def create_audio_source(self, text: str, audio_data: bytes, speaker_id: int | None = None, engine_name: str | None = None) -> Any:
@@ -63,14 +63,15 @@ class TempFileManager:
                 logger.warning(f"Failed to save pre-Discord debug audio: {e}")
 
             # Create Discord audio source with corrected FFmpeg options
-            sample_rate = self._config_manager.get_audio_sample_rate()
-            channels = self._config_manager.get_audio_channels()
+            sample_rate = self.config.audio_sample_rate
+            channels = self.config.audio_channels
             ffmpeg_options = f"-ar {sample_rate} -ac {channels} -f s16le"
+            before_options = "-nostdin -hide_banner -loglevel warning"
 
-            logger.debug(f"FFmpeg options: {ffmpeg_options}")
+            logger.debug(f"FFmpeg options: before='{before_options}' options='{ffmpeg_options}'")
 
             try:
-                audio_source = discord.FFmpegPCMAudio(temp_path, options=ffmpeg_options)
+                audio_source = discord.FFmpegPCMAudio(temp_path, before_options=before_options, options=ffmpeg_options)
 
                 # Store temp path for cleanup
                 audio_source._temp_path = temp_path  # type: ignore[attr-defined]
@@ -94,7 +95,7 @@ class TempFileManager:
             logger.error(f"❌ Failed to create temp file or audio source: {type(e).__name__} - {e!s}")
             # Cleanup temp file if it was created
             try:
-                if "temp_path" in locals():
+                if temp_path:
                     Path(temp_path).unlink(missing_ok=True)
             except Exception:
                 pass
@@ -116,14 +117,25 @@ class TempFileManager:
                 "-i",
                 temp_path,
                 "-ar",
-                str(self._config_manager.get_audio_sample_rate()),
+                str(self.config.audio_sample_rate),
                 "-ac",
-                str(self._config_manager.get_audio_channels()),
+                str(self.config.audio_channels),
                 "-f",
                 "s16le",
                 "-",
             ]
-            result = subprocess.run(cmd, check=False, capture_output=True, timeout=10)
+            import asyncio
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            try:
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=10)
+            except asyncio.TimeoutError:
+                proc.kill()
+                stdout, stderr = await proc.communicate()
+            result = type("R", (), {"returncode": proc.returncode, "stdout": stdout, "stderr": stderr})
 
             if result.returncode == 0 and result.stdout:
                 metadata_discord = {
@@ -132,8 +144,8 @@ class TempFileManager:
                     "conversion_success": True,
                 }
                 # Save as raw PCM data (add WAV header for playability)
-                sample_rate = self._config_manager.get_audio_sample_rate()
-                channels = self._config_manager.get_audio_channels()
+                sample_rate = self.config.audio_sample_rate
+                channels = self.config.audio_channels
                 wav_header = self._audio_processor.create_wav_header(
                     len(result.stdout),
                     sample_rate,

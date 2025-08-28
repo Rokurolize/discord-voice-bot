@@ -7,7 +7,7 @@ from typing import Any
 import discord
 from loguru import logger
 
-from .config import get_config
+from .config import Config
 from .content_filter import ContentFilter
 from .permission_manager import PermissionManager
 
@@ -26,12 +26,14 @@ class ValidationResult:
 class MessageValidator:
     """Core validation logic for Discord messages."""
 
-    def __init__(self) -> None:
+    def __init__(self, config: Config) -> None:
         """Initialize message validator."""
-        super().__init__()
+        self.config = config
+
         # Initialize components
         self.content_filter = ContentFilter()
         self.permission_manager = PermissionManager()
+        self.content_filter.set_max_length(self.config.max_message_length)
 
         # Suspicious content patterns
         self._suspicious_patterns = [
@@ -46,25 +48,21 @@ class MessageValidator:
             r"document\.cookie",
             r"document\.write",
         ]
+        self._compiled_suspicious_patterns = [re.compile(p, re.IGNORECASE) for p in self._suspicious_patterns]
 
-        # Content limits - Delay config access until needed
-        self._max_message_length: int | None = None
+        # Content limits
         self._max_special_chars_ratio = 0.8  # Max ratio of special chars to total chars
 
-        logger.info("Message validator initialized")
+        logger.debug("Message validator initialized")
 
     @property
     def max_message_length(self) -> int:
-        """Get maximum message length from config (lazy evaluation)."""
-        if self._max_message_length is None:
-            self._max_message_length = get_config().max_message_length
-            # Set content filter limits when first accessed
-            self.content_filter.set_max_length(self._max_message_length)
-        return self._max_message_length
+        """Get maximum message length from config."""
+        return self.config.max_message_length
 
     def _get_enable_self_message_processing(self) -> bool:
-        """Get enable self message processing setting from config (lazy evaluation)."""
-        return get_config().enable_self_message_processing
+        """Get enable self message processing setting from config."""
+        return self.config.enable_self_message_processing
 
     async def validate_message(self, message: discord.Message) -> ValidationResult:
         """Validate a Discord message for TTS processing.
@@ -183,11 +181,10 @@ class MessageValidator:
             return False
 
         # Check for suspicious patterns
-        content_lower = message.content.lower()
-        for pattern in self._suspicious_patterns:
-            if re.search(pattern, content_lower, re.IGNORECASE):
+        for pattern in self._compiled_suspicious_patterns:
+            if pattern.search(message.content):
                 result.is_valid = False
-                result.reason = f"Suspicious content pattern detected: {pattern}"
+                result.reason = f"Suspicious content pattern detected: {pattern.pattern}"
                 result.warnings.append("Message contains potentially harmful content")
                 return False
 

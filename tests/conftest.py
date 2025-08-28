@@ -1,76 +1,47 @@
-"""Pytest configuration and fixtures for the Discord Voice Bot."""
-
-import os
-
 import pytest
 
-# Don't modify global environment variables
-# Instead, use fixtures to provide test-specific configuration
+from discord_voice_bot.config import Config
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create an instance of the default event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+import dataclasses
 
 
-def pytest_configure(config: pytest.Config) -> None:
-    """Configure pytest with custom markers."""
-    config.addinivalue_line("markers", "integration: mark test as integration test requiring Discord API")
-    config.addinivalue_line("markers", "requires_credentials: mark test as requiring Discord credentials")
+@pytest.fixture
+def config() -> Config:
+    """
+    Returns a default, test-safe, immutable Config object.
 
+    Since Config is a frozen dataclass, tests that need to override specific
+    values must create a new config object using `dataclasses.replace()`.
 
-def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    """Modify test collection to handle integration tests."""
-    # Skip integration tests if credentials are not available
-    skip_integration = pytest.mark.skip(reason="Discord credentials not configured or integration test disabled")
-
-    for item in items:
-        # Check if test is marked as integration test
-        if item.get_closest_marker("integration"):
-            # Check if required environment variables are set
-            required_vars = ["DISCORD_BOT_TOKEN", "TARGET_VOICE_CHANNEL_ID", "TTS_ENGINE"]
-            missing_vars = [var for var in required_vars if not os.getenv(var)]
-
-            if missing_vars:
-                item.add_marker(skip_integration)
-                continue
-
-        # Check if test requires credentials but credentials are missing
-        if item.get_closest_marker("requires_credentials"):
-            if not os.getenv("DISCORD_BOT_TOKEN"):
-                item.add_marker(pytest.mark.skip(reason="Discord bot token not configured"))
-
-
-# Import asyncio here to avoid import issues
-import asyncio
-
-
-@pytest.fixture(scope="session")
-def test_config_manager():
-    """Provide a ConfigManagerImpl instance with test mode enabled."""
-    from discord_voice_bot.config_manager import ConfigManagerImpl
-
-    return ConfigManagerImpl(test_mode=True)
-
-
-@pytest.fixture(scope="session")
-def prod_config_manager():
-    """Provide a ConfigManagerImpl instance with test mode disabled."""
-    from discord_voice_bot.config_manager import ConfigManagerImpl
-
-    return ConfigManagerImpl(test_mode=False)
-
-
-@pytest.fixture(autouse=True)
-def mock_env_vars(monkeypatch):
-    """Mock common environment variables for all tests."""
-    monkeypatch.setenv("DISCORD_BOT_TOKEN", "FAKE_BOT_TOKEN_FOR_TESTS")
-    monkeypatch.setenv("TARGET_VOICE_CHANNEL_ID", "123456789")  # unified value
-    monkeypatch.setenv("TTS_ENGINE", "voicevox")
-    monkeypatch.setenv("VOICEVOX_URL", "http://localhost:50021")
-    monkeypatch.setenv("TEST_MODE", "1")  # enables deterministic rate limits
-    monkeypatch.setenv("TTS_REQUEST_RATE_LIMIT", "10")  # Test-friendly rate limit
-    monkeypatch.setenv("TTS_REQUEST_PER", "1")
+    Example:
+        new_config = dataclasses.replace(config, tts_engine="aivis")
+    """
+    return Config(
+        discord_token="test_discord_token",
+        target_guild_id=987654321,
+        target_voice_channel_id=123456789,
+        tts_engine="voicevox",
+        tts_speaker="normal",
+        engines={
+            "voicevox": {
+                "url": "http://localhost:50021",
+                "default_speaker": 3,
+                "speakers": {"normal": 3},
+            }
+        },
+        command_prefix="!tts",
+        max_message_length=100,
+        message_queue_size=10,
+        reconnect_delay=5,
+        audio_sample_rate=48000,
+        audio_channels=2,
+        audio_frame_duration=20,
+        rate_limit_messages=5,
+        rate_limit_period=60,
+        log_level="DEBUG",
+        log_file=None,
+        debug=True,
+        test_mode=True,
+        enable_self_message_processing=False,
+    )
