@@ -3,7 +3,6 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
-import discord
 import pytest
 
 from discord_voice_bot.voice.gateway import VoiceGatewayManager
@@ -59,9 +58,8 @@ class TestComplianceTDD:
                         # First attempt "fails" with rate limit
                         await asyncio.sleep(0.01)  # Retry delay
                         continue
-                    else:
-                        # Succeed on retry
-                        break
+                    # Succeed on retry
+                    break
 
                 assert attempt_count <= 5  # Should succeed within retry limit
         except asyncio.TimeoutError:

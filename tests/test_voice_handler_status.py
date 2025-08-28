@@ -1,7 +1,5 @@
 """Tests for VoiceHandler status generation."""
 
-from typing import Any
-
 
 class TestStatusGeneration:
     """Test VoiceHandler status reporting."""
@@ -32,11 +30,7 @@ class TestStatusGeneration:
         """Test that essential status fields exist."""
         if hasattr(voice_handler_old, "stats"):
             stats = voice_handler_old.stats
-            expected_fields = [
-                "messages_processed",
-                "connection_errors",
-                "tts_messages_played"
-            ]
+            expected_fields = ["messages_processed", "connection_errors", "tts_messages_played"]
 
             for field in expected_fields:
                 assert field in stats, f"Missing status field: {field}"

@@ -1,7 +1,5 @@
 """Tests for VoiceHandler models and data structures."""
 
-import pytest
-
 from tests.test_voice_handler_fixtures import AudioItem
 
 
@@ -10,7 +8,6 @@ class TestAudioItem:
 
     def test_audio_item_creation(self) -> None:
         """Test creating an AudioItem with required fields."""
-        from datetime import datetime
 
         created_item = AudioItem(
             text="Hello World",
@@ -32,15 +29,7 @@ class TestAudioItem:
 
     def test_audio_item_optional_fields(self) -> None:
         """Test that optional fields are properly initialized."""
-        item = AudioItem(
-            text="test",
-            user_id=1,
-            username="user",
-            group_id="group",
-            priority=0,
-            chunk_index=0,
-            audio_size=0
-        )
+        item = AudioItem(text="test", user_id=1, username="user", group_id="group", priority=0, chunk_index=0, audio_size=0)
 
         assert item.created_at is None
         assert item.processed_at is None
@@ -48,40 +37,16 @@ class TestAudioItem:
     def test_audio_item_equality(self) -> None:
         """Test AudioItem equality."""
 
-        item1 = AudioItem(
-            text="test",
-            user_id=1,
-            username="user",
-            group_id="group",
-            priority=0,
-            chunk_index=0,
-            audio_size=100
-        )
+        item1 = AudioItem(text="test", user_id=1, username="user", group_id="group", priority=0, chunk_index=0, audio_size=100)
 
-        item2 = AudioItem(
-            text="test",
-            user_id=1,
-            username="user",
-            group_id="group",
-            priority=0,
-            chunk_index=0,
-            audio_size=100
-        )
+        item2 = AudioItem(text="test", user_id=1, username="user", group_id="group", priority=0, chunk_index=0, audio_size=100)
 
         # AudioItem instances should be equal if all fields match
         assert item1 == item2
 
     def test_audio_item_hashable(self) -> None:
         """Test that AudioItem can be used in sets and as dict keys."""
-        item = AudioItem(
-            text="test",
-            user_id=1,
-            username="user",
-            group_id="group",
-            priority=0,
-            chunk_index=0,
-            audio_size=0
-        )
+        item = AudioItem(text="test", user_id=1, username="user", group_id="group", priority=0, chunk_index=0, audio_size=0)
 
         # Should be hashable for use in queues and sets
         qset = {item}

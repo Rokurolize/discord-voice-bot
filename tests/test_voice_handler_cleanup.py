@@ -1,7 +1,5 @@
 """Tests for VoiceHandler cleanup functionality."""
 
-import pytest
-
 
 class TestCleanup:
     """Test VoiceHandler cleanup operations."""
@@ -91,6 +89,7 @@ class TestCleanup:
         # Verify it's an async method (has coroutine nature)
         # This ensures it can properly handle async operations
         import inspect
+
         assert inspect.iscoroutinefunction(cleanup_method)
 
     def test_resource_deallocation(self, voice_handler_old) -> None:

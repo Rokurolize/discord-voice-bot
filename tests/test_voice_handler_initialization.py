@@ -1,9 +1,5 @@
 """Tests for VoiceHandler initialization."""
 
-import pytest
-
-import discord_voice_bot.voice.handler
-
 
 class TestVoiceHandlerInitialization:
     """Test VoiceHandler initialization."""

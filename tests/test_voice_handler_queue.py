@@ -1,11 +1,7 @@
 """Tests for VoiceHandler queue management functionality."""
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock
-
 import pytest
 
-from discord_voice_bot.voice.gateway import VoiceGatewayManager
 from tests.test_voice_handler_fixtures import AudioItem
 
 
@@ -16,13 +12,7 @@ class TestQueueManagement:
     async def test_add_to_queue(self, voice_handler_old) -> None:
         """Test adding messages to the queue."""
         # Create test message data
-        message_data = {
-            "text": "Hello World",
-            "chunks": [{"text": "Hello", "index": 0}],
-            "user_id": 123456789,
-            "username": "test_user",
-            "group_id": "group_1"
-        }
+        message_data = {"text": "Hello World", "chunks": [{"text": "Hello", "index": 0}], "user_id": 123456789, "username": "test_user", "group_id": "group_1"}
 
         # Add to queue using direct method (assuming it exists)
         if hasattr(voice_handler_old, "add_to_queue"):
@@ -63,7 +53,6 @@ class TestQueueManagement:
 
             # This would be where we test actual clearing if queues had items
             # But since this is structure testing, we'll just verify the method exists
-            pass
 
     def test_cleanup_does_not_close_shared_tts_client(self, voice_handler_old) -> None:
         """Test that cleanup doesn't close shared TTS client."""
@@ -90,19 +79,10 @@ class TestQueueManagement:
 
             # Verify method can be called without error
             # Actual queue manipulation would depend on implementation
-            pass
 
     def test_audio_item_creation(self) -> None:
         """Test creating AudioItem instances."""
-        item = AudioItem(
-            text="test message",
-            user_id=123456789,
-            username="testuser",
-            group_id="group1",
-            priority=1,
-            chunk_index=0,
-            audio_size=1024
-        )
+        item = AudioItem(text="test message", user_id=123456789, username="testuser", group_id="group1", priority=1, chunk_index=0, audio_size=1024)
 
         assert item.text == "test message"
         assert item.user_id == 123456789
