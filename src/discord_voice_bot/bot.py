@@ -2,12 +2,15 @@
 """Discord Voice TTS Bot - Main Entry Point."""
 
 import asyncio
+import logging
 from typing import TYPE_CHECKING, Any, override
 
 import discord
 from discord.ext import commands
 
 from .bot_factory import BotFactory
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from .config import Config
@@ -70,13 +73,18 @@ class DiscordVoiceTTSBot(BaseEventBot):
 
     async def _log_http_exception_details(self, http_exc: discord.HTTPException) -> None:
         """Log detailed HTTP exception information."""
-        print(f"🔴 HTTP Error Details: status={getattr(http_exc, 'status', 'unknown')} code={getattr(http_exc, 'code', 'unknown')} text='{getattr(http_exc, 'text', 'unknown')}'")
+        logger.error(
+            "HTTP error: status=%s code=%s text=%r",
+            getattr(http_exc, "status", "unknown"),
+            getattr(http_exc, "code", "unknown"),
+            getattr(http_exc, "text", "unknown"),
+        )
         if hasattr(http_exc, "response") and http_exc.response:
-            print(f"🔴 Response headers: {dict(http_exc.response.headers)}")
+            logger.debug("HTTP response headers: %s", dict(http_exc.response.headers))
         try:
             data = getattr(http_exc, "data", None)
             if data is not None:
-                print(f"🔴 Response data: {data}")
+                logger.debug("HTTP response data: %s", data)
         except AttributeError:
             pass
 
@@ -89,19 +97,19 @@ class DiscordVoiceTTSBot(BaseEventBot):
                         try:
                             result = text_method()
                             if asyncio.iscoroutine(result):
-                                print(f"🔴 Response body: {await result}")
+                                logger.debug("HTTP response body: %s", await result)
                             elif result is not None:
-                                print(f"🔴 Response body: {result}")
+                                logger.debug("HTTP response body: %s", result)
                         except Exception:
-                            print("🔴 Could not read response body")
+                            logger.debug("Could not read response body", exc_info=True)
             except Exception:
-                print("🔴 Could not read response body")
+                logger.debug("Could not read response body", exc_info=True)
 
     async def start_with_config(self) -> None:
         """Start the bot using the stored configuration."""
         # Skip Discord connection in test mode
         if self.config.test_mode:
-            print("🧪 Test mode enabled - skipping Discord connection")
+            logger.info("🧪 Test mode enabled - skipping Discord connection")
             return
 
         token = self.config.discord_token
@@ -110,9 +118,6 @@ class DiscordVoiceTTSBot(BaseEventBot):
             await self.start(token)
         except Exception as e:
             # Log detailed error information for HTTP exceptions
-            import traceback
-
-            # Check if the exception is a LoginFailure caused by HTTPException
             if isinstance(e, discord.LoginFailure) and e.__cause__:
                 cause = e.__cause__
                 if isinstance(cause, discord.HTTPException):
@@ -120,14 +125,12 @@ class DiscordVoiceTTSBot(BaseEventBot):
             elif isinstance(e, discord.HTTPException):
                 await self._log_http_exception_details(e)
 
-            print(f"🔴 Exception type: {type(e).__name__}")
-            print(f"🔴 Exception message: {e!s}")
-            print(f"🔴 Full traceback: {traceback.format_exc()}")
+            logger.exception("Start failed with %s: %s", type(e).__name__, e)
             raise
 
     async def on_ready(self) -> None:
         """Handle bot ready event and delegate to event handler."""
-        print(f"🤖 {self.user} has connected to Discord!")
+        logger.info("🤖 %s has connected to Discord!", self.user)
         if hasattr(self, "event_handler") and self.event_handler:
             await self.event_handler.handle_ready()
 
@@ -158,14 +161,9 @@ class DiscordVoiceTTSBot(BaseEventBot):
     async def on_error(self, event: str, *args: Any, **kwargs: Any) -> None:
         """Delegate errors to the event handler for centralized logging."""
         # Log detailed error information for HTTP exceptions
-        import traceback
-
         if args and isinstance(args[0], discord.HTTPException):
-            http_exc = args[0]
-            print(f"🔴 HTTP Error Details: {http_exc.status} {http_exc.code} - {http_exc.text}")
-            if hasattr(http_exc, "response"):
-                print(f"🔴 Response headers: {dict(http_exc.response.headers) if http_exc.response else 'None'}")
-            print(f"🔴 Full traceback: {traceback.format_exc()}")
+            await self._log_http_exception_details(args[0])
+        logger.exception("HTTPException during event: %s", event)
 
         await self._delegate_event_async("event_handler", "handle_error", event, *args, **kwargs)
 
@@ -176,10 +174,12 @@ async def run_bot(config: Config) -> None:
         factory = BotFactory()
         bot = await factory.create_bot(config)
         await bot.start_with_config()
-    except Exception as e:
-        print(f"Failed to start bot: {e}")
+    except Exception:
+        logger.exception("Failed to start bot")
         raise
 
 
 if __name__ == "__main__":
-    asyncio.run(run_bot())
+    # 遅延 import で起動時だけ依存
+    from .config import Config
+    asyncio.run(run_bot(Config.from_env()))

@@ -103,4 +103,6 @@ class TestEngineLifecycle:
         await engine.close()
 
         # The mock was created on the TTSClient class, so it should be called.
-        mock_close_session.assert_called()
+        mock_close_session.assert_awaited()
+        # Verify idempotency
+        assert mock_close_session.await_count >= 1

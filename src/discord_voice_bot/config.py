@@ -4,7 +4,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any
+from typing import Any, Mapping
 
 from dotenv import load_dotenv
 
@@ -26,7 +26,7 @@ class Config:
     target_voice_channel_id: int
     tts_engine: str
     tts_speaker: str
-    engines: dict[str, dict[str, Any]]
+    engines: Mapping[str, Mapping[str, Any]]
     command_prefix: str
     max_message_length: int
     message_queue_size: int

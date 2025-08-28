@@ -16,7 +16,6 @@ class TTSClient:
 
     def __init__(self, config: Config) -> None:
         """Initialize TTS client with a configuration object."""
-        super().__init__()
         self.config = config
         self._session: aiohttp.ClientSession | None = None
 
@@ -33,7 +32,14 @@ class TTSClient:
     @property
     def speaker_id(self) -> int:
         """Get current speaker ID from config."""
-        return int(self.config.tts_speaker)
+        val = str(self.config.tts_speaker).strip()
+        if val.isdigit():
+            return int(val)
+        engines = self.config.engines
+        engine = self.config.tts_engine
+        engine_cfg = engines.get(engine, {})  # MappingProxyType is dict-like
+        speakers = engine_cfg.get("speakers", {}) if isinstance(engine_cfg, dict) else {}
+        return int(speakers.get(val, engine_cfg.get("default_speaker", 3)))
 
     @property
     def engine_name(self) -> str:
@@ -177,13 +183,17 @@ class TTSClient:
             await self.start_session()
 
         # Determine engine and speaker
-        target_engine = engine_name or self.config.tts_engine
-        if target_engine not in self.config.engines:
-            logger.error(f"Unknown TTS engine '{target_engine}' requested. Falling back to default '{self.config.tts_engine}'.")
-            target_engine = self.config.tts_engine
-
+        target_engine = (engine_name or self.config.tts_engine).lower()
         engines = self.config.engines
-        engine_config = engines.get(target_engine, engines["voicevox"])
+        engine_config = engines.get(target_engine)
+        if not engine_config:
+            fallback = "voicevox" if "voicevox" in engines else (next(iter(engines.keys()), None))
+            logger.error("Unknown TTS engine requested; target={} fallback={}", target_engine, fallback)
+            if not fallback:
+                logger.error("No TTS engines configured; aborting synthesis")
+                return None
+            target_engine = fallback
+            engine_config = engines[target_engine]
 
         # Use provided speaker ID or engine default
         current_speaker_id = speaker_id or engine_config["default_speaker"]

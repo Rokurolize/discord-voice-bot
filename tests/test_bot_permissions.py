@@ -7,10 +7,8 @@ import os
 import discord
 import pytest
 
-from src.discord_voice_bot.config import Config
+from discord_voice_bot.config import Config
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -24,6 +22,7 @@ async def test_bot_permissions(config: Config):
     intents = discord.Intents.default()
     intents.guilds = True
     intents.voice_states = True
+    intents.members = True
 
     client = discord.Client(intents=intents)
     test_completed = asyncio.Event()
@@ -34,28 +33,23 @@ async def test_bot_permissions(config: Config):
             logger.info(f"Bot connected as: {client.user}")
             assert len(client.guilds) > 0, "Bot is not in any guilds."
 
-            # Find target guild
             target_guild = client.get_guild(config.target_guild_id)
             assert target_guild, f"Target guild {config.target_guild_id} not found!"
             logger.info(f"Found target guild: {target_guild.name}")
 
-            # Check bot's permissions in the guild
-            bot_member = target_guild.get_member(client.user.id)
+            bot_member = await target_guild.fetch_member(client.user.id)
             assert bot_member, "Bot is not a member of the target guild!"
 
-            # Check voice permissions
-            voice_permissions = bot_member.guild_permissions
-            assert voice_permissions.connect, "Bot is missing 'connect' permission."
-            assert voice_permissions.speak, "Bot is missing 'speak' permission."
-            logger.info("Bot has required voice permissions.")
-
-            # Find target voice channel
             target_channel = client.get_channel(config.target_voice_channel_id)
             assert target_channel, f"Target channel {config.target_voice_channel_id} not found!"
             assert isinstance(
                 target_channel, discord.VoiceChannel
             ), "Target channel is not a voice channel."
-            logger.info(f"Found target voice channel: {target_channel.name}")
+
+            chan_perms = target_channel.permissions_for(bot_member)
+            assert chan_perms.connect, "Bot is missing 'connect' permission on the target channel."
+            assert chan_perms.speak, "Bot is missing 'speak' permission on the target channel."
+            logger.info(f"Bot has required voice permissions on: {target_channel.name}")
 
         except AssertionError as e:
             pytest.fail(str(e))
@@ -65,12 +59,15 @@ async def test_bot_permissions(config: Config):
 
     @client.event
     async def on_error(event, *args, **kwargs):
-        pytest.fail(f"Discord client error in {event}: {args}")
+        try:
+            await client.close()
+        finally:
+            pytest.fail(f"Discord client error in {event}: {args}")
 
     try:
         await client.start(config.discord_token)
         await asyncio.wait_for(test_completed.wait(), timeout=30.0)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         pytest.fail("Test timed out.")
     except Exception as e:
         pytest.fail(f"Test failed with an unexpected exception: {e}")
