@@ -21,6 +21,7 @@ VoiceHandlerFixture = VoiceHandler
 
 class AudioItem(NamedTuple):
     """A named tuple for audio queue items."""
+
     path: str
     group_id: str
     priority: int
@@ -30,33 +31,70 @@ class AudioItem(NamedTuple):
 
 class FakeConfigManager:
     """A fake config manager for testing."""
-    def get_tts_engine(self) -> str: return "voicevox"
-    def get_engines(self) -> dict[str, Any]: return {
-        "voicevox": {
-            "url": "http://localhost:50021",
-            "default_speaker": 1,
-            "speakers": {"test": 1},
+
+    def get_tts_engine(self) -> str:
+        return "voicevox"
+
+    def get_engines(self) -> dict[str, Any]:
+        return {
+            "voicevox": {
+                "url": "http://localhost:50021",
+                "default_speaker": 1,
+                "speakers": {"test": 1},
+            }
         }
-    }
-    def get_audio_sample_rate(self) -> int: return 24000
-    def get_audio_channels(self) -> int: return 1
-    def get_log_level(self) -> str: return "INFO"
-    def get_discord_token(self) -> str: return "test_token"
-    def get_target_guild_id(self) -> int: return 123456789
-    def get_target_voice_channel_id(self) -> int: return 987654321
-    def get_command_prefix(self) -> str: return "!tts"
+
+    def get_audio_sample_rate(self) -> int:
+        return 24000
+
+    def get_audio_channels(self) -> int:
+        return 1
+
+    def get_log_level(self) -> str:
+        return "INFO"
+
+    def get_discord_token(self) -> str:
+        return "test_token"
+
+    def get_target_guild_id(self) -> int:
+        return 123456789
+
+    def get_target_voice_channel_id(self) -> int:
+        return 987654321
+
+    def get_command_prefix(self) -> str:
+        return "!tts"
+
     def get_engine_config(self, name: str | None = None) -> dict[str, Any]:
         engines = self.get_engines()
         return engines[name or self.get_tts_engine()]
-    def get_max_message_length(self) -> int: return 200
-    def get_message_queue_size(self) -> int: return 10
-    def get_reconnect_delay(self) -> int: return 5
-    def get_rate_limit_messages(self) -> int: return 50
-    def get_rate_limit_period(self) -> int: return 1
-    def get_log_file(self) -> str | None: return None
-    def is_debug(self) -> bool: return False
-    def get_enable_self_message_processing(self) -> bool: return False
-    def is_test_mode(self) -> bool: return True
+
+    def get_max_message_length(self) -> int:
+        return 200
+
+    def get_message_queue_size(self) -> int:
+        return 10
+
+    def get_reconnect_delay(self) -> int:
+        return 5
+
+    def get_rate_limit_messages(self) -> int:
+        return 50
+
+    def get_rate_limit_period(self) -> int:
+        return 1
+
+    def get_log_file(self) -> str | None:
+        return None
+
+    def is_debug(self) -> bool:
+        return False
+
+    def get_enable_self_message_processing(self) -> bool:
+        return False
+
+    def is_test_mode(self) -> bool:
+        return True
 
 
 @pytest.fixture
@@ -178,9 +216,7 @@ class TestQueueManagement:
         assert cleared == 2
 
     @pytest.mark.asyncio
-    async def test_cleanup_does_not_close_shared_tts_client(
-        self, mock_bot_client: MagicMock, mock_config_manager: FakeConfigManager
-    ) -> None:
+    async def test_cleanup_does_not_close_shared_tts_client(self, mock_bot_client: MagicMock, mock_config_manager: FakeConfigManager) -> None:
         """Test that cleanup does not close a shared TTSClient."""
         # Create a mock TTSClient with spies for close methods
         tts_client = MagicMock(spec=TTSClient)
@@ -199,9 +235,7 @@ class TestQueueManagement:
         tts_client.close_session.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_cleanup_voice_client_does_not_close_shared_tts_client(
-        self, mock_bot_client: MagicMock, mock_config_manager: FakeConfigManager
-    ) -> None:
+    async def test_cleanup_voice_client_does_not_close_shared_tts_client(self, mock_bot_client: MagicMock, mock_config_manager: FakeConfigManager) -> None:
         """Test that cleanup_voice_client does not close a shared TTSClient."""
         # Create a mock TTSClient with spies for close methods
         tts_client = MagicMock(spec=TTSClient)
