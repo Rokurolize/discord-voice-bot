@@ -57,17 +57,18 @@ class TempFileManager:
 
             logger.debug(f"Created temp WAV file: {temp_path} ({len(audio_data)} bytes)")
 
-            # DEBUG: Save pre-Discord conversion audio
-            try:
-                metadata = {
-                    "temp_path": temp_path,
-                    "size_bytes": len(audio_data),
-                    "stage": "pre_discord_conversion",
-                }
-                saved_pre_path = audio_debugger.save_audio_stage(audio_data, "pre_discord", text, metadata)
-                logger.debug(f"🔍 Saved pre-Discord audio for debugging: {saved_pre_path}")
-            except Exception as e:
-                logger.warning(f"Failed to save pre-Discord debug audio: {e}")
+            # DEBUG: Save pre-Discord conversion audio (only when debug enabled)
+            if self.config.debug:
+                try:
+                    metadata = {
+                        "temp_path": temp_path,
+                        "size_bytes": len(audio_data),
+                        "stage": "pre_discord_conversion",
+                    }
+                    saved_pre_path = audio_debugger.save_audio_stage(audio_data, "pre_discord", text, metadata)
+                    logger.debug(f"🔍 Saved pre-Discord audio for debugging: {saved_pre_path}")
+                except Exception as e:
+                    logger.warning(f"Failed to save pre-Discord debug audio: {e}")
 
             # Create Discord audio source with corrected FFmpeg options
             sample_rate = self.config.audio_sample_rate
@@ -83,8 +84,9 @@ class TempFileManager:
                 # Store temp path for cleanup
                 audio_source._temp_path = temp_path  # type: ignore[attr-defined]
 
-                # DEBUG: Test the created audio source and save converted audio
-                await self._debug_audio_conversion(temp_path, text, ffmpeg_options)
+                # DEBUG: Test the created audio source and save converted audio (only when debug enabled)
+                if self.config.debug:
+                    await self._debug_audio_conversion(temp_path, text, ffmpeg_options)
 
                 logger.info(f"✅ Successfully created Discord audio source for: '{text[:50]}...'")
                 return audio_source
