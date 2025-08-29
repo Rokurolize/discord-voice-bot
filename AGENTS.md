@@ -93,14 +93,16 @@ Notes:
 - After all items: one final `git push origin HEAD`.
 
 ### Optional Filters
-- To skip outdated comments, filter: `scripts/gh-review-threads.sh list-unresolved-ndjson | jq 'select(.outdated==false) | first'`
+- To skip outdated comments, filter (pick first non-outdated):
+  - `scripts/gh-review-threads.sh list-unresolved-ndjson | jq -c 'select(.outdated==false)' | head -n 1`
+  - Or slurp with jq: `scripts/gh-review-threads.sh list-unresolved-ndjson | jq -sc 'map(select(.outdated==false)) | first'`
   - Note: one discussion `databaseId` resolves the entire thread.
 
 ## Script Help
 See `scripts/gh-review-threads.sh --help` for the complete list of subcommands and flags.
 
 ## PR Ops (optional)
-- View PR metadata: `gh pr view <N> --json title headRefName mergeable url`.
+- View PR metadata: `gh pr view <N> --json title,headRefName,mergeable,url`.
 
 ## Maintenance Note
 - When iterating on review fixes, prefer small focused commits; avoid pushing until all review items are addressed, to batch CodeRabbit runs into a single CodeRabbit run.
