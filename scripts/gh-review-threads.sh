@@ -242,6 +242,91 @@ fetch_threads() {
   printf '%s\n' "$threads_json"
 }
 
+# (optional) Deep pagination for comments when mapping IDs misses candidates
+# Envs: DEEP_COMMENTS=1 to enable; otherwise returns input unchanged
+hydrate_comments_for_threads() {
+  local threads_json="$1"; shift
+  local ids_json="${1:-}"; shift || true
+  if [[ "${DEEP_COMMENTS:-0}" != "1" ]]; then
+    printf '%s\n' "$threads_json"; return 0
+  fi
+
+  # Build a set of target numeric comment ids (as strings)
+  local want_ids
+  if [[ -n "$ids_json" ]]; then
+    want_ids=$(jq -r '[ .[] | tostring ]' <<<"$ids_json")
+  else
+    want_ids='[]'
+  fi
+
+  # Iterate unresolved threads; for each, if any wanted id not present in first page, paginate comments
+  local updated='[]'
+  local length
+  length=$(jq 'length' <<<"$threads_json")
+  for ((i=0; i<length; i++)); do
+    local thread t_has_more t_node_id t_comments_ids
+    thread=$(jq -c ".[$i]" <<<"$threads_json")
+    t_node_id=$(jq -r '.id' <<<"$thread")
+    # Collect present comment ids in this thread
+    t_comments_ids=$(jq -r '[ (.comments.nodes // [])[] | (.databaseId|tostring) ]' <<<"$thread")
+    # Determine if any wanted id is missing from this thread but could belong here later
+    local has_missing
+    has_missing=$(jq -r --argjson present "$t_comments_ids" --argjson want "$want_ids" '
+      (want - present) | length > 0
+    ' <<<"{}")
+    if [[ "$has_missing" != "true" ]]; then
+      updated=$(jq -sc '.[0] + [.[1]]' <(printf '%s' "$updated") <(printf '%s' "$thread"))
+      continue
+    fi
+
+    # Paginate this thread's comments until no more pages
+    local c_has_next c_cursor resp more_nodes
+    c_has_next="true"
+    c_cursor=""
+    while [[ "$c_has_next" == "true" ]]; do
+      if ! resp=$(gh api --hostname "$HOST" graphql \
+        -F owner="$OWNER" -F name="$REPO" -F number="$PR_NUMBER" -F threadId="$t_node_id" ${c_cursor:+-F cafter="$c_cursor"} \
+        -f query='
+          query($owner:String!, $name:String!, $number:Int!, $threadId:ID!, $cafter:String) {
+            repository(owner:$owner, name:$name) {
+              pullRequest(number:$number) {
+                reviewThread(id:$threadId) {
+                  comments(first: 100, after: $cafter) {
+                    pageInfo { hasNextPage endCursor }
+                    nodes { databaseId url path body diffHunk }
+                  }
+                }
+              }
+            }
+          }
+        '); then
+        abort "Failed to paginate comments for thread $t_node_id"
+      fi
+      if jq -e '.errors and (.errors | length > 0)' >/dev/null 2>&1 <<<"$resp"; then
+        abort "GraphQL errors while paginating comments: $(jq -c '.errors' <<<"$resp")"
+      fi
+      c_has_next=$(jq -r '(.data.repository.pullRequest.reviewThread.comments.pageInfo.hasNextPage // false)' <<<"$resp")
+      c_cursor=$(jq -r '(.data.repository.pullRequest.reviewThread.comments.pageInfo.endCursor // "")' <<<"$resp")
+      more_nodes=$(jq '(.data.repository.pullRequest.reviewThread.comments.nodes // [])' <<<"$resp")
+      # Merge comments into thread.comments.nodes
+      thread=$(jq -sc '
+        def merge_comments(base; extra): base | .comments.nodes = ((.comments.nodes // []) + extra);
+        merge_comments(.[0]; .[1])
+      ' <(printf '%s' "$thread") <(printf '%s' "$more_nodes"))
+      # Early exit if all wanted ids found in this thread
+      t_comments_ids=$(jq -r '[ (.comments.nodes // [])[] | (.databaseId|tostring) ]' <<<"$thread")
+      local still_missing
+      still_missing=$(jq -r --argjson present "$t_comments_ids" --argjson want "$want_ids" '((want - present) | length > 0)' <<<"{}")
+      if [[ "$still_missing" == "false" ]]; then
+        c_has_next="false"
+      fi
+    done
+    updated=$(jq -sc '.[0] + [.[1]]' <(printf '%s' "$updated") <(printf '%s' "$thread"))
+  done
+
+  printf '%s\n' "$updated"
+}
+
 # Resolve a thread id
 resolve_thread() {
   local tid="$1"
@@ -450,7 +535,11 @@ case "$SUBCOMMAND" in
     declare -a tids=()
     readarray_compat tids map_discussion_ids_to_threads "$threads" "$@"
     if [[ ${#tids[@]} -eq 0 ]]; then
-      abort "no matching threads found for provided discussion ids"
+      # Fallback: deep paginate comments if enabled
+      ids_json=$(printf '%s\n' "$@" | jq -R . | jq -s .)
+      threads=$(hydrate_comments_for_threads "$threads" "$ids_json")
+      readarray_compat tids map_discussion_ids_to_threads "$threads" "$@"
+      [[ ${#tids[@]} -gt 0 ]] || abort "no matching threads found for provided discussion ids${DEEP_COMMENTS:+ (even after deep pagination)}"
     fi
     info "Resolving ${#tids[@]} threads mapped from discussion ids…"
     for t in "${tids[@]}"; do
