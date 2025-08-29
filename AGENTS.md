@@ -48,6 +48,13 @@
   - (optional, for GHES) `export GH_HOST=<hostname>`
 - Help: `scripts/gh-review-threads.sh --help` shows all flags and subcommands.
 
+### NDJSON Schema (stable)
+- Command: `scripts/gh-review-threads.sh list-unresolved-ndjson`
+- Fields: `thread_id, status, outdated, path, databaseId, url, body, diffHunk`
+- Notes:
+  - Field names are stable for tool integrations.
+  - `list-next-unresolved-ndjson` picks the smallest `databaseId` (stable order).
+
 ### One-by-One Loop (full text, minimal steps)
 - Set PR: `export GH_PR=<number>` (or pass `--pr <number>` per call).
 - Get next unresolved (full body): `line="$(scripts/gh-review-threads.sh list-next-unresolved-ndjson)"`
@@ -86,14 +93,14 @@ Notes:
 - After all items: one final `git push origin HEAD`.
 
 ### Optional Filters
-- To skip outdated comments, filter: `scripts/gh-review-threads.sh list-unresolved-ndjson | jq 'select(.outdated==false) | first'`.
+- To skip outdated comments, filter: `scripts/gh-review-threads.sh list-unresolved-ndjson | jq 'select(.outdated==false) | first'`
   - Note: one discussion `databaseId` resolves the entire thread.
 
 ## Script Help
 See `scripts/gh-review-threads.sh --help` for the complete list of subcommands and flags.
 
 ## PR Ops (optional)
-- View PR metadata: `gh pr view <N> --json title,headRefName,mergeable,url`.
+- View PR metadata: `gh pr view <N> --json title headRefName mergeable url`.
 
 ## Maintenance Note
 - When iterating on review fixes, prefer small focused commits; avoid pushing until all review items are addressed, to batch CodeRabbit runs into a single CodeRabbit run.

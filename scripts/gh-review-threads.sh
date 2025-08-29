@@ -114,7 +114,8 @@ while [[ $# -gt 0 ]]; do
       HOST="${2}"; shift 2 ;;
     -h|--help) print_usage; exit 0 ;;
     list|list-unresolved|list-details|list-unresolved-details|list-unresolved-details-full|list-unresolved-json|list-unresolved-xml|list-unresolved-ndjson|list-next-unresolved-ndjson|resolve-all-unresolved|resolve-by-discussion-ids|resolve-by-urls|unresolve-thread-ids)
-      SUBCOMMAND="${SUBCOMMAND:-$1}"; shift; continue ;;
+      if [[ -n "${SUBCOMMAND:-}" ]]; then abort "multiple subcommands provided: '$SUBCOMMAND' and '$1'"; fi
+      SUBCOMMAND="$1"; shift; continue ;;
     *)
       if [[ -n "${SUBCOMMAND:-}" ]]; then
         # Treat remaining args as positional for the subcommand
@@ -348,6 +349,11 @@ resolve_thread() {
     abort "Resolve returned empty result for $tid"
   fi
   printf '%s\n' "$out"
+  if jq -e '.isResolved == true' >/dev/null <<<"$out"; then
+    info "Resolved: $tid"
+  else
+    info "No-op (still unresolved?): $tid"
+  fi
 }
 
 # Unresolve a thread id
@@ -371,6 +377,11 @@ unresolve_thread() {
     abort "Unresolve returned empty result for $tid"
   fi
   printf '%s\n' "$out"
+  if jq -e '.isResolved == false' >/dev/null <<<"$out"; then
+    info "Unresolved: $tid"
+  else
+    info "No-op (still resolved?): $tid"
+  fi
 }
 
 # Map discussion_r numeric ids -> unique thread ids using a threads JSON array
@@ -459,7 +470,8 @@ render_unresolved_xml() {
       | gsub("<";"&lt;")
       | gsub(">";"&gt;")
       | gsub("\"";"&quot;")
-      | gsub("'"'"'";"&apos;");
+      | gsub("'"'"'";"&apos;")
+      | gsub("\n";"&#10;");
     .[] | select(.isResolved == false) |
     "  <thread id=\"" + (.id|esc) + "\" status=\"" + (if .isResolved then "resolved" else "unresolved" end) + "\" outdated=\"" + (if .isOutdated then "true" else "false" end) + "\">\n"
     + ( [ .comments.nodes[]? |
@@ -508,6 +520,7 @@ case "$SUBCOMMAND" in
 
   list-unresolved-xml)
     threads=$(fetch_threads)
+    printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>'
     render_unresolved_xml "$threads"
     ;;
 
@@ -518,7 +531,9 @@ case "$SUBCOMMAND" in
 
   list-next-unresolved-ndjson)
     threads=$(fetch_threads)
-    render_unresolved_ndjson "$threads" | head -n 1
+    # stable pick: smallest comment_id first
+    render_unresolved_ndjson "$threads" \
+      | jq -s 'sort_by(.databaseId) | .[0]' -c
     ;;
 
   resolve-all-unresolved)
