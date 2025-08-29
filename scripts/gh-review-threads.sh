@@ -216,6 +216,14 @@ fetch_threads() {
       abort "GraphQL returned errors on paged fetch: $(jq -c '.errors' <<<"$resp")"
     fi
 
+    # Guard against repository/PR disappearing mid-pagination (permissions/force-delete)
+    if jq -e '.data.repository == null' >/dev/null <<<"$resp"; then
+      abort "Repository disappeared or access denied during pagination: $OWNER/$REPO"
+    fi
+    if jq -e '.data.repository.pullRequest == null' >/dev/null <<<"$resp"; then
+      abort "PR #$PR_NUMBER disappeared or access denied during pagination"
+    fi
+
     threads_json=$(jq -sc '.[0] + .[1]' <(printf '%s' "$threads_json") <(jq '(.data.repository.pullRequest.reviewThreads.nodes // [])' <<<"$resp"))
     hasNext=$(jq -r '(.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage // false)' <<<"$resp")
     endCursor=$(jq -r '(.data.repository.pullRequest.reviewThreads.pageInfo.endCursor // "")' <<<"$resp")
