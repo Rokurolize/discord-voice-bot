@@ -1,9 +1,11 @@
 import dataclasses
+import inspect
 from unittest.mock import MagicMock
 
 import pytest
 
 from discord_voice_bot.config import Config
+from discord_voice_bot.config_manager import ConfigManagerImpl
 from discord_voice_bot.tts_client import TTSClient
 from discord_voice_bot.voice.handler import VoiceHandler as NewVoiceHandler
 from discord_voice_bot.voice_handler import VoiceHandler as OldVoiceHandler
@@ -157,7 +159,7 @@ async def mock_tts_client(mock_config_manager: FakeConfigManager) -> TTSClient:
         close = getattr(client, "aclose", None) or getattr(client, "close", None)
         if callable(close):
             res = close()
-            if dataclasses.iscoroutine(res):
+            if inspect.isawaitable(res):
                 await res
 
 
@@ -217,7 +219,7 @@ async def voice_handler_new(
     handler.synthesis_queue = handler.queue_manager.synthesis_queue
     handler.audio_queue = handler.queue_manager.audio_queue
     handler.current_group_id = handler.queue_manager.current_group_id
-    handler.stats = handler.stats_tracker
+    handler.stats = {"messages_processed": 0, "connection_errors": 0, "tts_messages_played": 0}
     handler.rate_limiter = handler.rate_limiter_manager.rate_limiter
     handler.circuit_breaker = handler.rate_limiter_manager.circuit_breaker
 
@@ -276,3 +278,29 @@ def config() -> Config:
         test_mode=True,
         enable_self_message_processing=False,
     )
+
+
+@pytest.fixture
+def test_config_manager(mock_env_vars) -> ConfigManagerImpl:
+    """Provide a ConfigManagerImpl with TEST_MODE enabled."""
+    return ConfigManagerImpl(test_mode=True)
+
+
+@pytest.fixture
+def prod_config_manager(mock_env_vars) -> ConfigManagerImpl:
+    """Provide a ConfigManagerImpl reflecting env (TEST_MODE may be false)."""
+    return ConfigManagerImpl()
+
+
+# Global env fixture for performance tests
+@pytest.fixture
+def mock_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Set environment variables for tests that depend on runtime config.
+
+    Ensures deterministic, offline-safe defaults.
+    """
+    monkeypatch.setenv("DISCORD_BOT_TOKEN", "test_token")
+    monkeypatch.setenv("TARGET_VOICE_CHANNEL_ID", "123456789")
+    monkeypatch.setenv("TTS_ENGINE", "voicevox")
+    monkeypatch.setenv("VOICEVOX_URL", "http://localhost:50021")
+    monkeypatch.setenv("TEST_MODE", "1")

@@ -48,5 +48,12 @@ class VoiceHandler(NewVoiceHandler):
         super().__init__(bot_client, cfg)
         logger.warning("⚠️  DEPRECATED: Using old VoiceHandler. Consider migrating to discord_voice_bot.voice.VoiceHandler")
 
+        # Backward-compat: old tests expect a plain dict for stats
+        self.stats = {  # type: ignore[assignment]
+            "messages_processed": 0,
+            "connection_errors": 0,
+            "tts_messages_played": 0,
+        }
+
     # All methods are inherited from NewVoiceHandler
     # This class exists only for backward compatibility

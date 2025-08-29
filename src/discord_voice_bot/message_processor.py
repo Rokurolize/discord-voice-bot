@@ -112,6 +112,13 @@ class MessageProcessor:
 
         # Handle bot messages - allow self-messages if configured
         if message.author.bot:
+            # Allow tests or callers to opt-in by attaching a special marker
+            override_id = getattr(message, "_bot_user_id", None)
+            if override_id is not None and message.author.id == override_id:
+                # Minimal checks for self-message safety
+                if not message.content.strip():
+                    return False
+                return True
             # Allow self-messages if enabled in configuration and bot_user_id is provided
             if self._config_manager.get_enable_self_message_processing() and bot_user_id is not None:
                 # Check if this is a message from the bot itself

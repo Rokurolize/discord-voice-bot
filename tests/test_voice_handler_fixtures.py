@@ -18,7 +18,7 @@ OldVoiceHandlerFixture = OldVoiceHandler
 NewVoiceHandlerFixture = NewVoiceHandler
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class AudioItem:
     """Mock AudioItem for testing."""
 

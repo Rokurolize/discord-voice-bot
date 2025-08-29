@@ -24,6 +24,24 @@ from .workers.player import PlayerWorker
 from .workers.synthesizer import SynthesizerWorker
 
 
+class NullVoiceClient:
+    """Minimal stub voice client for tests and uninitialized state."""
+
+    channel = None
+
+    def is_connected(self) -> bool:  # pragma: no cover - trivial
+        return False
+
+    def is_playing(self) -> bool:  # pragma: no cover - trivial
+        return False
+
+    def stop(self) -> None:  # pragma: no cover - trivial
+        return None
+
+    async def disconnect(self) -> None:  # pragma: no cover - trivial
+        return None
+
+
 class VoiceHandlerInterface(Protocol):
     """Interface for voice handler to avoid circular imports."""
 
@@ -115,12 +133,14 @@ class VoiceHandler(VoiceHandlerInterface):
         self.is_playing = False
 
         # Delegate properties to managers for backward compatibility
-        self.voice_client = self.connection_manager.voice_client
+        self.voice_client = self.connection_manager.voice_client or NullVoiceClient()
         self.target_channel = self.connection_manager.target_channel
         self.connection_state = self.connection_manager.connection_state
         self.synthesis_queue = self.queue_manager.synthesis_queue
         self.audio_queue = self.queue_manager.audio_queue
         self.current_group_id = self.queue_manager.current_group_id
+        # Dict-like access for backward compatibility via StatsTracker
+        # Tests for new handler expect a StatsTracker object
         self.stats = self.stats_tracker
 
         # Backward compatibility for rate limiter
@@ -244,8 +264,12 @@ class VoiceHandler(VoiceHandlerInterface):
         """Add message to synthesis queue with deduplication."""
         await self.queue_manager.add_to_queue(message_data)
 
-    async def skip_current(self) -> int:  # type: ignore[override]
+    async def skip_current(self, group_id: str | None = None) -> int:  # type: ignore[override]
         """Skip the current message group."""
+        # Allow caller to specify target group id for compatibility
+        if group_id is not None:
+            self.current_group_id = group_id
+
         if not self.current_group_id:
             return 0
 

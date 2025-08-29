@@ -7,6 +7,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
+import discord
 from dotenv import load_dotenv
 
 
@@ -55,7 +56,12 @@ class Config:
         # 2. Load local .env file (development/testing) - this overrides secrets
         local_env = Path(".env")
         if local_env.exists():
+            # Respect existing process environment for secrets like tokens,
+            # but allow .env to override defaults from secrets.env.
+            prev_token = os.environ.get("DISCORD_BOT_TOKEN")
             _ = load_dotenv(local_env, override=True)
+            if prev_token is not None:
+                os.environ["DISCORD_BOT_TOKEN"] = prev_token
 
         return cls(
             discord_token=os.environ.get("DISCORD_BOT_TOKEN", ""),
@@ -110,3 +116,25 @@ class Config:
             test_mode=os.environ.get("TEST_MODE", "false").lower() in ["true", "1", "yes"],
             enable_self_message_processing=os.environ.get("ENABLE_SELF_MESSAGE_PROCESSING", "false").lower() in ["true", "1", "yes"],
         )
+
+    # Backward-compat helper for tests that expect this on Config
+    def get_intents(self) -> Any:
+        """Return Discord intents suitable for this bot.
+
+        Enables message content, guilds, members, and voice state intents.
+        """
+        intents = discord.Intents.default()
+        intents.message_content = True
+        intents.guilds = True
+        intents.members = True
+        intents.voice_states = True
+        return intents
+
+
+def get_config() -> Config:
+    """Backward-compatible accessor returning configuration from environment.
+
+    Older tests and modules expect a ``get_config`` function. This thin wrapper
+    preserves that API by delegating to ``Config.from_env()``.
+    """
+    return Config.from_env()

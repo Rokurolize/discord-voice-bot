@@ -22,6 +22,12 @@ class VoiceHandlerProtocol(Protocol):
     async def add_to_queue(self, message_data: dict[str, Any]) -> None: ...
 
 
+# Provide a shim that tests can patch
+def get_user_settings():
+    """Shim for tests to patch user settings loader easily."""
+    return load_user_settings()
+
+
 class SynthesizerWorker:
     """Worker for processing TTS synthesis requests."""
 
@@ -38,7 +44,7 @@ class SynthesizerWorker:
         # Initialize TTS engine and user settings with config manager
         # Note: TTS engine will be initialized asynchronously in run() method
         self._tts_engine = None
-        self._user_settings = load_user_settings()
+        self._user_settings = get_user_settings()
 
     async def run(self) -> None:
         """Run the synthesis worker loop."""

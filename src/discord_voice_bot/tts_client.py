@@ -68,6 +68,13 @@ class TTSClient:
             self._session = None
             logger.debug("✅ aiohttp ClientSession closed successfully")
 
+    # Backward-compatible aliases for tests/fixtures
+    async def close(self) -> None:  # pragma: no cover - compatibility
+        await self.close_session()
+
+    async def aclose(self) -> None:  # pragma: no cover - compatibility
+        await self.close_session()
+
     async def check_api_availability(self) -> tuple[bool, str]:
         """Check TTS API availability with detailed error information.
 
