@@ -270,7 +270,7 @@ map_discussion_ids_to_threads() {
   # Build JSON array of ids
   ids_json=$(printf '%s\n' "$@" | jq -R . | jq -s .)
   jq -r --argjson ids "$ids_json" '
-    [ .[] as $t | $ids[] as $cid | ($t | select(.comments.nodes | any(.databaseId == ($cid|tonumber))) | .id) ]
+    [ .[] as $t | $ids[] as $cid | ($t | select((.comments.nodes // []) | any(.databaseId == ($cid|tonumber))) | .id) ]
     | unique | .[]
   ' <<<"$threads_json"
 }
@@ -290,7 +290,7 @@ extract_ids_from_urls() {
 render_threads() {
   local threads_json="$1"; shift
   local filter="$1"; shift || true
-  jq -r "$filter | .[] | [.id, (if .isResolved then \"resolved\" else \"unresolved\" end), (.comments.nodes | length), ((.comments.nodes | map(.databaseId) | join(\",\")) // \"\")] | @tsv" <<<"$threads_json" |
+  jq -r "$filter | .[] | [.id, (if .isResolved then \"resolved\" else \"unresolved\" end), ((.comments.nodes // []) | length), (((.comments.nodes // []) | map(.databaseId) | join(\",\")) // \"\")] | @tsv" <<<"$threads_json" |
   awk -F'\t' 'BEGIN{printf("%s\t%s\t%s\t%s\n","thread_id","status","comments","comment_databaseIds");} {print}'
 }
 

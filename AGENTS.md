@@ -41,13 +41,20 @@
 
 ## Code Review Ops (gh + GraphQL)
 - Prereqs: Install `gh` and `jq`. Authenticate with `gh auth login`.
-- Auth Check: `gh auth status -h github.com` (verify repo:write if resolving).
+- Host Support (GHES): Set `GH_HOST` or pass `--host <hostname>` (defaults to `github.com`). All `gh` calls and auth use this host.
+- Auth Check: `gh auth status -h ${GH_HOST:-github.com}` (verify repo:write if resolving).
 - List Unresolved (summary): `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> list-unresolved`
   - Shows thread id, status, comment count, and comment databaseIds (no bodies).
 - List Unresolved (details): `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> list-unresolved-details`
-  - Shows each comment’s path, url, databaseId, and a truncated body preview (200–400 chars).
-- Unresolved JSON (full): `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> list-unresolved-json`
-  - Emits raw JSON nodes including full bodies and diffHunks (best for scripting).
+  - Shows each comment’s path, url, databaseId, and a truncated body preview (200–400 chars) for quick scanning.
+- Unresolved JSON (threads, full): `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> list-unresolved-json`
+  - Emits raw JSON thread nodes including full bodies and diffHunks (best for scripting).
+- Unresolved NDJSON (comments, full): `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> list-unresolved-ndjson`
+  - Emits one JSON object per unresolved comment (full bodies, unescaped) — ideal for tooling.
+- Unresolved Details (full body TSV): `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> list-unresolved-details-full`
+  - Tabular output with full, untruncated bodies for human review.
+- Unresolved XML (optional): `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> list-unresolved-xml`
+  - XML-escaped output with full bodies for systems that prefer XML.
 - Resolve By IDs: `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> resolve-by-discussion-ids <id ...>`
 - Resolve By URLs: `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> resolve-by-urls <url ...>`
 - Resolve All: `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> resolve-all-unresolved`
@@ -64,10 +71,45 @@
 - Run Checks: `uv run poe check` (ruff + pyright + tests) must pass.
 - Resolve: Use `scripts/gh-review-threads.sh` to resolve only addressed threads.
 
+## Single‑Action Workflow: “Address the Review Comments”
+- Fetch unresolved comments with full context:
+  - Threads JSON: `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> list-unresolved-json`
+  - Or Comments NDJSON (recommended for tooling): `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> list-unresolved-ndjson`
+- Apply changes per comments; prefer precise, minimal patches.
+- Verify locally: `uv run poe check` must pass.
+- Resolve addressed comments by ID: `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> resolve-by-discussion-ids <id ...>`
+  - Use only IDs you actually addressed.
+- Commit and push: `git add -A && git commit -m "<concise subject>" && git push origin HEAD`.
+
+### One‑by‑One Resolution (NDJSON + jq)
+- Set env (once per session):
+  - `export GH_OWNER=<O> GH_REPO=<R> GH_PR=<N>` and optionally `export GH_HOST=<host>` for GHES
+- Fetch full comments (unescaped, not truncated):
+  - `scripts/gh-review-threads.sh list-unresolved-ndjson > /tmp/review.ndjson`
+- Loop one comment at a time:
+  1) Select next comment
+     - `line="$(sed -n '1p' /tmp/review.ndjson)"`
+     - If empty → done
+  2) Inspect context
+     - Path/URL: `echo "$line" | jq -r '.path, .url'`
+     - Diff: `echo "$line" | jq -r '.diffHunk' | less -R`
+     - Body: `echo "$line" | jq -r '.body' | less -R`
+  3) Implement fix in code, then verify
+     - `uv run poe check`
+  4) Resolve just that thread
+     - `id="$(echo "$line" | jq -r '.databaseId')"`
+     - `scripts/gh-review-threads.sh resolve-by-discussion-ids "$id"`
+  5) Refresh list and repeat
+     - `scripts/gh-review-threads.sh list-unresolved-ndjson > /tmp/review.ndjson`
+- Tips:
+  - Skip outdated by default: `scripts/gh-review-threads.sh list-unresolved-ndjson | jq 'select(.outdated==false)' > /tmp/review.ndjson`
+  - Resolution is at thread level; a single `databaseId` maps to and resolves its entire thread.
+
 ## Script Reference
 - Location: `scripts/gh-review-threads.sh:1`
-- Subcommands: `list`, `list-unresolved`, `resolve-all-unresolved`, `resolve-by-discussion-ids`, `resolve-by-urls`, `unresolve-thread-ids`
+- Subcommands: `list`, `list-unresolved`, `list-details`, `list-unresolved-details`, `list-unresolved-details-full`, `list-unresolved-json`, `list-unresolved-xml`, `list-unresolved-ndjson`, `resolve-all-unresolved`, `resolve-by-discussion-ids`, `resolve-by-urls`, `unresolve-thread-ids`
 - Notes: Uses GraphQL `resolveReviewThread` / `unresolveReviewThread`. Accepts IDs (`discussion_r...` numbers) or URLs. Supports pagination and `DRY_RUN`.
+ - Host: Honors `--host` flag or `GH_HOST` environment variable for GitHub Enterprise.
 
 ## PR Ops (gh)
 - View PR: `gh pr view <N> --json title,headRefName,mergeable,url`
