@@ -80,9 +80,24 @@ PR_NUMBER="${GH_PR:-}"
 # Parse flags (allow flags before or after subcommand)
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --owner) OWNER="${2:-}"; shift 2 ;;
-    --repo)  REPO="${2:-}"; shift 2 ;;
-    --pr)    PR_NUMBER="${2:-}"; shift 2 ;;
+    --owner)
+      if [[ -z "${2:-}" || "${2}" == --* ]]; then
+        abort "--owner requires a value"
+      fi
+      OWNER="${2}"; shift 2 ;;
+    --repo)
+      if [[ -z "${2:-}" || "${2}" == --* ]]; then
+        abort "--repo requires a value"
+      fi
+      REPO="${2}"; shift 2 ;;
+    --pr)
+      if [[ -z "${2:-}" || "${2}" == --* ]]; then
+        abort "--pr requires a value"
+      fi
+      if ! [[ "${2}" =~ ^[0-9]+$ ]]; then
+        abort "--pr must be an integer"
+      fi
+      PR_NUMBER="${2}"; shift 2 ;;
     -h|--help) print_usage; exit 0 ;;
     list|list-unresolved|list-details|list-unresolved-details|list-unresolved-json|resolve-all-unresolved|resolve-by-discussion-ids|resolve-by-urls|unresolve-thread-ids)
       SUBCOMMAND="${SUBCOMMAND:-$1}"; shift; continue ;;
@@ -133,11 +148,15 @@ fetch_threads() {
     '); then
     abort "Failed to fetch review threads via gh api (initial page)"
   fi
+  # Detect GraphQL errors
+  if jq -e '.errors and (.errors | length > 0)' >/dev/null 2>&1 <<<"$resp"; then
+    abort "GraphQL returned errors on initial page: $(jq -c '.errors' <<<"$resp")"
+  fi
 
-  threads_json=$(jq '.data.repository.pullRequest.reviewThreads.nodes' <<<"$resp")
+  threads_json=$(jq '(.data.repository.pullRequest.reviewThreads.nodes // [])' <<<"$resp")
   local hasNext endCursor
-  hasNext=$(jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage' <<<"$resp")
-  endCursor=$(jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor' <<<"$resp")
+  hasNext=$(jq -r '(.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage // false)' <<<"$resp")
+  endCursor=$(jq -r '(.data.repository.pullRequest.reviewThreads.pageInfo.endCursor // "")' <<<"$resp")
 
   # Subsequent pages
   while [[ "$hasNext" == "true" && -n "$endCursor" && "$endCursor" != "null" ]]; do
@@ -163,9 +182,14 @@ fetch_threads() {
       abort "Failed to fetch review threads via gh api (paged)"
     fi
 
-    threads_json=$(jq -sc '.[0] + .[1]' <(printf '%s' "$threads_json") <(jq '.data.repository.pullRequest.reviewThreads.nodes' <<<"$resp"))
-    hasNext=$(jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage' <<<"$resp")
-    endCursor=$(jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor' <<<"$resp")
+    # Detect GraphQL errors on page
+    if jq -e '.errors and (.errors | length > 0)' >/dev/null 2>&1 <<<"$resp"; then
+      abort "GraphQL returned errors on paged fetch: $(jq -c '.errors' <<<"$resp")"
+    fi
+
+    threads_json=$(jq -sc '.[0] + .[1]' <(printf '%s' "$threads_json") <(jq '(.data.repository.pullRequest.reviewThreads.nodes // [])' <<<"$resp"))
+    hasNext=$(jq -r '(.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage // false)' <<<"$resp")
+    endCursor=$(jq -r '(.data.repository.pullRequest.reviewThreads.pageInfo.endCursor // "")' <<<"$resp")
   done
 
   printf '%s\n' "$threads_json"

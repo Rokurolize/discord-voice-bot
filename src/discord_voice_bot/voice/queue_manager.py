@@ -43,13 +43,17 @@ class QueueManager:
             _ = self._recent_messages.pop(0)
         self._recent_messages.append(message_hash)
 
-        # Check queue size limits
-        if self.synthesis_queue.qsize() >= 100:
-            logger.warning(f"🎤 QUEUE: Synthesis queue is full ({self.synthesis_queue.qsize()}/100) - skipping message")
+        # Check queue size limits against actual maxsize
+        maxsize = getattr(self.synthesis_queue, "maxsize", 100)
+        if self.synthesis_queue.qsize() >= maxsize:
+            logger.warning(
+                f"🎤 QUEUE: Synthesis queue is full ({self.synthesis_queue.qsize()}/{maxsize}) - skipping message"
+            )
             return
 
         logger.debug(f"🎤 QUEUE: Adding {len(message_data['chunks'])} chunks to synthesis queue")
 
+        # Lock only the non-blocking critical section; never await under the lock
         async with self._synthesis_lock:
             for i, chunk in enumerate(message_data["chunks"]):
                 item = {
@@ -61,8 +65,16 @@ class QueueManager:
                     "total_chunks": len(message_data["chunks"]),
                     "message_hash": message_hash,
                 }
-                await self.synthesis_queue.put(item)
-                logger.debug(f"🎤 QUEUE: Added chunk {i + 1}/{len(message_data['chunks'])} to queue")
+                try:
+                    self.synthesis_queue.put_nowait(item)
+                except asyncio.QueueFull:
+                    logger.warning(
+                        f"🎤 QUEUE: Synthesis queue became full while adding (at chunk {i + 1}/{len(message_data['chunks'])}); stopping adds"
+                    )
+                    break
+                logger.debug(
+                    f"🎤 QUEUE: Added chunk {i + 1}/{len(message_data['chunks'])} to queue (size={self.synthesis_queue.qsize()}/{maxsize})"
+                )
 
         logger.info(f"🎤 QUEUE: Successfully queued message with {len(message_data['chunks'])} chunks from {message_data.get('username', 'Unknown')}")
 

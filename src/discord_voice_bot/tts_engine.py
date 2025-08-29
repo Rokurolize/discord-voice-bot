@@ -277,15 +277,18 @@ class TTSEngine:
 async def get_tts_engine(config: Config) -> TTSEngine:
     """Create (or reuse) and start a TTS engine instance for a config.
 
-    Caches one engine per Config instance to avoid repeatedly creating/starting
-    engines for transient operations (e.g., slash handlers).
+    - Avoid duplicate creation with a short critical section protected by a
+      global lock.
+    - Perform I/O-heavy `start()` outside the global lock to maximize
+      throughput. Per-engine locking ensures safe lifecycle.
     """
-    # Serialize creation/start across tasks to avoid duplicate sessions
-    async with _ENGINE_CREATE_LOCK:
-        engine: TTSEngine | None = _ENGINE_CACHE.get(config)
-        if engine is None:
-            engine = TTSEngine(config)
-            _ENGINE_CACHE[config] = engine
-        # Ensure started under lock
-        await engine.start()
-        return engine
+    engine: TTSEngine | None = _ENGINE_CACHE.get(config)
+    if engine is None:
+        async with _ENGINE_CREATE_LOCK:
+            engine = _ENGINE_CACHE.get(config)
+            if engine is None:
+                engine = TTSEngine(config)
+                _ENGINE_CACHE[config] = engine
+    # Ensure started outside the global creation lock
+    await engine.start()
+    return engine

@@ -1,5 +1,7 @@
 """Voices slash command handler."""
 
+import asyncio
+
 import discord
 from loguru import logger
 
@@ -28,6 +30,9 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
         )
         _ = await interaction.response.send_message(embed=embed)
 
+    except asyncio.CancelledError:
+        # Propagate cancellations for proper task handling (timeouts, etc.)
+        raise
     except Exception:
         logger.exception("Error in voices slash command")
         if interaction.response.is_done():
