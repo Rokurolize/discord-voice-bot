@@ -222,11 +222,7 @@ class TTSClient:
             engine_config = engines[target_engine]
 
         # Use provided speaker ID or engine default
-        current_speaker_id = (
-            speaker_id
-            if speaker_id is not None
-            else int(engine_config.get("default_speaker", self.speaker_id))
-        )
+        current_speaker_id = speaker_id if speaker_id is not None else int(engine_config.get("default_speaker", self.speaker_id))
         target_api_url = engine_config.get("url", self.api_url)
 
         logger.debug(f"Using {target_engine} engine (URL: {target_api_url}) with speaker {current_speaker_id}")
