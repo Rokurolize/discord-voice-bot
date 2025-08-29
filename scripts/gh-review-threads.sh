@@ -395,6 +395,7 @@ case "$SUBCOMMAND" in
   resolve-all-unresolved)
     info "Fetching threads…"
     threads=$(fetch_threads)
+    declare -a tids=()
     readarray_compat tids bash -lc 'jq -r '\''.[] | select(.isResolved == false) | .id'\'' <<<"$threads"'
     if [[ ${#tids[@]} -eq 0 ]]; then
       info "No unresolved threads found."
@@ -409,6 +410,7 @@ case "$SUBCOMMAND" in
   resolve-by-discussion-ids)
     [[ $# -gt 0 ]] || abort "provide at least one discussion_r numeric id"
     threads=$(fetch_threads)
+    declare -a tids=()
     readarray_compat tids map_discussion_ids_to_threads "$threads" "$@"
     if [[ ${#tids[@]} -eq 0 ]]; then
       abort "no matching threads found for provided discussion ids"
@@ -426,6 +428,7 @@ case "$SUBCOMMAND" in
     extract_ids_filtered() {
       extract_ids_from_urls "$@" | awk 'NF'
     }
+    declare -a ids=()
     readarray_compat ids extract_ids_filtered "$@"
     if [[ ${#ids[@]} -eq 0 ]]; then
       abort "no discussion_r ids could be extracted from URLs"
