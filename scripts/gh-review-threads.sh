@@ -299,6 +299,9 @@ render_comment_details() {
   local threads_json="$1"; shift
   local filter="$1"; shift || true
   local max_len="${1:-200}"; shift || true
+  # sanitize and clamp to [200,400]
+  if ! [[ "$max_len" =~ ^[0-9]+$ ]]; then max_len=200; fi
+  if (( max_len < 200 )); then max_len=200; elif (( max_len > 400 )); then max_len=400; fi
   jq -r --argjson max "$max_len" "$filter | .[] as \$t | (\$t.comments.nodes[] | {tid: \$t.id, resolved: (if \$t.isResolved then \"resolved\" else \"unresolved\" end), outdated: \$t.isOutdated} + .) | [.tid, .resolved, .outdated, .path, .databaseId, .url, ((.body // \"\") | gsub(\"\\n\";\" \") | .[0:\$max])] | @tsv" <<<"$threads_json" |
   awk -F'\t' 'BEGIN{printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n","thread_id","status","outdated","path","comment_id","url","body_preview");} {print}'
 }
