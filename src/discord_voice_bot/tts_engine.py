@@ -163,9 +163,7 @@ class TTSEngine:
         if engine_config is None:
             engine_config = engines.get("voicevox")
         if engine_config is None:
-            raise TTSEngineError(
-                f"Unknown TTS engine '{target_engine}' and no 'voicevox' fallback configured"
-            )
+            raise TTSEngineError(f"Unknown TTS engine '{target_engine}' and no 'voicevox' fallback configured")
 
         # Use provided speaker ID or configured speaker name for the target engine
         if speaker_id is not None:
@@ -202,9 +200,7 @@ class TTSEngine:
         if engine_config is None:
             engine_config = engines.get("voicevox")
         if engine_config is None:
-            raise TTSEngineError(
-                f"Unknown TTS engine '{target_engine}' and no 'voicevox' fallback configured"
-            )
+            raise TTSEngineError(f"Unknown TTS engine '{target_engine}' and no 'voicevox' fallback configured")
 
         # Use provided speaker ID or configured speaker name for the target engine
         if speaker_id is not None:
