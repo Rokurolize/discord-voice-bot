@@ -1,5 +1,6 @@
 """Temporary file management for TTS engine."""
 
+import shutil
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -73,7 +74,7 @@ class TempFileManager:
             # Create Discord audio source with corrected FFmpeg options
             sample_rate = self.config.audio_sample_rate
             channels = self.config.audio_channels
-            ffmpeg_options = f"-ar {sample_rate} -ac {channels} -f s16le"
+            ffmpeg_options = f"-vn -sn -ar {sample_rate} -ac {channels} -f s16le"
             before_options = "-nostdin -hide_banner -loglevel warning"
 
             logger.debug(f"FFmpeg options: before='{before_options}' options='{ffmpeg_options}'")
@@ -83,6 +84,12 @@ class TempFileManager:
 
                 # Store temp path for cleanup
                 audio_source._temp_path = temp_path  # type: ignore[attr-defined]
+                # Optional safety net: cleanup when audio_source is GC'ed
+                try:
+                    import weakref
+                    _ = weakref.finalize(audio_source, Path(temp_path).unlink, missing_ok=True)
+                except Exception:
+                    pass
 
                 # DEBUG: Test the created audio source and save converted audio (only when debug enabled)
                 if self.config.debug:
@@ -236,9 +243,10 @@ class TempFileManager:
 
         """
         temp_dir = Path(tempfile.gettempdir())
+        total, _used, free = shutil.disk_usage(temp_dir)
         return {
             "temp_directory": str(temp_dir),
-            "total_space": temp_dir.stat().st_size if temp_dir.exists() else 0,
-            "available_space": 0,  # Would need platform-specific code to get this
+            "total_space": int(total),
+            "available_space": int(free),
             "temp_files_count": len(list(temp_dir.glob("*.wav"))),
         }
