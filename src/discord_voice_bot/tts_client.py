@@ -20,6 +20,7 @@ class TTSClient:
         super().__init__()
         self._config_ref = ref(config)
         self._session: aiohttp.ClientSession | None = None
+        self._session_lock = asyncio.Lock()
 
     @property
     def config(self) -> Config:
@@ -71,19 +72,21 @@ class TTSClient:
 
     async def start_session(self) -> None:
         """Start the HTTP session for API communication."""
-        if not self._session:
-            logger.debug("🔗 Creating new aiohttp ClientSession for TTS client")
-            timeout = aiohttp.ClientTimeout(total=10, connect=2)
-            self._session = aiohttp.ClientSession(timeout=timeout)
-            logger.debug("✅ aiohttp ClientSession created successfully")
+        async with self._session_lock:
+            if not self._session:
+                logger.debug("🔗 Creating new aiohttp ClientSession for TTS client")
+                timeout = aiohttp.ClientTimeout(total=10, connect=2)
+                self._session = aiohttp.ClientSession(timeout=timeout)
+                logger.debug("✅ aiohttp ClientSession created successfully")
 
     async def close_session(self) -> None:
         """Close the HTTP session."""
-        if self._session:
-            logger.debug("🔗 Closing aiohttp ClientSession for TTS client")
-            await self._session.close()
-            self._session = None
-            logger.debug("✅ aiohttp ClientSession closed successfully")
+        async with self._session_lock:
+            if self._session:
+                logger.debug("🔗 Closing aiohttp ClientSession for TTS client")
+                await self._session.close()
+                self._session = None
+                logger.debug("✅ aiohttp ClientSession closed successfully")
 
     # Backward-compatible aliases for tests/fixtures
     async def close(self) -> None:  # pragma: no cover - compatibility
@@ -109,8 +112,15 @@ class TTSClient:
                     logger.debug(f"{self.engine_name} TTS API is available")
                     return True, ""
                 else:
+                    # Read up to 256 bytes of body for diagnostics
+                    try:
+                        body_snippet = (await response.text())[:256]
+                    except Exception:
+                        body_snippet = "<unavailable>"
                     error_msg = f"HTTP {response.status}"
-                    logger.warning(f"{self.engine_name} TTS API returned {error_msg}")
+                    logger.warning(
+                        f"{self.engine_name} TTS API returned {error_msg}; body={body_snippet!r}"
+                    )
                     return False, error_msg
 
         except aiohttp.ClientConnectorError:
@@ -221,8 +231,14 @@ class TTSClient:
             target_engine = fallback
             engine_config = engines[target_engine]
 
-        # Use provided speaker ID or engine default
-        current_speaker_id = speaker_id if speaker_id is not None else int(engine_config.get("default_speaker", self.speaker_id))
+        # Use provided speaker ID or engine default with safe int fallback
+        if speaker_id is not None:
+            current_speaker_id = speaker_id
+        else:
+            try:
+                current_speaker_id = int(engine_config.get("default_speaker", self.speaker_id))
+            except (TypeError, ValueError):
+                current_speaker_id = self.speaker_id
         target_api_url = engine_config.get("url", self.api_url)
 
         logger.debug(f"Using {target_engine} engine (URL: {target_api_url}) with speaker {current_speaker_id}")
