@@ -1,6 +1,7 @@
 """Health monitoring for TTS engine."""
 
 from typing import Any
+from weakref import ref
 
 from loguru import logger
 
@@ -14,8 +15,15 @@ class TTSHealthMonitor:
     def __init__(self, config: Config, tts_client: TTSClient) -> None:
         """Initialize TTS health monitor with configuration and TTS client."""
         super().__init__()
-        self.config = config
+        self._config_ref = ref(config)
         self._tts_client = tts_client
+
+    @property
+    def config(self) -> Config:
+        cfg = self._config_ref()
+        if cfg is None:
+            raise RuntimeError("Config has been garbage-collected; TTSHealthMonitor is unbound")
+        return cfg
 
     async def perform_health_check(self) -> bool:
         """Perform comprehensive health check on TTS engine.

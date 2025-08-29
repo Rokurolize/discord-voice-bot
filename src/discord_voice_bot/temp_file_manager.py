@@ -3,6 +3,7 @@
 import tempfile
 from pathlib import Path
 from typing import Any
+from weakref import ref
 
 from loguru import logger
 
@@ -17,8 +18,15 @@ class TempFileManager:
     def __init__(self, config: Config, audio_processor: AudioProcessor) -> None:
         """Initialize temp file manager with configuration and audio processor."""
         super().__init__()
-        self.config = config
+        self._config_ref = ref(config)
         self._audio_processor = audio_processor
+
+    @property
+    def config(self) -> Config:
+        cfg = self._config_ref()
+        if cfg is None:
+            raise RuntimeError("Config has been garbage-collected; TempFileManager is unbound")
+        return cfg
 
     async def create_audio_source(self, text: str, audio_data: bytes, speaker_id: int | None = None, engine_name: str | None = None) -> Any:
         """Create Discord audio source from audio data.

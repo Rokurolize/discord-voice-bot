@@ -4,6 +4,7 @@ import asyncio
 import json
 import urllib.parse
 from typing import Any
+from weakref import ref
 
 import aiohttp
 from loguru import logger
@@ -17,8 +18,15 @@ class TTSClient:
     def __init__(self, config: Config) -> None:
         """Initialize TTS client with a configuration object."""
         super().__init__()
-        self.config = config
+        self._config_ref = ref(config)
         self._session: aiohttp.ClientSession | None = None
+
+    @property
+    def config(self) -> Config:
+        cfg = self._config_ref()
+        if cfg is None:
+            raise RuntimeError("Config has been garbage-collected; TTSClient is unbound")
+        return cfg
 
     @property
     def api_url(self) -> str:
