@@ -39,90 +39,55 @@
 - Copy `.env.example` → `.env`; set `DISCORD_BOT_TOKEN`, `TARGET_VOICE_CHANNEL_ID`, and TTS settings (`TTS_ENGINE`, `VOICEVOX_URL`/`AIVIS_URL`).
 - Never commit secrets; `.env` is gitignored. Ensure Discord "Message Content Intent" is enabled for the bot.
 
-## Code Review Ops (gh + GraphQL)
-- Prereqs: Install `gh` and `jq`. Authenticate with `gh auth login`.
-- Host Support (GHES): Set `GH_HOST` or pass `--host <hostname>` (defaults to `github.com`). All `gh` calls and auth use this host.
-- Auth Check: `gh auth status -h ${GH_HOST:-github.com}` (verify repo:write if resolving).
-- List Unresolved (summary): `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> list-unresolved`
-  - Shows thread id, status, comment count, and comment databaseIds (no bodies).
-- List Unresolved (details): `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> list-unresolved-details`
-  - Shows each comment’s path, url, databaseId, and a truncated body preview (200–400 chars) for quick scanning.
-- Unresolved JSON (threads, full): `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> list-unresolved-json`
-  - Emits raw JSON thread nodes including full bodies and diffHunks (best for scripting).
-- Unresolved NDJSON (comments, full): `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> list-unresolved-ndjson`
-  - Emits one JSON object per unresolved comment (full bodies, unescaped) — ideal for tooling.
-- Unresolved Details (full body TSV): `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> list-unresolved-details-full`
-  - Tabular output with full, untruncated bodies for human review.
-- Unresolved XML (optional): `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> list-unresolved-xml`
-  - XML-escaped output with full bodies for systems that prefer XML.
-- Resolve By IDs: `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> resolve-by-discussion-ids <id ...>`
-- Resolve By URLs: `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> resolve-by-urls <url ...>`
-- Resolve All: `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> resolve-all-unresolved`
-- Unresolve: `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> unresolve-thread-ids <thread-id ...>`
-- Dry‑Run: `DRY_RUN=1 scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> resolve-all-unresolved`
+## PR Review Handling Workflow (gh-review-threads.sh)
+- Prereqs: install `gh` and `jq`; authenticate: `gh auth status -h ${GH_HOST:-github.com}`.
+- Project defaults (set once): `export GH_OWNER=Rokurolize GH_REPO=discord-voice-bot` (optionally `export GH_HOST=<hostname>` for GHES).
+- Help: `scripts/gh-review-threads.sh --help` shows all flags and subcommands.
 
-## GraphQL Snippets (Reference)
-- Fetch Threads: `gh api graphql -F owner='<O>' -F name='<R>' -F number=<N> -f query='query($owner:String!,$name:String!,$number:Int!){ repository(owner:$owner,name:$name){ pullRequest(number:$number){ reviewThreads(first:100){ nodes{ id isResolved isOutdated comments(first:50){ nodes{ databaseId url path body diffHunk } } } }}}}' --jq '.data.repository.pullRequest.reviewThreads.nodes'`
-- Purpose: Map `discussion_r<databaseId>` numbers to `thread.id`, inspect `path/body/diffHunk`, and decide resolution.
+### One-by-One Loop (full text, minimal steps)
+- Set PR: `export GH_PR=<number>` (or pass `--pr <number>` per call).
+- Get next unresolved (full body): `line="$(scripts/gh-review-threads.sh list-next-unresolved-ndjson)"`; empty output means done.
+- Inspect context quickly:
+  - Path/URL: `echo "$line" | jq -r '.path, .url'`
+  - Diff: `echo "$line" | jq -r '.diffHunk' | less -R`
+  - Body: `echo "$line" | jq -r '.body' | less -R`
+- Implement the fix, then verify: `uv run poe check`.
+- Resolve the addressed thread only:
+  - `id="$(echo "$line" | jq -r '.databaseId')"`
+  - `scripts/gh-review-threads.sh resolve-by-discussion-ids "$id"`
+- Commit after each item: `git add -A && git commit -m "fix: address review — <short>"`.
+- Repeat until no more output from `list-next-unresolved-ndjson`.
 
-## Verification Playbook Before Resolve
-- Read Thread: Fetch thread bodies and `path/diffHunk` (see GraphQL snippet).
-- Compare Code: Open the referenced file(s) and confirm the suggestion is applied.
-- Run Checks: `uv run poe check` (ruff + pyright + tests) must pass.
-- Resolve: Use `scripts/gh-review-threads.sh` to resolve only addressed threads.
+### Push Policy
+- Push once at the end to trigger CodeRabbit: `git push origin HEAD`.
 
-## Single‑Action Workflow: “Address the Review Comments”
-- Fetch unresolved comments with full context:
-  - Threads JSON: `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> list-unresolved-json`
-  - Or Comments NDJSON (recommended for tooling): `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> list-unresolved-ndjson`
-- Apply changes per comments; prefer precise, minimal patches.
-- Verify locally: `uv run poe check` must pass.
-- Resolve addressed comments by ID: `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> resolve-by-discussion-ids <id ...>`
-  - Use only IDs you actually addressed.
-- Commit and push: `git add -A && git commit -m "<concise subject>" && git push origin HEAD`.
+Notes:
+- Owner/repo are fixed for this project via `GH_OWNER=Rokurolize` and `GH_REPO=discord-voice-bot`; you can still pass `--owner/--repo` explicitly if needed.
+- Use `DRY_RUN=1` with resolve subcommands to preview without mutating.
+- Prefer the one-by-one NDJSON flow above; XML/truncated previews and manual GraphQL are unnecessary here.
 
-### One‑by‑One Resolution (NDJSON + jq)
-- Set env (once per session):
-  - `export GH_OWNER=<O> GH_REPO=<R> GH_PR=<N>` and optionally `export GH_HOST=<host>` for GHES
-- Fetch full comments (unescaped, not truncated):
-  - `scripts/gh-review-threads.sh list-unresolved-ndjson > /tmp/review.ndjson`
-- Loop one comment at a time:
-  1) Select next comment
-     - `line="$(sed -n '1p' /tmp/review.ndjson)"`
-     - If empty → done
-  2) Inspect context
-     - Path/URL: `echo "$line" | jq -r '.path, .url'`
-     - Diff: `echo "$line" | jq -r '.diffHunk' | less -R`
-     - Body: `echo "$line" | jq -r '.body' | less -R`
-  3) Implement fix in code, then verify
-     - `uv run poe check`
-  4) Resolve just that thread
-     - `id="$(echo "$line" | jq -r '.databaseId')"`
-     - `scripts/gh-review-threads.sh resolve-by-discussion-ids "$id"`
-  5) Refresh list and repeat
-     - `scripts/gh-review-threads.sh list-unresolved-ndjson > /tmp/review.ndjson`
-- Tips:
-  - Skip outdated by default: `scripts/gh-review-threads.sh list-unresolved-ndjson | jq 'select(.outdated==false)' > /tmp/review.ndjson`
-  - Resolution is at thread level; a single `databaseId` maps to and resolves its entire thread.
+## Verification Before Resolve
+- Compare the referenced code locally and ensure the change is applied.
+- Run checks: `uv run poe check` must pass before resolving a thread.
 
-## Script Reference
-- Location: `scripts/gh-review-threads.sh:1`
-- Subcommands: `list`, `list-unresolved`, `list-details`, `list-unresolved-details`, `list-unresolved-details-full`, `list-unresolved-json`, `list-unresolved-xml`, `list-unresolved-ndjson`, `resolve-all-unresolved`, `resolve-by-discussion-ids`, `resolve-by-urls`, `unresolve-thread-ids`
-- Notes: Uses GraphQL `resolveReviewThread` / `unresolveReviewThread`. Accepts IDs (`discussion_r...` numbers) or URLs. Supports pagination and `DRY_RUN`.
- - Host: Honors `--host` flag or `GH_HOST` environment variable for GitHub Enterprise.
+## Resolve and Commit Strategy
+- Resolve only the thread you addressed using `resolve-by-discussion-ids` (see Loop above).
+- Commit each resolved item; push once when all review items are addressed.
 
-## PR Ops (gh)
-- View PR: `gh pr view <N> --json title,headRefName,mergeable,url`
-- Append Body: `gh pr view <N> --json body -q .body > /tmp/body.md && echo "\n<update>\n" >> /tmp/body.md && gh pr edit <N> --body-file /tmp/body.md`
-- Submit Review: `gh pr review <N> --comment -b "<summary>"` or `--approve`/`--request-changes` as needed.
+## Single-Action Summary
+- Use `list-next-unresolved-ndjson` to fetch full-text comments one at a time.
+- After each fix: `uv run poe check` → resolve that thread → commit.
+- After all items: one final `git push origin HEAD`.
 
-## Maintenance Cheatsheet
-- Timeout Aliases (UP041): Prefer builtin `TimeoutError` (Python ≥3.11).
-  - Scan: `rg -n "asyncio\.TimeoutError|socket\.timeout" -S`
-  - Replace: Use `TimeoutError` directly and remove local `noqa: UP041`.
-  - Re‑enable: Ensure UP041 is not ignored in `pyproject.toml:169`.
-- PR Update Flow:
-  - Commit: `git add -A && git commit -m "refactor: replace timeout aliases (UP041) and re-enable rule"`
-  - Push: `git push origin HEAD`
-  - Validate: `uv run poe check`
-  - Resolve remaining threads after verification (see Code Review Ops).
+### Optional Filters
+- To skip outdated comments, filter: `scripts/gh-review-threads.sh list-unresolved-ndjson | jq 'select(.outdated==false) | first'`.
+  - Note: one discussion `databaseId` resolves the entire thread.
+
+## Script Help
+- See `scripts/gh-review-threads.sh --help` for the complete list of subcommands and flags.
+
+## PR Ops (optional)
+- View PR metadata: `gh pr view <N> --json title,headRefName,mergeable,url`.
+
+## Maintenance Note
+- When iterating on review fixes, prefer small focused commits; avoid pushing until all review items are addressed to batch CodeRabbit runs once.

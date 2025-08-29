@@ -55,7 +55,8 @@ class AudioProcessor:
             return
 
         # Set optimal sample rate from config for Discord
-        audio_query["outputSamplingRate"] = self.config.audio_sample_rate
+        cfg = self.config
+        audio_query["outputSamplingRate"] = cfg.audio_sample_rate
 
         # Adjust volume to prevent clipping
         if "volumeScale" in audio_query:

@@ -140,7 +140,7 @@ class TempFileManager:
                     stderr=asyncio.subprocess.PIPE,
                 )
             except FileNotFoundError as e:
-                logger.warning("ffmpeg not found; skipping conversion test: %s", e)
+                logger.warning("ffmpeg not found; skipping conversion test: {}", e)
                 return
             try:
                 async with asyncio.timeout(10):

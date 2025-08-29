@@ -132,8 +132,10 @@ done
 
 info() { printf '%s\n' "$*" >&2; }
 
-# Verify authentication early for consistent UX
-ensure_gh_auth
+# Verify authentication only when needed (mutations); listing can work anonymously
+if [[ "${SUBCOMMAND:-}" == resolve-* || "${SUBCOMMAND:-}" == unresolve-* ]]; then
+  ensure_gh_auth
+fi
 
 # readarray/mapfile compatibility for bash <4 (e.g., macOS default bash)
 readarray_compat() {
@@ -180,6 +182,14 @@ fetch_threads() {
   # Detect GraphQL errors
   if jq -e '.errors and (.errors | length > 0)' >/dev/null 2>&1 <<<"$resp"; then
     abort "GraphQL returned errors on initial page: $(jq -c '.errors' <<<"$resp")"
+  fi
+
+  # Validate presence of repository and pullRequest on initial page
+  if jq -e '.data.repository == null' >/dev/null <<<"$resp"; then
+    abort "Repository not found or access denied: $OWNER/$REPO"
+  fi
+  if jq -e '.data.repository.pullRequest == null' >/dev/null <<<"$resp"; then
+    abort "Pull Request #$PR_NUMBER not found or access denied in $OWNER/$REPO"
   fi
 
   threads_json=$(jq '(.data.repository.pullRequest.reviewThreads.nodes // [])' <<<"$resp")
@@ -249,6 +259,9 @@ resolve_thread() {
   ' -F t="$tid" --jq '.data.resolveReviewThread.thread'); then
     abort "Failed to resolve thread $tid via gh api"
   fi
+  if [[ -z "$out" || "$out" == "null" ]]; then
+    abort "Resolve returned empty result for $tid"
+  fi
   printf '%s\n' "$out"
 }
 
@@ -268,6 +281,9 @@ unresolve_thread() {
     }
   ' -F t="$tid" --jq '.data.unresolveReviewThread.thread'); then
     abort "Failed to unresolve thread $tid via gh api"
+  fi
+  if [[ -z "$out" || "$out" == "null" ]]; then
+    abort "Unresolve returned empty result for $tid"
   fi
   printf '%s\n' "$out"
 }
@@ -333,6 +349,12 @@ render_unresolved_ndjson() {
     outdated: $t.isOutdated,
     path, databaseId, url, body, diffHunk
   }' <<<"$threads_json"
+}
+
+# Emit unresolved thread IDs from provided threads JSON
+emit_unresolved_thread_ids() {
+  local json="$1"
+  jq -r '.[] | select(.isResolved == false) | .id' <<<"$json"
 }
 
 # Render unresolved threads as XML with full bodies
@@ -411,7 +433,7 @@ case "$SUBCOMMAND" in
     info "Fetching threads…"
     threads=$(fetch_threads)
     declare -a tids=()
-    readarray_compat tids bash -lc 'jq -r '\''.[] | select(.isResolved == false) | .id'\'' <<<"$threads"'
+    readarray_compat tids emit_unresolved_thread_ids "$threads"
     if [[ ${#tids[@]} -eq 0 ]]; then
       info "No unresolved threads found."
       exit 0
@@ -443,7 +465,6 @@ case "$SUBCOMMAND" in
     extract_ids_filtered() {
       extract_ids_from_urls "$@" | awk 'NF'
     }
-    declare -a ids=()
     declare -a ids=()
     readarray_compat ids extract_ids_filtered "$@"
     if [[ ${#ids[@]} -eq 0 ]]; then

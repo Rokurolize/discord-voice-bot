@@ -1,8 +1,6 @@
 """TTS API client for managing communication with TTS services."""
 
 import asyncio
-import json
-import urllib.parse
 from typing import Any
 from weakref import ref
 
@@ -10,6 +8,8 @@ import aiohttp
 from loguru import logger
 
 from .config import Config
+
+DEFAULT_API_URL = "http://localhost:50021"
 
 
 class TTSClient:
@@ -33,10 +33,10 @@ class TTSClient:
         """Get current API URL from config."""
         if self.config.tts_engine not in self.config.engines:
             logger.warning(f"Configured TTS engine '{self.config.tts_engine}' not found in engines. Falling back to default URL.")
-            return "http://localhost:50021"
+            return DEFAULT_API_URL
 
         engine_config = self.config.engines.get(self.config.tts_engine, {})
-        return engine_config.get("url", "http://localhost:50021")
+        return engine_config.get("url", DEFAULT_API_URL)
 
     @property
     def speaker_id(self) -> int:
@@ -146,10 +146,10 @@ class TTSClient:
         """
         try:
             params = {"text": text, "speaker": speaker_id}
-            url = f"{api_url}/audio_query?" + urllib.parse.urlencode(params)
+            url = f"{api_url}/audio_query"
 
             assert self._session is not None  # Type guard for mypy
-            async with self._session.post(url) as response:
+            async with self._session.post(url, params=params) as response:
                 if response.status != 200:
                     logger.error(f"Audio query failed with status {response.status}")
                     return None
@@ -174,13 +174,10 @@ class TTSClient:
         """
         try:
             params = {"speaker": speaker_id}
-            url = f"{api_url}/synthesis?" + urllib.parse.urlencode(params)
-
-            headers = {"Content-Type": "application/json"}
-            data = json.dumps(audio_query).encode("utf-8")
+            url = f"{api_url}/synthesis"
 
             assert self._session is not None  # Type guard for mypy
-            async with self._session.post(url, data=data, headers=headers) as response:
+            async with self._session.post(url, params=params, json=audio_query) as response:
                 if response.status != 200:
                     logger.error(f"Audio synthesis failed with status {response.status}")
                     return None
@@ -225,8 +222,12 @@ class TTSClient:
             engine_config = engines[target_engine]
 
         # Use provided speaker ID or engine default
-        current_speaker_id = speaker_id or engine_config["default_speaker"]
-        target_api_url = engine_config["url"]
+        current_speaker_id = (
+            speaker_id
+            if speaker_id is not None
+            else int(engine_config.get("default_speaker", self.speaker_id))
+        )
+        target_api_url = engine_config.get("url", self.api_url)
 
         logger.debug(f"Using {target_engine} engine (URL: {target_api_url}) with speaker {current_speaker_id}")
 
