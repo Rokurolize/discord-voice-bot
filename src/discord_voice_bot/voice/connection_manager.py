@@ -107,6 +107,9 @@ class VoiceConnectionManager:
 
             return True
 
+        except asyncio.CancelledError:
+            # Propagate cancellation so callers (e.g., slash handler) can handle timeouts
+            raise
         except Exception as e:
             logger.error(f"❌ CRITICAL CONNECTION FAILURE - Failed to connect to voice channel {channel_id}: {e}")
             await self.cleanup_voice_client()

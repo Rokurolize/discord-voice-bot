@@ -48,7 +48,18 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
                 interaction.user.id,
                 (interaction.guild_id or "DM"),
             )
-            success = await bot.voice_handler.connect_to_channel(bot.config.target_voice_channel_id)
+            try:
+                success = await asyncio.wait_for(
+                    bot.voice_handler.connect_to_channel(bot.config.target_voice_channel_id),
+                    timeout=10,
+                )
+            except asyncio.TimeoutError:
+                success = False
+                embed = discord.Embed(
+                    title="🔄 Voice Reconnection",
+                    color=discord.Color.red(),
+                    description="❌ Reconnection timed out after 10s.",
+                )
 
             # Get new status
             new_status = bot.voice_handler.get_status()
