@@ -49,6 +49,8 @@ Subcommands:
   list-unresolved-json     Dump unresolved thread nodes (JSON) including bodies/diffs
   list-unresolved-xml      Dump unresolved threads as XML with full bodies
   list-unresolved-ndjson   Dump unresolved comments as NDJSON (one JSON per line)
+  list-next-unresolved-ndjson
+                           Dump only the next unresolved comment as a single NDJSON line
   resolve-all-unresolved   Resolve every unresolved thread
   resolve-by-discussion-ids <id ...>
                            Resolve threads containing the given discussion_r numeric IDs
@@ -111,7 +113,7 @@ while [[ $# -gt 0 ]]; do
       fi
       HOST="${2}"; shift 2 ;;
     -h|--help) print_usage; exit 0 ;;
-    list|list-unresolved|list-details|list-unresolved-details|list-unresolved-details-full|list-unresolved-json|list-unresolved-xml|list-unresolved-ndjson|resolve-all-unresolved|resolve-by-discussion-ids|resolve-by-urls|unresolve-thread-ids)
+    list|list-unresolved|list-details|list-unresolved-details|list-unresolved-details-full|list-unresolved-json|list-unresolved-xml|list-unresolved-ndjson|list-next-unresolved-ndjson|resolve-all-unresolved|resolve-by-discussion-ids|resolve-by-urls|unresolve-thread-ids)
       SUBCOMMAND="${SUBCOMMAND:-$1}"; shift; continue ;;
     *)
       if [[ -n "${SUBCOMMAND:-}" ]]; then
@@ -392,6 +394,11 @@ case "$SUBCOMMAND" in
     render_unresolved_ndjson "$threads"
     ;;
 
+  list-next-unresolved-ndjson)
+    threads=$(fetch_threads)
+    render_unresolved_ndjson "$threads" | head -n 1
+    ;;
+
   resolve-all-unresolved)
     info "Fetching threads…"
     threads=$(fetch_threads)
@@ -429,11 +436,14 @@ case "$SUBCOMMAND" in
       extract_ids_from_urls "$@" | awk 'NF'
     }
     declare -a ids=()
+    declare -a ids=()
     readarray_compat ids extract_ids_filtered "$@"
     if [[ ${#ids[@]} -eq 0 ]]; then
       abort "no discussion_r ids could be extracted from URLs"
     fi
-    "$0" --owner "$OWNER" --repo "$REPO" --pr "$PR_NUMBER" resolve-by-discussion-ids "${ids[@]}"
+    env ${DRY_RUN:+DRY_RUN=$DRY_RUN} \
+      "$0" --owner "$OWNER" --repo "$REPO" --pr "$PR_NUMBER" --host "$HOST" \
+      resolve-by-discussion-ids "${ids[@]}"
     ;;
 
   unresolve-thread-ids)
