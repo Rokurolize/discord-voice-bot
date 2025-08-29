@@ -1,6 +1,7 @@
 """Voice slash command handler."""
 
 import asyncio
+from typing import Any
 
 import discord
 from loguru import logger
@@ -77,8 +78,9 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, spea
                 _ = await interaction.response.send_message(f"✅ Voice set to **{matched_speaker}** (ID: {matched_id}) on {config.tts_engine.upper()}", ephemeral=True)
                 # Test the new voice
                 test_text = f"{matched_speaker}の声です"
-                if hasattr(bot, "voice_handler") and bot.voice_handler and hasattr(bot, "message_processor"):
-                    chunks = bot.message_processor.chunk_message(test_text)
+                if hasattr(bot, "voice_handler") and bot.voice_handler:
+                    mp: Any = getattr(bot, "message_processor", None)
+                    chunks: list[str] = mp.chunk_message(test_text) if mp and hasattr(mp, "chunk_message") else [test_text]
                     processed_message = {
                         "text": test_text,
                         "user_id": interaction.user.id,

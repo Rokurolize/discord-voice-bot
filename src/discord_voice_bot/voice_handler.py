@@ -12,7 +12,6 @@ if TYPE_CHECKING:
     from .bot import DiscordVoiceTTSBot
 
 # Import new implementation
-from .tts_client import TTSClient
 from .voice import VoiceHandler as NewVoiceHandler
 
 
@@ -23,7 +22,7 @@ class VoiceHandler(NewVoiceHandler):
     Use discord_voice_bot.voice.VoiceHandler instead.
     """
 
-    def __init__(self, bot_client: "DiscordVoiceTTSBot", config_manager: Any = None, tts_client: TTSClient | None = None) -> None:
+    def __init__(self, bot_client: "DiscordVoiceTTSBot", config_manager: Any = None, tts_client: Any | None = None) -> None:
         """Initialize voice handler.
 
         Args:
@@ -32,17 +31,21 @@ class VoiceHandler(NewVoiceHandler):
             tts_client: Shared TTS client instance. This will become required in a future version.
 
         """
-        # Delegate to new implementation - config_manager is always passed from factory
-        if tts_client is None:
-            from .config_manager import ConfigManagerImpl
+        # Adapt to new implementation which expects a Config dataclass.
+        from .config import Config
 
-            # If no tts_client is provided, create a temporary one for backward compatibility
-            config = config_manager or ConfigManagerImpl()
-            tts_client = TTSClient(config)
-            logger.warning("⚠️  DEPRECATED: Creating temporary TTSClient for old VoiceHandler. Please update to inject it.")
-            config_manager = config  # ensure super() receives a valid config
+        cfg: Config
+        if isinstance(config_manager, Config):
+            cfg = config_manager
+        elif hasattr(config_manager, "_get_config"):
+            try:
+                cfg = config_manager._get_config()
+            except Exception:
+                cfg = Config.from_env()
+        else:
+            cfg = Config.from_env()
 
-        super().__init__(bot_client, config_manager, tts_client)
+        super().__init__(bot_client, cfg)
         logger.warning("⚠️  DEPRECATED: Using old VoiceHandler. Consider migrating to discord_voice_bot.voice.VoiceHandler")
 
     # All methods are inherited from NewVoiceHandler

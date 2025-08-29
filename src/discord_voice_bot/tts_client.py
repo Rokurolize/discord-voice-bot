@@ -16,6 +16,7 @@ class TTSClient:
 
     def __init__(self, config: Config) -> None:
         """Initialize TTS client with a configuration object."""
+        super().__init__()
         self.config = config
         self._session: aiohttp.ClientSession | None = None
 
@@ -37,9 +38,9 @@ class TTSClient:
             return int(val)
         engines = self.config.engines
         engine = self.config.tts_engine
-        engine_cfg = engines.get(engine, {})  # MappingProxyType is dict-like
-        speakers = engine_cfg.get("speakers", {}) if isinstance(engine_cfg, dict) else {}
-        return int(speakers.get(val, engine_cfg.get("default_speaker", 3)))
+        engine_cfg: dict[str, Any] = dict(engines.get(engine, {}))  # MappingProxyType is dict-like
+        speakers: dict[str, int] = dict(engine_cfg.get("speakers", {}))
+        return int(speakers.get(val, int(engine_cfg.get("default_speaker", 3))))
 
     @property
     def engine_name(self) -> str:

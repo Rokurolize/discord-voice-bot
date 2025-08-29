@@ -77,6 +77,7 @@ class TestConfig:
     @patch("discord_voice_bot.config.Path.exists", return_value=True)
     def test_dotenv_override_precedence(self, mock_exists, mock_load_dotenv) -> None:
         """Test that .env file overrides secrets.env."""
+
         # Simulate that secrets.env sets a value, then .env overrides it
         def load_dotenv_side_effect(dotenv_path, override=False):
             if "secrets.env" in str(dotenv_path):

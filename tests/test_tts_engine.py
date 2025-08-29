@@ -14,11 +14,12 @@ async def tts_engine_with_mocks(config: Config):
     Fixture to provide a TTSEngine instance with mocked dependencies.
     This isolates the TTSEngine logic from the actual API calls.
     """
-    with patch("discord_voice_bot.tts_engine.TTSEngine._generate_audio_query", new_callable=AsyncMock) as mock_gen_query, \
-         patch("discord_voice_bot.tts_engine.TTSEngine._synthesize_from_query", new_callable=AsyncMock) as mock_synth_query, \
-         patch("discord_voice_bot.tts_engine.TTSHealthMonitor.perform_health_check", new_callable=AsyncMock) as mock_health_check, \
-         patch("discord_voice_bot.tts_engine.TTSClient.close_session", new_callable=AsyncMock) as mock_close_session:
-
+    with (
+        patch("discord_voice_bot.tts_engine.TTSEngine._generate_audio_query", new_callable=AsyncMock) as mock_gen_query,
+        patch("discord_voice_bot.tts_engine.TTSEngine._synthesize_from_query", new_callable=AsyncMock) as mock_synth_query,
+        patch("discord_voice_bot.tts_engine.TTSHealthMonitor.perform_health_check", new_callable=AsyncMock) as mock_health_check,
+        patch("discord_voice_bot.tts_engine.TTSClient.close_session", new_callable=AsyncMock) as mock_close_session,
+    ):
         mock_gen_query.return_value = {"mora": "data"}
         mock_synth_query.return_value = b"mocked_audio_data"
         mock_health_check.return_value = True
@@ -89,6 +90,7 @@ class TestSynthesizeAudio:
         assert result == b"mocked_audio_data"
         mock_gen_query.assert_called_once_with("test", None, "aivis")
         mock_synth_query.assert_called_once()
+
 
 @pytest.mark.asyncio
 class TestEngineLifecycle:

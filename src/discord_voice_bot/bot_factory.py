@@ -1,7 +1,7 @@
 """Bot factory for Discord Voice TTS Bot initialization and configuration."""
 
 from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from loguru import logger
 
@@ -88,10 +88,10 @@ class BotFactory:
                 bot_module = importlib.import_module(".bot", package="discord_voice_bot")
                 bot_class = bot_module.DiscordVoiceTTSBot
 
-            # Create bot instance with configuration
+            # Create bot instance with configuration (direct dataclass injection)
             if bot_class is None:
                 raise ValueError("Bot class cannot be None")
-            bot: Any = bot_class(config)
+            bot: Any = bot_class(config=config)
 
             # Setup all components with config
             await self._setup_components(bot, config)
@@ -197,8 +197,12 @@ class BotFactory:
             raise
 
     async def _create_event_handler(self, bot: Any, config: Config) -> "EventHandler":
-        """Create event handler."""
-        return self._create_component("discord_voice_bot.event_handler", "EventHandler", bot, config)
+        """Create event handler using a ConfigManager wrapper around Config."""
+        # Lazy import to avoid cycles
+        from .config_manager import ConfigManagerImpl
+
+        config_manager = ConfigManagerImpl(config)
+        return self._create_component("discord_voice_bot.event_handler", "EventHandler", bot, config_manager)
 
     async def _create_command_handler(self, bot: Any) -> "CommandHandler":
         """Create command handler."""
@@ -213,8 +217,10 @@ class BotFactory:
             return None
 
     async def _create_message_validator(self, bot: Any) -> "MessageValidator":
-        """Create message validator."""
-        return self._create_component("discord_voice_bot.message_validator", "MessageValidator")
+        """Create message validator with Config dataclass injection."""
+        # The validator requires the concrete Config dataclass
+        cfg = bot.config if hasattr(bot, "config") else None
+        return self._create_component("discord_voice_bot.message_validator", "MessageValidator", cfg)
 
     async def _create_status_manager(self, bot: Any) -> "StatusManager":
         """Create status manager."""
@@ -229,8 +235,14 @@ class BotFactory:
             raise
 
     async def _create_health_monitor(self, bot: Any, config: Config) -> Any:
-        """Create health monitor."""
-        return self._create_component("discord_voice_bot.health_monitor", "HealthMonitor", bot, config)
+        """Create health monitor with ConfigManager and TTS client."""
+        # Lazy imports to avoid cycles
+        from .config_manager import ConfigManagerImpl
+        from .tts_client import TTSClient
+
+        config_manager = ConfigManagerImpl(config)
+        tts_client = TTSClient(config)
+        return self._create_component("discord_voice_bot.health_monitor", "HealthMonitor", bot, config_manager, tts_client)
 
     async def _setup_existing_components(self, bot: Any) -> None:
         """Setup existing components that are already part of the bot.
@@ -288,8 +300,9 @@ class BotFactory:
             # Initialize TTS engine
             from .tts_engine import get_tts_engine
 
-            # Use the bot's existing config
-            tts_engine = await get_tts_engine(bot.config)
+            # Use the bot's underlying Config dataclass
+            cfg = cast(Config, getattr(bot, "config", None))
+            tts_engine = await get_tts_engine(cfg)
             await tts_engine.start()
             logger.debug("TTS engine initialized")
 

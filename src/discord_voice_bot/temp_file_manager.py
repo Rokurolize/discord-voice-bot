@@ -1,6 +1,5 @@
 """Temporary file management for TTS engine."""
 
-import subprocess
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -125,6 +124,7 @@ class TempFileManager:
                 "-",
             ]
             import asyncio
+
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
@@ -135,28 +135,30 @@ class TempFileManager:
             except asyncio.TimeoutError:
                 proc.kill()
                 stdout, stderr = await proc.communicate()
-            result = type("R", (), {"returncode": proc.returncode, "stdout": stdout, "stderr": stderr})
+            returncode: int = 0 if proc.returncode is None else int(proc.returncode)
+            out_bytes: bytes = stdout or b""
+            err_bytes: bytes = stderr or b""
 
-            if result.returncode == 0 and result.stdout:
+            if returncode == 0 and out_bytes:
                 metadata_discord = {
                     "ffmpeg_options": ffmpeg_options,
-                    "converted_size": len(result.stdout),
+                    "converted_size": len(out_bytes),
                     "conversion_success": True,
                 }
                 # Save as raw PCM data (add WAV header for playability)
                 sample_rate = self.config.audio_sample_rate
                 channels = self.config.audio_channels
                 wav_header = self._audio_processor.create_wav_header(
-                    len(result.stdout),
+                    len(out_bytes),
                     sample_rate,
                     channels,
                 )
-                wav_data = wav_header + result.stdout
+                wav_data = wav_header + out_bytes
 
                 saved_discord_path = audio_debugger.save_audio_stage(wav_data, "discord_converted", text, metadata_discord)
                 logger.debug(f"🔍 Saved Discord-converted audio: {saved_discord_path}")
             else:
-                stderr_str = result.stderr.decode("utf-8")
+                stderr_str = err_bytes.decode("utf-8", errors="ignore")
                 logger.warning(f"FFmpeg conversion test failed: {stderr_str}")
 
         except Exception as e:

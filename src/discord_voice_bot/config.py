@@ -1,10 +1,11 @@
 """Configuration management for Discord Voice TTS Bot."""
 
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Mapping
+from typing import Any
 
 from dotenv import load_dotenv
 
@@ -49,12 +50,12 @@ class Config:
         secrets_path = os.environ.get("SECRETS_FILE", "~/.config/discord-voice-bot/secrets.env")
         secrets_file = Path(secrets_path).expanduser()
         if secrets_file.exists():
-            load_dotenv(secrets_file)
+            _ = load_dotenv(secrets_file)
 
         # 2. Load local .env file (development/testing) - this overrides secrets
         local_env = Path(".env")
         if local_env.exists():
-            load_dotenv(local_env, override=True)
+            _ = load_dotenv(local_env, override=True)
 
         return cls(
             discord_token=os.environ.get("DISCORD_BOT_TOKEN", ""),
@@ -62,28 +63,38 @@ class Config:
             target_voice_channel_id=_env_to_int("TARGET_VOICE_CHANNEL_ID", 0),
             tts_engine=os.environ.get("TTS_ENGINE", "voicevox").lower(),
             tts_speaker=os.environ.get("TTS_SPEAKER", "normal").lower(),
-            engines=MappingProxyType({
-                "voicevox": MappingProxyType({
-                    "url": os.environ.get("VOICEVOX_URL", "http://localhost:50021"),
-                    "default_speaker": 3,
-                    "speakers": MappingProxyType({
-                        "normal": 3,
-                        "sexy": 5,
-                        "tsun": 7,
-                        "amai": 1,
-                    }),
-                }),
-                "aivis": MappingProxyType({
-                    "url": os.environ.get("AIVIS_URL", "http://127.0.0.1:10101"),
-                    "default_speaker": 1512153250,
-                    "speakers": MappingProxyType({
-                        "anneli_normal": 888753760,
-                        "mai": 1431611904,
-                        "chuunibyou": 604166016,
-                        "zunda_normal": 1512153250,
-                    }),
-                }),
-            }),
+            engines=MappingProxyType(
+                {
+                    "voicevox": MappingProxyType(
+                        {
+                            "url": os.environ.get("VOICEVOX_URL", "http://localhost:50021"),
+                            "default_speaker": 3,
+                            "speakers": MappingProxyType(
+                                {
+                                    "normal": 3,
+                                    "sexy": 5,
+                                    "tsun": 7,
+                                    "amai": 1,
+                                }
+                            ),
+                        }
+                    ),
+                    "aivis": MappingProxyType(
+                        {
+                            "url": os.environ.get("AIVIS_URL", "http://127.0.0.1:10101"),
+                            "default_speaker": 1512153250,
+                            "speakers": MappingProxyType(
+                                {
+                                    "anneli_normal": 888753760,
+                                    "mai": 1431611904,
+                                    "chuunibyou": 604166016,
+                                    "zunda_normal": 1512153250,
+                                }
+                            ),
+                        }
+                    ),
+                }
+            ),
             command_prefix=os.environ.get("COMMAND_PREFIX", "!tts"),
             max_message_length=_env_to_int("MAX_MESSAGE_LENGTH", 10000),
             message_queue_size=_env_to_int("MESSAGE_QUEUE_SIZE", 10),

@@ -194,7 +194,7 @@ class VoiceConnectionManager:
         return self._reconnection_cooldown
 
     @reconnection_cooldown.setter
-    def reconnection_cooldown(self, value: int | float) -> None:
+    def reconnection_cooldown(self, value: int) -> None:
         """Set the reconnection cooldown duration in seconds."""
         if value < 0:
             raise ValueError("reconnection_cooldown must be non-negative")

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Test script to verify bot permissions and connectivity to target Discord server/channel."""
+
 import asyncio
 import logging
 import os
@@ -42,9 +43,7 @@ async def test_bot_permissions(config: Config):
 
             target_channel = client.get_channel(config.target_voice_channel_id)
             assert target_channel, f"Target channel {config.target_voice_channel_id} not found!"
-            assert isinstance(
-                target_channel, discord.VoiceChannel
-            ), "Target channel is not a voice channel."
+            assert isinstance(target_channel, discord.VoiceChannel), "Target channel is not a voice channel."
 
             chan_perms = target_channel.permissions_for(bot_member)
             assert chan_perms.connect, "Bot is missing 'connect' permission on the target channel."

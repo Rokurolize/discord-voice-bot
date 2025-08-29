@@ -28,6 +28,7 @@ class MessageValidator:
 
     def __init__(self, config: Config) -> None:
         """Initialize message validator."""
+        super().__init__()
         self.config = config
 
         # Initialize components

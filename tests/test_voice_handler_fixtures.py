@@ -1,5 +1,6 @@
 """Fixtures for VoiceHandler tests."""
 
+import dataclasses
 import inspect
 from typing import Any
 from unittest.mock import MagicMock

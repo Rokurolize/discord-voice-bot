@@ -101,12 +101,15 @@ class VoiceHandler(VoiceHandlerInterface):
         self.config = config
 
         # Initialize manager components
-        self.connection_manager = VoiceConnectionManager(bot_client, config)
+        from ..config_manager import ConfigManagerImpl
+        from ..tts_client import TTSClient
+
+        self.connection_manager = VoiceConnectionManager(bot_client, ConfigManagerImpl(config))
         self.queue_manager = QueueManager()
         self.rate_limiter_manager = RateLimiterManager()
         self.stats_tracker = StatsTracker()
         self.task_manager = TaskManager()
-        self.health_monitor = HealthMonitor(self.connection_manager, config)
+        self.health_monitor = HealthMonitor(self.connection_manager, ConfigManagerImpl(config), TTSClient(config))
 
         # Maintain backward compatibility properties
         self.is_playing = False

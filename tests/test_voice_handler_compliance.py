@@ -142,10 +142,10 @@ class TestComplianceTDD:
             voice_handler_old.voice_gateway = mock_gateway
 
         # Test voice server update handling (step 1 in Discord flow)
-        voice_server_payload = {"token": "test_voice_token_123", "guild_id": "123456789012345678", "endpoint": "test-voice-endpoint.example.com:443"}
+        _voice_server_payload = {"token": "test_voice_token_123", "guild_id": "123456789012345678", "endpoint": "test-voice-endpoint.example.com:443"}
 
         # Test voice state update handling (step 2 in Discord flow)
-        voice_state_payload = {"session_id": "test_session_abc123"}
+        _voice_state_payload = {"session_id": "test_session_abc123"}
 
         # Basic test that methods exist if implemented
         if hasattr(voice_handler_old, "voice_gateway"):

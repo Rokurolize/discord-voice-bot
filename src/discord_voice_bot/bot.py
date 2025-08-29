@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Discord Voice TTS Bot - Main Entry Point."""
+"""Discord Voice TTS Bot - Main Entry Point.
+
+This module supports both the previous ConfigManager-based initialization and the
+newer direct Config dataclass injection used by tests and runtime.
+"""
 
 import asyncio
 from typing import Any, override
@@ -7,6 +11,8 @@ from typing import Any, override
 from discord.ext import commands
 
 from .bot_factory import BotFactory
+from .config import Config
+from .config_manager import ConfigManagerImpl
 
 
 class BaseEventBot(commands.Bot):
@@ -24,21 +30,40 @@ class BaseEventBot(commands.Bot):
 class DiscordVoiceTTSBot(BaseEventBot):
     """Main Discord Voice TTS Bot class."""
 
-    def __init__(self, config_manager: Any) -> None:
+    def __init__(self, config_manager: Any | None = None, *, config: Config | None = None) -> None:
         """Initialize the bot.
 
+        Supports initialization via either a ConfigManager-compatible object or a
+        Config dataclass. If ``config`` is provided, it will be wrapped in a
+        ``ConfigManagerImpl`` internally.
+
         Args:
-            config_manager: Configuration manager instance
+            config_manager: Configuration manager instance or Config (legacy path)
+            config: Config dataclass instance
 
         """
-        # Get intents and command prefix from config
-        intents = config_manager.get_intents()
-        command_prefix = config_manager.get_command_prefix()
+        # Normalize to a ConfigManager-compatible instance
+        if config is not None:
+            _cm = ConfigManagerImpl(config)
+        else:
+            # If a Config dataclass was passed via the legacy positional arg, wrap it
+            if isinstance(config_manager, Config):
+                _cm = ConfigManagerImpl(config_manager)
+            else:
+                _cm = config_manager
+
+        if _cm is None:
+            # Fall back to environment-derived configuration
+            _cm = ConfigManagerImpl(Config.from_env())
+
+        # Get intents and command prefix from config manager
+        intents = _cm.get_intents()
+        command_prefix = _cm.get_command_prefix()
 
         super().__init__(command_prefix=command_prefix, intents=intents)
 
         # Store config manager
-        self.config_manager = config_manager
+        self.config_manager = _cm
 
         # Initialize component placeholders (will be set by factory)
         self.voice_handler: Any = None
@@ -85,8 +110,23 @@ class DiscordVoiceTTSBot(BaseEventBot):
 
     @property
     def config(self) -> Any:
-        """Backward compatibility property for config access."""
-        return self.config_manager
+        """Provide the underlying Config dataclass when available.
+
+        Many subsystems (e.g., TTSEngine) expect the concrete ``Config``
+        dataclass. When running with a ConfigManager implementation that wraps
+        a Config, expose it; otherwise, return whatever was provided.
+        """
+        cm = getattr(self, "config_manager", None)
+        if cm is None:
+            return None
+        # ConfigManagerImpl exposes a private _get_config method; use it when present
+        get_cfg = getattr(cm, "_get_config", None)
+        try:
+            if callable(get_cfg):
+                return get_cfg()
+        except Exception:
+            pass
+        return cm
 
     @override
     async def on_message(self, message: Any) -> None:  # discord.Message at runtime
@@ -111,13 +151,19 @@ class DiscordVoiceTTSBot(BaseEventBot):
         await self._delegate_event_async("event_handler", "handle_error", event, *args, **kwargs)
 
 
-async def run_bot(test_mode: bool | None = None) -> None:
-    """Create and run the Discord bot."""
+async def run_bot(config: Config | None = None) -> None:
+    """Create and run the Discord bot using the provided Config.
+
+    If ``config`` is not provided, configuration will be loaded from the
+    environment via ``Config.from_env()``.
+    """
     factory = BotFactory()
-    bot = None
+    bot: Any | None = None
     try:
-        bot = await factory.create_bot(test_mode=test_mode)
+        cfg = config or Config.from_env()
+        bot = await factory.create_bot(cfg)
         await factory.initialize_services(bot)
+        assert bot is not None
         await bot.start_with_config()
     except asyncio.CancelledError:
         raise

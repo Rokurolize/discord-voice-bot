@@ -2,15 +2,12 @@
 
 import discord
 
-
 from ...config import Config
 from ...tts_engine import TTSEngine
 from ...user_settings import UserSettings
 
 
-async def create_voices_embed(
-    user_id: str | int, config: Config, tts_engine: TTSEngine, user_settings: UserSettings
-) -> discord.Embed:
+async def create_voices_embed(user_id: str | int, config: Config, tts_engine: TTSEngine, user_settings: UserSettings) -> discord.Embed:
     """Create voices embed showing available speakers."""
     try:
         speakers = await tts_engine.get_available_speakers()
