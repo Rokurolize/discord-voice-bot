@@ -50,18 +50,19 @@ class QueueManager:
 
         logger.debug(f"🎤 QUEUE: Adding {len(message_data['chunks'])} chunks to synthesis queue")
 
-        for i, chunk in enumerate(message_data["chunks"]):
-            item = {
-                "text": chunk,
-                "user_id": message_data.get("user_id"),
-                "username": message_data.get("username", "Unknown"),
-                "group_id": message_data.get("group_id", f"msg_{id(message_data)}"),
-                "chunk_index": i,
-                "total_chunks": len(message_data["chunks"]),
-                "message_hash": message_hash,
-            }
-            await self.synthesis_queue.put(item)
-            logger.debug(f"🎤 QUEUE: Added chunk {i + 1}/{len(message_data['chunks'])} to queue")
+        async with self._synthesis_lock:
+            for i, chunk in enumerate(message_data["chunks"]):
+                item = {
+                    "text": chunk,
+                    "user_id": message_data.get("user_id"),
+                    "username": message_data.get("username", "Unknown"),
+                    "group_id": message_data.get("group_id", f"msg_{id(message_data)}"),
+                    "chunk_index": i,
+                    "total_chunks": len(message_data["chunks"]),
+                    "message_hash": message_hash,
+                }
+                await self.synthesis_queue.put(item)
+                logger.debug(f"🎤 QUEUE: Added chunk {i + 1}/{len(message_data['chunks'])} to queue")
 
         logger.info(f"🎤 QUEUE: Successfully queued message with {len(message_data['chunks'])} chunks from {message_data.get('username', 'Unknown')}")
 
@@ -78,7 +79,8 @@ class QueueManager:
         # This is a simplified implementation - in real scenario,
         # you might need more sophisticated queue management
         original_size = self.synthesis_queue.qsize()
-        temp_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=self.synthesis_queue.maxsize)
+        # Use a temporary list to hold items we keep; reinsert without awaiting
+        kept_items: list[dict[str, Any]] = []
 
         async with self._synthesis_lock:
             # Filter out items with the specified group_id
@@ -86,17 +88,13 @@ class QueueManager:
                 try:
                     queue_item = self.synthesis_queue.get_nowait()
                     if queue_item.get("group_id") != group_id:
-                        temp_queue.put_nowait(queue_item)
+                        kept_items.append(queue_item)
                 except asyncio.QueueEmpty:
                     break
 
-            # Put remaining items back
-            while True:
-                try:
-                    remaining_item = temp_queue.get_nowait()
-                    await self.synthesis_queue.put(remaining_item)
-                except asyncio.QueueEmpty:
-                    break
+            # Put remaining items back without blocking while holding the lock
+            for remaining_item in kept_items:
+                self.synthesis_queue.put_nowait(remaining_item)
 
         return original_size - self.synthesis_queue.qsize()
 

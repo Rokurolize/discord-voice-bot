@@ -66,11 +66,18 @@ need_cmd() { command -v "$1" >/dev/null 2>&1 || abort "missing dependency: $1"; 
 need_cmd gh
 need_cmd jq
 
+# Ensure gh is authenticated (mutations require auth; queries often do too)
+ensure_gh_auth() {
+  if ! gh auth status -h github.com >/dev/null 2>&1; then
+    abort "gh is not authenticated to github.com. Run 'gh auth login' first."
+  fi
+}
+
 OWNER="${GH_OWNER:-}"
 REPO="${GH_REPO:-}"
 PR_NUMBER="${GH_PR:-}"
 
-# Parse flags
+# Parse flags (allow flags before or after subcommand)
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --owner) OWNER="${2:-}"; shift 2 ;;
@@ -78,7 +85,7 @@ while [[ $# -gt 0 ]]; do
     --pr)    PR_NUMBER="${2:-}"; shift 2 ;;
     -h|--help) print_usage; exit 0 ;;
     list|list-unresolved|list-details|list-unresolved-details|list-unresolved-json|resolve-all-unresolved|resolve-by-discussion-ids|resolve-by-urls|unresolve-thread-ids)
-      SUBCOMMAND="$1"; shift; break ;;
+      SUBCOMMAND="${SUBCOMMAND:-$1}"; shift; continue ;;
     *) echo "Unknown arg: $1" >&2; print_usage; exit 1 ;;
   esac
 done
@@ -90,14 +97,16 @@ done
 
 info() { printf '%s\n' "$*" >&2; }
 
+# Verify authentication early for consistent UX
+ensure_gh_auth
+
 # Fetch all review threads for the PR with pagination; outputs a JSON array of nodes
 fetch_threads() {
-  local after
   local threads_json='[]'
 
   # First page (no 'after')
   local resp
-  resp=$(gh api graphql \
+  if ! resp=$(gh api graphql \
     -F owner="$OWNER" -F name="$REPO" -F number="$PR_NUMBER" \
     -f query='
       query($owner:String!, $name:String!, $number:Int!) {
@@ -115,7 +124,9 @@ fetch_threads() {
           }
         }
       }
-    ')
+    '); then
+    abort "Failed to fetch review threads via gh api (initial page)"
+  fi
 
   threads_json=$(jq '.data.repository.pullRequest.reviewThreads.nodes' <<<"$resp")
   local hasNext endCursor
@@ -124,7 +135,7 @@ fetch_threads() {
 
   # Subsequent pages
   while [[ "$hasNext" == "true" && -n "$endCursor" && "$endCursor" != "null" ]]; do
-    resp=$(gh api graphql \
+    if ! resp=$(gh api graphql \
       -F owner="$OWNER" -F name="$REPO" -F number="$PR_NUMBER" -F after="$endCursor" \
       -f query='
         query($owner:String!, $name:String!, $number:Int!, $after:String!) {
@@ -142,7 +153,9 @@ fetch_threads() {
             }
           }
         }
-      ')
+      '); then
+      abort "Failed to fetch review threads via gh api (paged)"
+    fi
 
     threads_json=$(jq -sc '.[0] + .[1]' <(printf '%s' "$threads_json") <(jq '.data.repository.pullRequest.reviewThreads.nodes' <<<"$resp"))
     hasNext=$(jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage' <<<"$resp")
@@ -159,13 +172,17 @@ resolve_thread() {
     info "DRY_RUN: would resolve thread $tid"
     return 0
   fi
-  gh api graphql -f query='
+  local out
+  if ! out=$(gh api graphql -f query='
     mutation($t:ID!) {
       resolveReviewThread(input:{threadId:$t}) {
         thread { id isResolved }
       }
     }
-  ' -F t="$tid" --jq '.data.resolveReviewThread.thread'
+  ' -F t="$tid" --jq '.data.resolveReviewThread.thread'); then
+    abort "Failed to resolve thread $tid via gh api"
+  fi
+  printf '%s\n' "$out"
 }
 
 # Unresolve a thread id
@@ -175,13 +192,17 @@ unresolve_thread() {
     info "DRY_RUN: would unresolve thread $tid"
     return 0
   fi
-  gh api graphql -f query='
+  local out
+  if ! out=$(gh api graphql -f query='
     mutation($t:ID!) {
       unresolveReviewThread(input:{threadId:$t}) {
         thread { id isResolved }
       }
     }
-  ' -F t="$tid" --jq '.data.unresolveReviewThread.thread'
+  ' -F t="$tid" --jq '.data.unresolveReviewThread.thread'); then
+    abort "Failed to unresolve thread $tid via gh api"
+  fi
+  printf '%s\n' "$out"
 }
 
 # Map discussion_r numeric ids -> unique thread ids using a threads JSON array
@@ -220,7 +241,8 @@ render_threads() {
 render_comment_details() {
   local threads_json="$1"; shift
   local filter="$1"; shift || true
-  jq -r "$filter | .[] as \$t | (\$t.comments.nodes[] | {tid: \$t.id, resolved: (if \$t.isResolved then \"resolved\" else \"unresolved\" end), outdated: \$t.isOutdated} + .) | [.tid, .resolved, .outdated, .path, .databaseId, .url, ((.body // \"\") | gsub(\"\\n\";\" \") | .[0:200])] | @tsv" <<<"$threads_json" |
+  local max_len="${1:-200}"; shift || true
+  jq -r --argjson max "$max_len" "$filter | .[] as \$t | (\$t.comments.nodes[] | {tid: \$t.id, resolved: (if \$t.isResolved then \"resolved\" else \"unresolved\" end), outdated: \$t.isOutdated} + .) | [.tid, .resolved, .outdated, .path, .databaseId, .url, ((.body // \"\") | gsub(\"\\n\";\" \") | .[0:\$max])] | @tsv" <<<"$threads_json" |
   awk -F'\t' 'BEGIN{printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n","thread_id","status","outdated","path","comment_id","url","body_preview");} {print}'
 }
 

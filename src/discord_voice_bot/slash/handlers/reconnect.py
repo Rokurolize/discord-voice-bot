@@ -48,19 +48,19 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
                 interaction.user.id,
                 (interaction.guild_id or "DM"),
             )
+            timed_out = False
             try:
                 # Use asyncio.timeout for consistent cancellation semantics
                 async with asyncio.timeout(10):
                     success = await bot.voice_handler.connect_to_channel(bot.config.target_voice_channel_id)
             except TimeoutError:
                 success = False
+                timed_out = True
                 # Best-effort cleanup of any partial voice client
-                cm = getattr(bot.voice_handler, "connection_manager", None)
-                if cm and hasattr(cm, "cleanup_voice_client"):
-                    try:
-                        await cm.cleanup_voice_client()
-                    except Exception:
-                        logger.opt(exception=True).warning("Cleanup after reconnect timeout failed")
+                try:
+                    await bot.voice_handler.cleanup_voice_client()
+                except Exception:
+                    logger.opt(exception=True).warning("Cleanup after reconnect timeout failed")
                 embed = discord.Embed(
                     title="🔄 Voice Reconnection",
                     color=discord.Color.red(),
@@ -79,7 +79,9 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
 
                 logger.info("✅ MANUAL RECONNECTION SUCCESSFUL - connected_to={}", new_status["voice_channel_name"])
             else:
-                embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.red(), description="❌ Reconnection failed")
+                # Preserve timeout-specific embed; otherwise show generic failure
+                if not timed_out:
+                    embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.red(), description="❌ Reconnection failed")
 
                 _ = embed.add_field(
                     name="🔍 Troubleshooting",

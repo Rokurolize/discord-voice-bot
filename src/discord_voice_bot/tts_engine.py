@@ -162,7 +162,7 @@ class TTSEngine:
         else:
             # Map Config.tts_speaker to the target engine's speakers; fallback to default
             speakers = engine_config.get("speakers", {})
-            desired_name = getattr(self.config, "tts_speaker", "")
+            desired_name = str(getattr(self.config, "tts_speaker", "")).strip().lower()
             current_speaker_id = speakers.get(desired_name, engine_config.get("default_speaker"))
         target_api_url = engine_config["url"]
 
@@ -181,7 +181,7 @@ class TTSEngine:
             current_speaker_id = speaker_id
         else:
             speakers = engine_config.get("speakers", {})
-            desired_name = getattr(self.config, "tts_speaker", "")
+            desired_name = str(getattr(self.config, "tts_speaker", "")).strip().lower()
             current_speaker_id = speakers.get(desired_name, engine_config.get("default_speaker"))
         target_api_url = engine_config["url"]
 
