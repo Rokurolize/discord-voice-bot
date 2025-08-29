@@ -42,7 +42,10 @@ Subcommands:
   list-unresolved          List only unresolved threads (id/status/comment ids)
   list-details             List all threads with per-comment details (path/url/body)
   list-unresolved-details  List only unresolved threads with per-comment details
+  list-unresolved-details-full
+                           List unresolved threads with FULL bodies (no truncation)
   list-unresolved-json     Dump unresolved thread nodes (JSON) including bodies/diffs
+  list-unresolved-xml      Dump unresolved threads as XML with full bodies
   resolve-all-unresolved   Resolve every unresolved thread
   resolve-by-discussion-ids <id ...>
                            Resolve threads containing the given discussion_r numeric IDs
@@ -99,7 +102,7 @@ while [[ $# -gt 0 ]]; do
       fi
       PR_NUMBER="${2}"; shift 2 ;;
     -h|--help) print_usage; exit 0 ;;
-    list|list-unresolved|list-details|list-unresolved-details|list-unresolved-json|resolve-all-unresolved|resolve-by-discussion-ids|resolve-by-urls|unresolve-thread-ids)
+    list|list-unresolved|list-details|list-unresolved-details|list-unresolved-details-full|list-unresolved-json|list-unresolved-xml|resolve-all-unresolved|resolve-by-discussion-ids|resolve-by-urls|unresolve-thread-ids)
       SUBCOMMAND="${SUBCOMMAND:-$1}"; shift; continue ;;
     *)
       if [[ -n "${SUBCOMMAND:-}" ]]; then
@@ -276,6 +279,39 @@ render_comment_details() {
   awk -F'\t' 'BEGIN{printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n","thread_id","status","outdated","path","comment_id","url","body_preview");} {print}'
 }
 
+# Render detailed rows with full, untruncated body
+render_comment_details_full() {
+  local threads_json="$1"; shift
+  local filter="$1"; shift || true
+  jq -r "$filter | .[] as \$t | (\$t.comments.nodes[] | {tid: \$t.id, resolved: (if \$t.isResolved then \"resolved\" else \"unresolved\" end), outdated: \$t.isOutdated} + .) | [.tid, .resolved, .outdated, .path, .databaseId, .url, ((.body // \"\") | gsub(\"\\n\";\" \") )] | @tsv" <<<"$threads_json" |
+  awk -F'\t' 'BEGIN{printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n","thread_id","status","outdated","path","comment_id","url","body");} {print}'
+}
+
+# Render unresolved threads as XML with full bodies
+render_unresolved_xml() {
+  local threads_json="$1"; shift
+  printf '%s\n' "<reviewThreads>"
+  jq -r '
+    def esc: (.|tostring)
+      | gsub("&";"&amp;")
+      | gsub("<";"&lt;")
+      | gsub(">";"&gt;")
+      | gsub("\"";"&quot;")
+      | gsub("'"'"'";"&apos;");
+    .[] | select(.isResolved == false) |
+    "  <thread id=\"" + (.id|esc) + "\" status=\"" + (if .isResolved then "resolved" else "unresolved" end) + "\" outdated=\"" + (if .isOutdated then "true" else "false" end) + "\">\n"
+    + ( [ .comments.nodes[]? |
+          "    <comment id=\"" + ((.databaseId|tostring)|esc) + "\">\n"
+          + "      <path>" + ((.path // "")|esc) + "</path>\n"
+          + "      <url>" + ((.url // "")|esc) + "</url>\n"
+          + "      <body>" + ((.body // "")|esc) + "</body>\n"
+          + "      <diffHunk>" + ((.diffHunk // "")|esc) + "</diffHunk>\n"
+          + "    </comment>\n" ] | join("") )
+    + "  </thread>"
+  ' <<<"$threads_json"
+  printf '%s\n' "</reviewThreads>"
+}
+
 # Main subcommand handlers
 case "$SUBCOMMAND" in
   list)
@@ -298,9 +334,19 @@ case "$SUBCOMMAND" in
     render_comment_details "$threads" '[ .[] | select(.isResolved == false) ]' 400
     ;;
 
+  list-unresolved-details-full)
+    threads=$(fetch_threads)
+    render_comment_details_full "$threads" '[ .[] | select(.isResolved == false) ]'
+    ;;
+
   list-unresolved-json)
     threads=$(fetch_threads)
     jq '[ .[] | select(.isResolved == false) ]' <<<"$threads"
+    ;;
+
+  list-unresolved-xml)
+    threads=$(fetch_threads)
+    render_unresolved_xml "$threads"
     ;;
 
   resolve-all-unresolved)
