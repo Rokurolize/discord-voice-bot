@@ -118,9 +118,7 @@ class TTSClient:
                     except Exception:
                         body_snippet = "<unavailable>"
                     error_msg = f"HTTP {response.status}"
-                    logger.warning(
-                        f"{self.engine_name} TTS API returned {error_msg}; body={body_snippet!r}"
-                    )
+                    logger.warning(f"{self.engine_name} TTS API returned {error_msg}; body={body_snippet!r}")
                     return False, error_msg
 
         except aiohttp.ClientConnectorError:

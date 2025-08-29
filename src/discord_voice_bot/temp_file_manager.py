@@ -87,6 +87,7 @@ class TempFileManager:
                 # Optional safety net: cleanup when audio_source is GC'ed
                 try:
                     import weakref
+
                     _ = weakref.finalize(audio_source, Path(temp_path).unlink, missing_ok=True)
                 except Exception:
                     pass
