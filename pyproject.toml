@@ -166,7 +166,7 @@ ignore = [
   "RET503",
   "RET504",
   "UP038",
-  "UP041",
+  # "UP041",  # After alias removals, re-enable
   "F403",
   "F405",
   "C401",

@@ -23,7 +23,7 @@ async def test_bot_startup():
             print("✅ Bot started successfully")
             return True
 
-    except asyncio.TimeoutError:
+    except TimeoutError:
         print("⏰ Bot startup timed out (expected - this means Discord connection was attempted)")
         return True
 

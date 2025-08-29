@@ -50,7 +50,7 @@ async def test_bot_can_speak_in_voice_channel(caplog):
             logger.info("🔗 Discordに接続しています...")
             await bot.start(token)
 
-    except asyncio.TimeoutError:
+    except TimeoutError:
         pytest.fail("❌ テストがタイムアウトしました - ボットが正常に動作しなかった可能性があります")
 
     except Exception as e:

@@ -94,7 +94,7 @@ class TTSClient:
             logger.error(f"{self.engine_name} TTS API: {error_msg}")
             return False, error_msg
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             error_msg = "connection timeout - server may be starting up"
             logger.error(f"{self.engine_name} TTS API: {error_msg}")
             return False, error_msg

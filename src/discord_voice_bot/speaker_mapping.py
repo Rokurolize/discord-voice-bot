@@ -145,7 +145,7 @@ def get_speaker_info(speaker_id: int, engine: Engine) -> dict[str, Any]:
         engine: Engine name (voicevox or aivis)
 
     Returns:
-        Speaker information dict with name and engine
+        Speaker information dict with name and character
 
     """
     speaker_db = SPEAKER_DB

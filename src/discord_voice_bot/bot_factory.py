@@ -302,8 +302,8 @@ class BotFactory:
 
             # Use the bot's underlying Config dataclass
             cfg = cast(Config, getattr(bot, "config", None))
-            tts_engine = await get_tts_engine(cfg)
-            await tts_engine.start()
+            tts_engine = await get_tts_engine(cfg)  # already started inside factory
+            bot.tts_engine = tts_engine
             logger.debug("TTS engine initialized")
 
             # Initialize voice handler
@@ -406,6 +406,15 @@ class BotFactory:
 
         # Clear registry
         self.registry.clear()
+
+        # Stop TTS engine if attached to the bot
+        try:
+            tts_engine = getattr(bot, "tts_engine", None)
+            if tts_engine is not None and hasattr(tts_engine, "close"):
+                await tts_engine.close()
+                logger.debug("Shutdown TTS engine")
+        except Exception as e:
+            logger.warning(f"Error shutting down TTS engine: {e}")
 
         logger.info("Bot shutdown completed")
 

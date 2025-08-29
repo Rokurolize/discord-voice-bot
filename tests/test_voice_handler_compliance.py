@@ -41,7 +41,7 @@ class TestComplianceTDD:
             async with asyncio.timeout(3.0):  # 3 second timeout
                 # Simulate a simple operation that would need rate limiting
                 await asyncio.sleep(0.01)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pytest.fail("Test timed out - rate_limited_api_call_success took too long")
 
     @pytest.mark.asyncio
@@ -62,7 +62,7 @@ class TestComplianceTDD:
                     break
 
                 assert attempt_count <= 5  # Should succeed within retry limit
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pytest.fail("Test timed out - rate_limited_api_call_with_retry took too long")
 
     def test_voice_handler_has_rate_limiter(self, voice_handler_old) -> None:

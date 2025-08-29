@@ -124,15 +124,19 @@ class TempFileManager:
                 "-",
             ]
             import asyncio
-
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
             try:
-                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=10)
-            except asyncio.TimeoutError:
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+            except FileNotFoundError as e:
+                logger.warning("ffmpeg not found; skipping conversion test: %s", e)
+                return
+            try:
+                async with asyncio.timeout(10):
+                    stdout, stderr = await proc.communicate()
+            except TimeoutError:
                 proc.kill()
                 stdout, stderr = await proc.communicate()
             returncode: int = 0 if proc.returncode is None else int(proc.returncode)

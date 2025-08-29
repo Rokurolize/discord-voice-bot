@@ -53,7 +53,7 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
                     bot.voice_handler.connect_to_channel(bot.config.target_voice_channel_id),
                     timeout=10,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 success = False
                 embed = discord.Embed(
                     title="🔄 Voice Reconnection",
