@@ -32,10 +32,12 @@ Flags:
   --owner <org/user>     GitHub repository owner (default: $GH_OWNER)
   --repo  <name>         GitHub repository name  (default: $GH_REPO)
   --pr    <number>       Pull request number     (default: $GH_PR)
+  --host  <hostname>     GitHub hostname (default: $GH_HOST or github.com)
 
 Environment:
   GH_OWNER, GH_REPO, GH_PR — defaults for flags above
   DRY_RUN=1 — show actions without mutating
+  GH_HOST — overrides GitHub hostname (e.g., ghe.company.com)
 
 Subcommands:
   list                     List all threads (id/status/comment ids)
@@ -72,14 +74,15 @@ need_cmd jq
 
 # Ensure gh is authenticated (mutations require auth; queries often do too)
 ensure_gh_auth() {
-  if ! gh auth status -h github.com >/dev/null 2>&1; then
-    abort "gh is not authenticated to github.com. Run 'gh auth login' first."
+  if ! gh auth status -h "$HOST" >/dev/null 2>&1; then
+    abort "gh is not authenticated to $HOST. Run: gh auth login -h $HOST"
   fi
 }
 
 OWNER="${GH_OWNER:-}"
 REPO="${GH_REPO:-}"
 PR_NUMBER="${GH_PR:-}"
+HOST="${GH_HOST:-github.com}"
 
 # Parse flags (allow flags before or after subcommand)
 while [[ $# -gt 0 ]]; do
@@ -102,6 +105,11 @@ while [[ $# -gt 0 ]]; do
         abort "--pr must be an integer"
       fi
       PR_NUMBER="${2}"; shift 2 ;;
+    --host|--hostname)
+      if [[ -z "${2:-}" || "${2}" == --* ]]; then
+        abort "--host requires a value"
+      fi
+      HOST="${2}"; shift 2 ;;
     -h|--help) print_usage; exit 0 ;;
     list|list-unresolved|list-details|list-unresolved-details|list-unresolved-details-full|list-unresolved-json|list-unresolved-xml|list-unresolved-ndjson|resolve-all-unresolved|resolve-by-discussion-ids|resolve-by-urls|unresolve-thread-ids)
       SUBCOMMAND="${SUBCOMMAND:-$1}"; shift; continue ;;
@@ -125,13 +133,28 @@ info() { printf '%s\n' "$*" >&2; }
 # Verify authentication early for consistent UX
 ensure_gh_auth
 
+# readarray/mapfile compatibility for bash <4 (e.g., macOS default bash)
+readarray_compat() {
+  local __arrname="$1"; shift
+  if command -v mapfile >/dev/null 2>&1; then
+    # shellcheck disable=SC2178,SC2207
+    mapfile -t "$__arrname" < <("$@")
+  else
+    local _line
+    local _buf=()
+    while IFS= read -r _line; do _buf+=("$_line"); done < <("$@")
+    # shellcheck disable=SC2178
+    eval "$__arrname=(\"\${_buf[@]}\")"
+  fi
+}
+
 # Fetch all review threads for the PR with pagination; outputs a JSON array of nodes
 fetch_threads() {
   local threads_json='[]'
 
   # First page (no 'after')
   local resp
-  if ! resp=$(gh api graphql \
+  if ! resp=$(gh api --hostname "$HOST" graphql \
     -F owner="$OWNER" -F name="$REPO" -F number="$PR_NUMBER" \
     -f query='
       query($owner:String!, $name:String!, $number:Int!) {
@@ -164,7 +187,7 @@ fetch_threads() {
 
   # Subsequent pages
   while [[ "$hasNext" == "true" && -n "$endCursor" && "$endCursor" != "null" ]]; do
-    if ! resp=$(gh api graphql \
+    if ! resp=$(gh api --hostname "$HOST" graphql \
       -F owner="$OWNER" -F name="$REPO" -F number="$PR_NUMBER" -F after="$endCursor" \
       -f query='
         query($owner:String!, $name:String!, $number:Int!, $after:String!) {
@@ -207,7 +230,7 @@ resolve_thread() {
     return 0
   fi
   local out
-  if ! out=$(gh api graphql -f query='
+  if ! out=$(gh api --hostname "$HOST" graphql -f query='
     mutation($t:ID!) {
       resolveReviewThread(input:{threadId:$t}) {
         thread { id isResolved }
@@ -227,7 +250,7 @@ unresolve_thread() {
     return 0
   fi
   local out
-  if ! out=$(gh api graphql -f query='
+  if ! out=$(gh api --hostname "$HOST" graphql -f query='
     mutation($t:ID!) {
       unresolveReviewThread(input:{threadId:$t}) {
         thread { id isResolved }
@@ -369,7 +392,7 @@ case "$SUBCOMMAND" in
   resolve-all-unresolved)
     info "Fetching threads…"
     threads=$(fetch_threads)
-    mapfile -t tids < <(jq -r '.[] | select(.isResolved == false) | .id' <<<"$threads")
+    readarray_compat tids bash -lc 'jq -r '\''.[] | select(.isResolved == false) | .id'\'' <<<"$threads"'
     if [[ ${#tids[@]} -eq 0 ]]; then
       info "No unresolved threads found."
       exit 0
@@ -383,7 +406,7 @@ case "$SUBCOMMAND" in
   resolve-by-discussion-ids)
     [[ $# -gt 0 ]] || abort "provide at least one discussion_r numeric id"
     threads=$(fetch_threads)
-    mapfile -t tids < <(map_discussion_ids_to_threads "$threads" "$@")
+    readarray_compat tids map_discussion_ids_to_threads "$threads" "$@"
     if [[ ${#tids[@]} -eq 0 ]]; then
       abort "no matching threads found for provided discussion ids"
     fi
@@ -396,7 +419,11 @@ case "$SUBCOMMAND" in
   resolve-by-urls)
     [[ $# -gt 0 ]] || abort "provide at least one discussion_r URL"
     # Extract numeric ids and reuse resolver
-    mapfile -t ids < <(extract_ids_from_urls "$@" | awk 'NF')
+    # Provide a wrapper that applies NF filter without spawning a subshell that loses function scope
+    extract_ids_filtered() {
+      extract_ids_from_urls "$@" | awk 'NF'
+    }
+    readarray_compat ids extract_ids_filtered "$@"
     if [[ ${#ids[@]} -eq 0 ]]; then
       abort "no discussion_r ids could be extracted from URLs"
     fi

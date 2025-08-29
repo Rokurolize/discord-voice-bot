@@ -1,8 +1,9 @@
 """TTS Engine integration for Discord Voice TTS Bot."""
 
 import asyncio
+import threading
 from typing import Any
-from weakref import WeakKeyDictionary
+from weakref import WeakKeyDictionary, ref
 
 __all__ = ["TTSEngine", "TTSEngineError", "get_tts_engine"]
 
@@ -16,7 +17,9 @@ from .tts_health_monitor import TTSHealthMonitor
 
 # Weak cache of engines per Config to avoid repeated startups
 _ENGINE_CACHE: "WeakKeyDictionary[Config, TTSEngine]" = WeakKeyDictionary()
-_ENGINE_CREATE_LOCK = asyncio.Lock()
+# Creation lock must not be an asyncio lock (unsafe across event loops);
+# use a short, non-IO critical section guarded by a thread lock.
+_ENGINE_CREATE_LOCK = threading.RLock()
 
 
 class TTSEngineError(Exception):
@@ -29,7 +32,7 @@ class TTSEngine:
     def __init__(self, config: Config) -> None:
         """Initialize TTS engine with configuration and managers."""
         super().__init__()
-        self.config = config
+        self._config_ref = ref(config)
 
         # Initialize manager components
         self._tts_client = TTSClient(config)
@@ -43,6 +46,13 @@ class TTSEngine:
 
         # Backward compatibility: direct access to session for testing
         self._session = None
+
+    @property
+    def config(self) -> Config:
+        cfg = self._config_ref()
+        if cfg is None:
+            raise TTSEngineError("Config has been garbage-collected; engine is no longer bound")
+        return cfg
 
     @property
     def api_url(self) -> str:
@@ -186,7 +196,9 @@ class TTSEngine:
                     current_speaker_id = int(engine_config.get("default_speaker", 3))
                 except (TypeError, ValueError):
                     current_speaker_id = 3
-        target_api_url = engine_config["url"]
+        target_api_url = engine_config.get("url")
+        if not target_api_url:
+            raise TTSEngineError(f"Engine '{target_engine}' is missing 'url' in config")
 
         result = await self._tts_client.generate_audio_query(text, current_speaker_id, target_api_url)
         return result  # type: ignore[return-value]
@@ -222,7 +234,9 @@ class TTSEngine:
                     current_speaker_id = int(engine_config.get("default_speaker", 3))
                 except (TypeError, ValueError):
                     current_speaker_id = 3
-        target_api_url = engine_config["url"]
+        target_api_url = engine_config.get("url")
+        if not target_api_url:
+            raise TTSEngineError(f"Engine '{target_engine}' is missing 'url' in config")
 
         return await self._tts_client.synthesize_from_query(audio_query, current_speaker_id, target_api_url)  # type: ignore[arg-type]
 
@@ -318,7 +332,7 @@ async def get_tts_engine(config: Config) -> TTSEngine:
     """
     engine: TTSEngine | None = _ENGINE_CACHE.get(config)
     if engine is None:
-        async with _ENGINE_CREATE_LOCK:
+        with _ENGINE_CREATE_LOCK:
             engine = _ENGINE_CACHE.get(config)
             if engine is None:
                 engine = TTSEngine(config)
@@ -326,3 +340,8 @@ async def get_tts_engine(config: Config) -> TTSEngine:
     # Ensure started outside the global creation lock
     await engine.start()
     return engine
+
+    
+    
+    
+    
