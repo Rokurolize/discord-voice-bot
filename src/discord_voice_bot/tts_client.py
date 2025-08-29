@@ -39,8 +39,17 @@ class TTSClient:
         engines = self.config.engines
         engine = self.config.tts_engine
         engine_cfg: dict[str, Any] = dict(engines.get(engine, {}))  # MappingProxyType is dict-like
-        speakers: dict[str, int] = dict(engine_cfg.get("speakers", {}))
-        return int(speakers.get(val, int(engine_cfg.get("default_speaker", 3))))
+        speakers: dict[str, Any] = dict(engine_cfg.get("speakers", {}))
+        fallback = 3
+        try:
+            default = int(engine_cfg.get("default_speaker", fallback))
+        except (TypeError, ValueError):
+            default = fallback
+        try:
+            cand = speakers.get(val, default)
+            return int(cand)
+        except (TypeError, ValueError):
+            return default
 
     @property
     def engine_name(self) -> str:

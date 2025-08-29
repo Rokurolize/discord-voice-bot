@@ -16,6 +16,7 @@ class QueueManager:
         self.audio_queue = PriorityAudioQueue()
         self.current_group_id: str | None = None
         self._recent_messages: list[int] = []
+        self._synthesis_lock = asyncio.Lock()
 
     async def add_to_queue(self, message_data: dict[str, Any]) -> None:
         """Add message to synthesis queue with deduplication."""
@@ -79,22 +80,23 @@ class QueueManager:
         original_size = self.synthesis_queue.qsize()
         temp_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=self.synthesis_queue.maxsize)
 
-        # Filter out items with the specified group_id
-        while True:
-            try:
-                queue_item = self.synthesis_queue.get_nowait()
-                if queue_item.get("group_id") != group_id:
-                    temp_queue.put_nowait(queue_item)
-            except asyncio.QueueEmpty:
-                break
+        async with self._synthesis_lock:
+            # Filter out items with the specified group_id
+            while True:
+                try:
+                    queue_item = self.synthesis_queue.get_nowait()
+                    if queue_item.get("group_id") != group_id:
+                        temp_queue.put_nowait(queue_item)
+                except asyncio.QueueEmpty:
+                    break
 
-        # Put remaining items back
-        while True:
-            try:
-                remaining_item = temp_queue.get_nowait()
-                await self.synthesis_queue.put(remaining_item)
-            except asyncio.QueueEmpty:
-                break
+            # Put remaining items back
+            while True:
+                try:
+                    remaining_item = temp_queue.get_nowait()
+                    await self.synthesis_queue.put(remaining_item)
+                except asyncio.QueueEmpty:
+                    break
 
         return original_size - self.synthesis_queue.qsize()
 

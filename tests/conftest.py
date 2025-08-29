@@ -1,5 +1,6 @@
 import dataclasses
 import inspect
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -18,7 +19,7 @@ class FakeConfigManager:
     def get_tts_engine(self) -> str:
         return "voicevox"
 
-    def get_engines(self) -> dict[str, any]:
+    def get_engines(self) -> dict[str, Any]:
         return {
             "voicevox": {
                 "url": "http://localhost:50021",
@@ -48,7 +49,7 @@ class FakeConfigManager:
     def get_command_prefix(self) -> str:
         return "!tts"
 
-    def get_engine_config(self, name: str | None = None) -> dict[str, any]:
+    def get_engine_config(self, name: str | None = None) -> dict[str, Any]:
         engines = self.get_engines()
         return engines[name or self.get_tts_engine()]
 
@@ -196,17 +197,20 @@ async def voice_handler_new(
     handler.config = mock_config
 
     # Initialize manager components with proper dependencies
+    from discord_voice_bot.config_manager import ConfigManagerImpl
     from discord_voice_bot.voice.queue_manager import QueueManager
     from discord_voice_bot.voice.rate_limiter_manager import RateLimiterManager
     from discord_voice_bot.voice.stats_tracker import StatsTracker
     from discord_voice_bot.voice.task_manager import TaskManager
 
-    handler.connection_manager = VoiceConnectionManager(mock_bot_client_real, mock_config)
+    cfg_manager = ConfigManagerImpl(mock_config)
+
+    handler.connection_manager = VoiceConnectionManager(mock_bot_client_real, cfg_manager)
     handler.queue_manager = QueueManager()
     handler.rate_limiter_manager = RateLimiterManager()
     handler.stats_tracker = StatsTracker()
     handler.task_manager = TaskManager()
-    handler.health_monitor = HealthMonitorReal(handler.connection_manager, mock_config, mock_tts_client)
+    handler.health_monitor = HealthMonitorReal(handler.connection_manager, cfg_manager, mock_tts_client)
 
     # Set remaining attributes for backward compatibility
     handler.is_playing = False
@@ -219,7 +223,7 @@ async def voice_handler_new(
     handler.synthesis_queue = handler.queue_manager.synthesis_queue
     handler.audio_queue = handler.queue_manager.audio_queue
     handler.current_group_id = handler.queue_manager.current_group_id
-    handler.stats = {"messages_processed": 0, "connection_errors": 0, "tts_messages_played": 0}
+    # Keep StatsTracker object for new handler; do not overwrite with dict
     handler.rate_limiter = handler.rate_limiter_manager.rate_limiter
     handler.circuit_breaker = handler.rate_limiter_manager.circuit_breaker
 

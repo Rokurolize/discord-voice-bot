@@ -37,6 +37,8 @@ async def test_bot_can_speak_in_voice_channel(caplog):
     tts_engine = os.getenv("TTS_ENGINE")
 
     logger.info("🚀 Discordボイスチャンネル統合テストを開始します")
+    if not token:
+        pytest.skip("DISCORD_BOT_TOKEN が未設定のためテストをスキップします")
     logger.info(f"🔑 トークン: {token[:20]}...")
     logger.info(f"🎯 ターゲットボイスチャンネルID: {target_channel_id}")
     logger.info(f"🎤 TTSエンジン: {tts_engine}")

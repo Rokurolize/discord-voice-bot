@@ -189,14 +189,16 @@ class BotFactory:
             success_msg: Message to log on success
 
         """
+        import inspect
+
         logger.info(start_msg)
         try:
             if callable(operation):
                 result = operation()
-                if hasattr(result, "__await__"):
+                if inspect.isawaitable(result):
                     await result
             else:
-                if hasattr(operation, "__await__"):
+                if inspect.isawaitable(operation):
                     await operation
             logger.info(success_msg)
         except Exception as e:

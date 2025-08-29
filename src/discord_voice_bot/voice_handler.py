@@ -4,7 +4,7 @@
 # New implementation is in discord_voice_bot.voice package.
 # TODO: Remove this file in a future major version.
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from loguru import logger
 
@@ -37,19 +37,21 @@ class VoiceHandler(NewVoiceHandler):
         cfg: Config
         if isinstance(config_manager, Config):
             cfg = config_manager
-        elif hasattr(config_manager, "_get_config"):
-            try:
-                cfg = config_manager._get_config()
-            except Exception:
-                cfg = Config.from_env()
         else:
-            cfg = Config.from_env()
+            getter = getattr(config_manager, "_get_config", None)
+            if callable(getter):
+                try:
+                    cfg = cast(Config, getter())
+                except Exception:
+                    cfg = Config.from_env()
+            else:
+                cfg = Config.from_env()
 
         super().__init__(bot_client, cfg)
         logger.warning("⚠️  DEPRECATED: Using old VoiceHandler. Consider migrating to discord_voice_bot.voice.VoiceHandler")
 
         # Backward-compat: old tests expect a plain dict for stats
-        self.stats = {  # type: ignore[assignment]
+        self.stats = {
             "messages_processed": 0,
             "connection_errors": 0,
             "tts_messages_played": 0,

@@ -22,7 +22,7 @@ class TestQueueManagement:
             if hasattr(voice_handler_old, "synthesis_queue"):
                 # Queue should have at least one item
                 queue_size = voice_handler_old.synthesis_queue.qsize()
-                assert queue_size >= 0  # At minimum, queue exists
+                assert queue_size >= 1, "Item should be enqueued after add_to_queue()"
 
     def test_voice_handler_has_queues(self, voice_handler_old) -> None:
         """Test that VoiceHandler has queue attributes."""

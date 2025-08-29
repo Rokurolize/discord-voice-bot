@@ -199,6 +199,10 @@ class VoiceConnectionManager:
     @reconnection_cooldown.setter
     def reconnection_cooldown(self, value: int) -> None:
         """Set the reconnection cooldown duration in seconds."""
-        if value < 0:
+        try:
+            ivalue = int(value)
+        except (TypeError, ValueError) as e:
+            raise TypeError("reconnection_cooldown must be an int-like value.") from e
+        if ivalue < 0:
             raise ValueError("reconnection_cooldown must be non-negative")
-        self._reconnection_cooldown = int(value)
+        self._reconnection_cooldown = ivalue

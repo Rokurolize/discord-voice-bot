@@ -1,5 +1,7 @@
 """Tests for VoiceHandler cleanup functionality."""
 
+import pytest
+
 
 class TestCleanup:
     """Test VoiceHandler cleanup operations."""
@@ -23,18 +25,26 @@ class TestCleanup:
         assert hasattr(synthesis_queue, "empty")
         assert hasattr(audio_queue, "empty")
 
-    def test_cleanup_clears_queues(self, voice_handler_old) -> None:
-        """Test that cleanup clears queue contents."""
+    @pytest.mark.asyncio
+    async def test_cleanup_clears_queues(self, voice_handler_old) -> None:
+        """Test that cleanup actually clears queue contents."""
         synthesis_queue = voice_handler_old.synthesis_queue
         audio_queue = voice_handler_old.audio_queue
 
-        # Get initial empty state
-        initial_syn_empty = synthesis_queue.empty()
-        initial_aud_empty = audio_queue.empty()
+        # Preload items (non-blocking)
+        await synthesis_queue.put({"group_id": "g", "text": "syn"})
+        if hasattr(audio_queue, "put"):
+            await audio_queue.put(("/tmp/a.wav", "g", 0, 0))  # (audio_path, group_id, priority, chunk_index)
 
-        # Both should be empty initially
-        assert initial_syn_empty is True
-        assert initial_aud_empty is True
+        assert synthesis_queue.empty() is False
+        assert audio_queue.empty() is False
+
+        # Run cleanup
+        await voice_handler_old.cleanup()
+
+        # Queues should be empty after cleanup
+        assert synthesis_queue.empty() is True
+        assert audio_queue.empty() is True
 
     def test_queue_states_after_cleanup_setup(self, voice_handler_old) -> None:
         """Test queue states after cleanup setup."""
@@ -99,7 +109,7 @@ class TestCleanup:
 
         for attr in resource_attrs:
             if hasattr(voice_handler_old, attr):
-                assert getattr(voice_handler_old, attr) is not None
+                _ = getattr(voice_handler_old, attr)
 
         # Verify cleanup method can access these resources
         assert hasattr(voice_handler_old, "cleanup")

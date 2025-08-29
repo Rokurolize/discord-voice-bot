@@ -17,8 +17,11 @@ async def test_tts_engine_factory_and_synthesis(config: Config):
         patch("discord_voice_bot.tts_engine.TTSEngine._generate_audio_query", new_callable=AsyncMock) as mock_gen_query,
         patch("discord_voice_bot.tts_engine.TTSEngine._synthesize_from_query", new_callable=AsyncMock) as mock_synth_query,
         patch("discord_voice_bot.tts_engine.TTSHealthMonitor.perform_health_check", new_callable=AsyncMock) as mock_health_check,
+        patch("discord_voice_bot.tts_engine.TTSClient.start_session", new_callable=AsyncMock) as mock_start_session,
         patch("discord_voice_bot.tts_engine.TTSClient.close_session", new_callable=AsyncMock) as mock_close_session,
     ):
+        # Mark mock as used for type checkers
+        _ = mock_start_session
         mock_gen_query.return_value = {"mora": "data"}
         mock_synth_query.return_value = b"mock_audio"
         mock_health_check.return_value = True

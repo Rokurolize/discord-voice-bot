@@ -169,16 +169,14 @@ class TTSHealthMonitor:
                 else:
                     # Check each engine configuration
                     for engine_name, engine_config in engines.items():
-                        if isinstance(engine_config, dict):
-                            url = engine_config.get("url")
-                            default_speaker = engine_config.get("default_speaker")
-                        else:
-                            url = getattr(engine_config, "url", None)
-                            default_speaker = getattr(engine_config, "default_speaker", None)
+                        url = engine_config.get("url")
+                        default_speaker = engine_config.get("default_speaker")
 
                         if not url:
                             issues.append(f"🔴 Engine '{engine_name}' missing URL configuration")
-                        if default_speaker in (None, ""):
+                        try:
+                            _ = int(default_speaker)
+                        except (TypeError, ValueError):
                             issues.append(f"🔴 Engine '{engine_name}' missing default speaker")
             except Exception as e:
                 issues.append(f"🔴 Configuration error: {e}")

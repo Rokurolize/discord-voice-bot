@@ -1,6 +1,7 @@
 """TTS Engine integration for Discord Voice TTS Bot."""
 
 from typing import Any
+from weakref import WeakKeyDictionary
 
 __all__ = ["TTSEngine", "TTSEngineError", "get_tts_engine"]
 
@@ -11,6 +12,9 @@ from .config import Config
 from .temp_file_manager import TempFileManager
 from .tts_client import TTSClient
 from .tts_health_monitor import TTSHealthMonitor
+
+# Weak cache of engines per Config to avoid repeated startups
+_ENGINE_CACHE: "WeakKeyDictionary[Config, TTSEngine]" = WeakKeyDictionary()
 
 
 class TTSEngineError(Exception):
@@ -152,8 +156,14 @@ class TTSEngine:
         engines = self.config.engines
         engine_config = engines.get(target_engine, engines["voicevox"])
 
-        # Use provided speaker ID or engine default
-        current_speaker_id = speaker_id or engine_config["default_speaker"]
+        # Use provided speaker ID or configured speaker name for the target engine
+        if speaker_id is not None:
+            current_speaker_id = speaker_id
+        else:
+            # Map Config.tts_speaker to the target engine's speakers; fallback to default
+            speakers = engine_config.get("speakers", {})
+            desired_name = getattr(self.config, "tts_speaker", "")
+            current_speaker_id = speakers.get(desired_name, engine_config.get("default_speaker"))
         target_api_url = engine_config["url"]
 
         result = await self._tts_client.generate_audio_query(text, current_speaker_id, target_api_url)
@@ -166,8 +176,13 @@ class TTSEngine:
         engines = self.config.engines
         engine_config = engines.get(target_engine, engines["voicevox"])
 
-        # Use provided speaker ID or engine default
-        current_speaker_id = speaker_id or engine_config["default_speaker"]
+        # Use provided speaker ID or configured speaker name for the target engine
+        if speaker_id is not None:
+            current_speaker_id = speaker_id
+        else:
+            speakers = engine_config.get("speakers", {})
+            desired_name = getattr(self.config, "tts_speaker", "")
+            current_speaker_id = speakers.get(desired_name, engine_config.get("default_speaker"))
         target_api_url = engine_config["url"]
 
         return await self._tts_client.synthesize_from_query(audio_query, current_speaker_id, target_api_url)  # type: ignore[arg-type]
@@ -247,7 +262,7 @@ class TTSEngine:
 
         """
         engine_config = self.config.engines.get(self.config.tts_engine, {})
-        return engine_config.get("speakers", {}).copy()
+        return dict(engine_config.get("speakers", {}))
 
     async def health_check(self) -> bool:
         """Perform health check on TTS engine using health monitor."""
@@ -255,7 +270,15 @@ class TTSEngine:
 
 
 async def get_tts_engine(config: Config) -> TTSEngine:
-    """Create and start new TTS engine instance with a config object."""
-    engine = TTSEngine(config)
+    """Create (or reuse) and start a TTS engine instance for a config.
+
+    Caches one engine per Config instance to avoid repeatedly creating/starting
+    engines for transient operations (e.g., slash handlers).
+    """
+    engine: TTSEngine | None = _ENGINE_CACHE.get(config)
+    if engine is None:
+        engine = TTSEngine(config)
+        _ENGINE_CACHE[config] = engine
+    # Ensure started
     await engine.start()
     return engine

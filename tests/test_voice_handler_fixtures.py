@@ -214,17 +214,20 @@ async def voice_handler_new(
     handler.config = mock_config
 
     # Initialize manager components with proper dependencies
+    from discord_voice_bot.config_manager import ConfigManagerImpl
     from discord_voice_bot.voice.queue_manager import QueueManager
     from discord_voice_bot.voice.rate_limiter_manager import RateLimiterManager
     from discord_voice_bot.voice.stats_tracker import StatsTracker
     from discord_voice_bot.voice.task_manager import TaskManager
 
-    handler.connection_manager = VoiceConnectionManager(mock_bot_client_real, mock_config)
+    cfg_manager = ConfigManagerImpl(mock_config)
+
+    handler.connection_manager = VoiceConnectionManager(mock_bot_client_real, cfg_manager)
     handler.queue_manager = QueueManager()
     handler.rate_limiter_manager = RateLimiterManager()
     handler.stats_tracker = StatsTracker()
     handler.task_manager = TaskManager()
-    handler.health_monitor = HealthMonitorReal(handler.connection_manager, mock_config, mock_tts_client)
+    handler.health_monitor = HealthMonitorReal(handler.connection_manager, cfg_manager, mock_tts_client)
 
     # Set remaining attributes for backward compatibility
     handler.is_playing = False

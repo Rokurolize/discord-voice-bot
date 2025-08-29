@@ -6,8 +6,8 @@ import sys
 import traceback
 from pathlib import Path
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+# Add src to path (repo root src)
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from discord_voice_bot.bot import run_bot
 

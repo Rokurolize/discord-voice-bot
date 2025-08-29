@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any
+from typing import Any, TypedDict
 
 import discord
 from dotenv import load_dotenv
@@ -19,6 +19,12 @@ def _env_to_int(key: str, default: int) -> int:
     return int(val)
 
 
+class EngineConfig(TypedDict):
+    url: str
+    default_speaker: int
+    speakers: Mapping[str, int]
+
+
 @dataclass(frozen=True, kw_only=True)
 class Config:
     """Configuration for the Discord Voice TTS Bot."""
@@ -28,7 +34,7 @@ class Config:
     target_voice_channel_id: int
     tts_engine: str
     tts_speaker: str
-    engines: Mapping[str, Mapping[str, Any]]
+    engines: Mapping[str, EngineConfig]
     command_prefix: str
     max_message_length: int
     message_queue_size: int
@@ -63,44 +69,45 @@ class Config:
             if prev_token is not None:
                 os.environ["DISCORD_BOT_TOKEN"] = prev_token
 
+        # Build typed engine configurations
+        voicevox_cfg: EngineConfig = {
+            "url": os.environ.get("VOICEVOX_URL", "http://localhost:50021"),
+            "default_speaker": 3,
+            "speakers": MappingProxyType(
+                {
+                    "normal": 3,
+                    "sexy": 5,
+                    "tsun": 7,
+                    "amai": 1,
+                }
+            ),
+        }
+
+        aivis_cfg: EngineConfig = {
+            "url": os.environ.get("AIVIS_URL", "http://127.0.0.1:10101"),
+            "default_speaker": 1512153250,
+            "speakers": MappingProxyType(
+                {
+                    "anneli_normal": 888753760,
+                    "mai": 1431611904,
+                    "chuunibyou": 604166016,
+                    "zunda_normal": 1512153250,
+                }
+            ),
+        }
+
+        engines_map: dict[str, EngineConfig] = {
+            "voicevox": voicevox_cfg,
+            "aivis": aivis_cfg,
+        }
+
         return cls(
             discord_token=os.environ.get("DISCORD_BOT_TOKEN", ""),
             target_guild_id=_env_to_int("TARGET_GUILD_ID", 0),
             target_voice_channel_id=_env_to_int("TARGET_VOICE_CHANNEL_ID", 0),
             tts_engine=os.environ.get("TTS_ENGINE", "voicevox").lower(),
             tts_speaker=os.environ.get("TTS_SPEAKER", "normal").lower(),
-            engines=MappingProxyType(
-                {
-                    "voicevox": MappingProxyType(
-                        {
-                            "url": os.environ.get("VOICEVOX_URL", "http://localhost:50021"),
-                            "default_speaker": 3,
-                            "speakers": MappingProxyType(
-                                {
-                                    "normal": 3,
-                                    "sexy": 5,
-                                    "tsun": 7,
-                                    "amai": 1,
-                                }
-                            ),
-                        }
-                    ),
-                    "aivis": MappingProxyType(
-                        {
-                            "url": os.environ.get("AIVIS_URL", "http://127.0.0.1:10101"),
-                            "default_speaker": 1512153250,
-                            "speakers": MappingProxyType(
-                                {
-                                    "anneli_normal": 888753760,
-                                    "mai": 1431611904,
-                                    "chuunibyou": 604166016,
-                                    "zunda_normal": 1512153250,
-                                }
-                            ),
-                        }
-                    ),
-                }
-            ),
+            engines=MappingProxyType(engines_map),
             command_prefix=os.environ.get("COMMAND_PREFIX", "!tts"),
             max_message_length=_env_to_int("MAX_MESSAGE_LENGTH", 10000),
             message_queue_size=_env_to_int("MESSAGE_QUEUE_SIZE", 10),

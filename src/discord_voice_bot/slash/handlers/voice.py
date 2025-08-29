@@ -1,12 +1,14 @@
 """Voice slash command handler."""
 
 import asyncio
-from typing import Any
+from collections.abc import Mapping
+from typing import Any, cast
 
 import discord
 from loguru import logger
 
 from ...bot import DiscordVoiceTTSBot
+from ...config import EngineConfig
 
 
 async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, speaker: str | None = None) -> None:
@@ -54,17 +56,17 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, spea
                 _ = await interaction.response.send_message("ℹ️ You don't have a custom voice set", ephemeral=True)
             return
 
-        # Get available speakers
-        from ...tts_engine import get_tts_engine
-
+        # Get available speakers from static mapping (no engine startup needed)
         config = bot.config
-        tts_engine = await get_tts_engine(config)
-        speakers = await tts_engine.get_available_speakers()
+        engine_key = (config.tts_engine or "voicevox").lower()
+        engine_cfg = cast(EngineConfig, config.engines.get(engine_key, {}))
+        speakers_map: Mapping[str, int] = engine_cfg.get("speakers", {})
+        speakers: dict[str, int] = dict(speakers_map)
 
         # Find matching speaker (case-insensitive)
         speaker_lower = speaker.lower()
-        matched_speaker = None
-        matched_id = None
+        matched_speaker: str | None = None
+        matched_id: int | None = None
 
         for name, speaker_id in speakers.items():
             if name.lower() == speaker_lower or str(speaker_id) == speaker:
