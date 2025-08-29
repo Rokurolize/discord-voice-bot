@@ -381,7 +381,14 @@ map_discussion_ids_to_threads() {
   # Build JSON array of ids
   ids_json=$(printf '%s\n' "$@" | jq -R . | jq -s .)
   jq -r --argjson ids "$ids_json" '
-    [ .[] as $t | $ids[] as $cid | ($t | select((.comments.nodes // []) | any(.databaseId == ($cid|tonumber))) | .id) ]
+    [ .[] as $t
+      | $ids[] as $cid
+      | (
+          $t
+          | select((.comments.nodes // [])
+                   | any((.databaseId|tostring) == ($cid|tostring)))
+          | .id)
+    ]
     | unique | .[]
   ' <<<"$threads_json"
 }
@@ -531,6 +538,10 @@ case "$SUBCOMMAND" in
 
   resolve-by-discussion-ids)
     [[ $# -gt 0 ]] || abort "provide at least one discussion_r numeric id"
+    # Validate that all provided ids are numeric to avoid jq tonumber explosions downstream
+    for _id in "$@"; do
+      [[ "$_id" =~ ^[0-9]+$ ]] || abort "invalid discussion_r id: $_id (must be digits only)"
+    done
     threads=$(fetch_threads)
     declare -a tids=()
     readarray_compat tids map_discussion_ids_to_threads "$threads" "$@"
