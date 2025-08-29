@@ -320,7 +320,7 @@ render_comment_details() {
 render_comment_details_full() {
   local threads_json="$1"; shift
   local filter="$1"; shift || true
-  jq -r "$filter | .[] as \$t | (\$t.comments.nodes[] | {tid: \$t.id, resolved: (if \$t.isResolved then \"resolved\" else \"unresolved\" end), outdated: \$t.isOutdated} + .) | [.tid, .resolved, .outdated, .path, .databaseId, .url, ((.body // \"\") | gsub(\"\\n\";\" \") )] | @tsv" <<<"$threads_json" |
+  jq -r "$filter | .[] as \$t | (\$t.comments.nodes[]? | {tid: \$t.id, resolved: (if \$t.isResolved then \"resolved\" else \"unresolved\" end), outdated: \$t.isOutdated} + .) | [.tid, .resolved, .outdated, .path, .databaseId, .url, ((.body // \"\") | gsub(\"\\n\";\" \") )] | @tsv" <<<"$threads_json" |
   awk -F'\t' 'BEGIN{printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n","thread_id","status","outdated","path","comment_id","url","body");} {print}'
 }
 
