@@ -86,7 +86,13 @@ while [[ $# -gt 0 ]]; do
     -h|--help) print_usage; exit 0 ;;
     list|list-unresolved|list-details|list-unresolved-details|list-unresolved-json|resolve-all-unresolved|resolve-by-discussion-ids|resolve-by-urls|unresolve-thread-ids)
       SUBCOMMAND="${SUBCOMMAND:-$1}"; shift; continue ;;
-    *) echo "Unknown arg: $1" >&2; print_usage; exit 1 ;;
+    *)
+      if [[ -n "${SUBCOMMAND:-}" ]]; then
+        # Treat remaining args as positional for the subcommand
+        break
+      else
+        echo "Unknown arg: $1" >&2; print_usage; exit 1
+      fi ;;
   esac
 done
 

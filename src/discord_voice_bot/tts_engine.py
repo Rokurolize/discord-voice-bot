@@ -1,5 +1,6 @@
 """TTS Engine integration for Discord Voice TTS Bot."""
 
+import asyncio
 from typing import Any
 from weakref import WeakKeyDictionary
 
@@ -15,6 +16,7 @@ from .tts_health_monitor import TTSHealthMonitor
 
 # Weak cache of engines per Config to avoid repeated startups
 _ENGINE_CACHE: "WeakKeyDictionary[Config, TTSEngine]" = WeakKeyDictionary()
+_ENGINE_CREATE_LOCK = asyncio.Lock()
 
 
 class TTSEngineError(Exception):
@@ -37,6 +39,7 @@ class TTSEngine:
 
         # Engine state management
         self._started = False
+        self._lock = asyncio.Lock()
 
         # Backward compatibility: direct access to session for testing
         self._session = None
@@ -67,19 +70,21 @@ class TTSEngine:
 
     async def start(self) -> None:
         """Start the TTS engine session."""
-        if not self._started:
-            await self._tts_client.start_session()
-            self._started = True
-            self._session = self._tts_client.session  # Update session reference
-            logger.info("🎵 TTS Engine started successfully")
+        async with self._lock:
+            if not self._started:
+                await self._tts_client.start_session()
+                self._started = True
+                self._session = self._tts_client.session  # Update session reference
+                logger.info("🎵 TTS Engine started successfully")
 
     async def close(self) -> None:
         """Close the TTS engine session."""
-        if self._started:
-            await self._tts_client.close_session()
-            self._started = False
-            self._session = None
-            logger.info("🎵 TTS Engine closed successfully")
+        async with self._lock:
+            if self._started:
+                await self._tts_client.close_session()
+                self._started = False
+                self._session = None
+                logger.info("🎵 TTS Engine closed successfully")
 
     async def check_api_availability(self) -> tuple[bool, str]:
         """Check TTS API availability with detailed error information.
@@ -275,10 +280,12 @@ async def get_tts_engine(config: Config) -> TTSEngine:
     Caches one engine per Config instance to avoid repeatedly creating/starting
     engines for transient operations (e.g., slash handlers).
     """
-    engine: TTSEngine | None = _ENGINE_CACHE.get(config)
-    if engine is None:
-        engine = TTSEngine(config)
-        _ENGINE_CACHE[config] = engine
-    # Ensure started
-    await engine.start()
-    return engine
+    # Serialize creation/start across tasks to avoid duplicate sessions
+    async with _ENGINE_CREATE_LOCK:
+        engine: TTSEngine | None = _ENGINE_CACHE.get(config)
+        if engine is None:
+            engine = TTSEngine(config)
+            _ENGINE_CACHE[config] = engine
+        # Ensure started under lock
+        await engine.start()
+        return engine

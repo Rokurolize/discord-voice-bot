@@ -184,12 +184,11 @@ async def mock_tts_client(mock_config_manager: FakeConfigManager) -> TTSClient:
 @pytest_asyncio.fixture
 async def voice_handler_old(
     mock_bot_client: MagicMock,
-    mock_config_manager: FakeConfigManager,
+    mock_config: Config,
     mock_tts_client: TTSClient,
 ) -> OldVoiceHandler:
     """Create an old VoiceHandler instance."""
-    # OldVoiceHandler expects (bot_client, config_manager) only
-    handler = OldVoiceHandler(mock_bot_client, mock_config_manager)
+    handler = OldVoiceHandler(mock_bot_client, mock_config)
     try:
         yield handler
     finally:
@@ -204,54 +203,10 @@ async def voice_handler_new(
     mock_tts_client: TTSClient,
 ) -> NewVoiceHandler:
     """Create a new VoiceHandler instance with proper config."""
-    # Work around for HealthMonitor requiring TTS client parameter
-    from discord_voice_bot.voice.connection_manager import VoiceConnectionManager
-    from discord_voice_bot.voice.health_monitor import HealthMonitor as HealthMonitorReal
-
-    # Create handler manually to pass tts_client to HealthMonitor
-    handler = object.__new__(NewVoiceHandler)
-    handler.bot = mock_bot_client_real
-    handler.config = mock_config
-
-    # Initialize manager components with proper dependencies
-    from discord_voice_bot.config_manager import ConfigManagerImpl
-    from discord_voice_bot.voice.queue_manager import QueueManager
-    from discord_voice_bot.voice.rate_limiter_manager import RateLimiterManager
-    from discord_voice_bot.voice.stats_tracker import StatsTracker
-    from discord_voice_bot.voice.task_manager import TaskManager
-
-    cfg_manager = ConfigManagerImpl(mock_config)
-
-    handler.connection_manager = VoiceConnectionManager(mock_bot_client_real, cfg_manager)
-    handler.queue_manager = QueueManager()
-    handler.rate_limiter_manager = RateLimiterManager()
-    handler.stats_tracker = StatsTracker()
-    handler.task_manager = TaskManager()
-    handler.health_monitor = HealthMonitorReal(handler.connection_manager, cfg_manager, mock_tts_client)
-
-    # Set remaining attributes for backward compatibility
-    handler.is_playing = False
-    handler._last_connection_attempt = handler.connection_manager.last_connection_attempt
-    handler._reconnection_cooldown = handler.connection_manager.reconnection_cooldown
-    handler.tasks = handler.task_manager.tasks
-    handler.voice_client = handler.connection_manager.voice_client
-    handler.target_channel = handler.connection_manager.target_channel
-    handler.connection_state = handler.connection_manager.connection_state
-    handler.synthesis_queue = handler.queue_manager.synthesis_queue
-    handler.audio_queue = handler.queue_manager.audio_queue
-    handler.current_group_id = handler.queue_manager.current_group_id
-    handler.stats = handler.stats_tracker
-    handler.rate_limiter = handler.rate_limiter_manager.rate_limiter
-    handler.circuit_breaker = handler.rate_limiter_manager.circuit_breaker
-
-    # Initialize worker attributes that cleanup() expects
-    handler._synthesizer_worker = None
-    handler._player_worker = None
-
+    handler = NewVoiceHandler(mock_bot_client_real, mock_config, mock_tts_client)
     try:
         yield handler
     finally:
-        # Clean up resources for new handler
         await handler.cleanup()
 
 

@@ -114,22 +114,32 @@ class VoiceHandlerInterface(Protocol):
 class VoiceHandler(VoiceHandlerInterface):
     """Manages Discord voice connections and audio playback using facade pattern."""
 
-    def __init__(self, bot_client: discord.Client, config: Config) -> None:
-        """Initialize voice handler with manager components."""
+    def __init__(self, bot_client: discord.Client, config: Config, tts_client: Any | None = None) -> None:
+        """Initialize voice handler with manager components.
+
+        Args:
+            bot_client: Discord client
+            config: App configuration
+            tts_client: Optional injected TTS client for health monitor/testing
+
+        """
         super().__init__()
         self.bot = bot_client
         self.config = config
 
         # Initialize manager components
         from ..config_manager import ConfigManagerImpl
-        from ..tts_client import TTSClient
 
         self.connection_manager = VoiceConnectionManager(bot_client, ConfigManagerImpl(config))
         self.queue_manager = QueueManager()
         self.rate_limiter_manager = RateLimiterManager()
         self.stats_tracker = StatsTracker()
         self.task_manager = TaskManager()
-        self.health_monitor = HealthMonitor(self.connection_manager, ConfigManagerImpl(config), TTSClient(config))
+        if tts_client is None:
+            from ..tts_client import TTSClient as _TTSClient
+
+            tts_client = _TTSClient(config)
+        self.health_monitor = HealthMonitor(self.connection_manager, ConfigManagerImpl(config), tts_client)
 
         # Maintain backward compatibility properties
         self.is_playing = False

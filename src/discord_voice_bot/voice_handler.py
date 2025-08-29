@@ -47,7 +47,7 @@ class VoiceHandler(NewVoiceHandler):
             else:
                 cfg = Config.from_env()
 
-        super().__init__(bot_client, cfg)
+        super().__init__(bot_client, cfg, tts_client)
         logger.warning("⚠️  DEPRECATED: Using old VoiceHandler. Consider migrating to discord_voice_bot.voice.VoiceHandler")
 
         # Backward-compat: old tests expect a plain dict for stats
