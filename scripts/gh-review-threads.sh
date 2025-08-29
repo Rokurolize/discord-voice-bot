@@ -46,6 +46,7 @@ Subcommands:
                            List unresolved threads with FULL bodies (no truncation)
   list-unresolved-json     Dump unresolved thread nodes (JSON) including bodies/diffs
   list-unresolved-xml      Dump unresolved threads as XML with full bodies
+  list-unresolved-ndjson   Dump unresolved comments as NDJSON (one JSON per line)
   resolve-all-unresolved   Resolve every unresolved thread
   resolve-by-discussion-ids <id ...>
                            Resolve threads containing the given discussion_r numeric IDs
@@ -102,7 +103,7 @@ while [[ $# -gt 0 ]]; do
       fi
       PR_NUMBER="${2}"; shift 2 ;;
     -h|--help) print_usage; exit 0 ;;
-    list|list-unresolved|list-details|list-unresolved-details|list-unresolved-details-full|list-unresolved-json|list-unresolved-xml|resolve-all-unresolved|resolve-by-discussion-ids|resolve-by-urls|unresolve-thread-ids)
+    list|list-unresolved|list-details|list-unresolved-details|list-unresolved-details-full|list-unresolved-json|list-unresolved-xml|list-unresolved-ndjson|resolve-all-unresolved|resolve-by-discussion-ids|resolve-by-urls|unresolve-thread-ids)
       SUBCOMMAND="${SUBCOMMAND:-$1}"; shift; continue ;;
     *)
       if [[ -n "${SUBCOMMAND:-}" ]]; then
@@ -287,6 +288,17 @@ render_comment_details_full() {
   awk -F'\t' 'BEGIN{printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n","thread_id","status","outdated","path","comment_id","url","body");} {print}'
 }
 
+# Emit NDJSON (newline-delimited JSON) for unresolved comments with full bodies
+render_unresolved_ndjson() {
+  local threads_json="$1"; shift
+  jq -c '.[] | select(.isResolved == false) as $t | $t.comments.nodes[]? | {
+    thread_id: $t.id,
+    status: (if $t.isResolved then "resolved" else "unresolved" end),
+    outdated: $t.isOutdated,
+    path, databaseId, url, body, diffHunk
+  }' <<<"$threads_json"
+}
+
 # Render unresolved threads as XML with full bodies
 render_unresolved_xml() {
   local threads_json="$1"; shift
@@ -347,6 +359,11 @@ case "$SUBCOMMAND" in
   list-unresolved-xml)
     threads=$(fetch_threads)
     render_unresolved_xml "$threads"
+    ;;
+
+  list-unresolved-ndjson)
+    threads=$(fetch_threads)
+    render_unresolved_ndjson "$threads"
     ;;
 
   resolve-all-unresolved)

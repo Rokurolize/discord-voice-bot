@@ -159,16 +159,35 @@ class TTSEngine:
         # Determine engine and speaker
         target_engine = engine_name or self.config.tts_engine
         engines = self.config.engines
-        engine_config = engines.get(target_engine, engines["voicevox"])
+        engine_config = engines.get(target_engine)
+        if engine_config is None:
+            engine_config = engines.get("voicevox")
+        if engine_config is None:
+            raise TTSEngineError(
+                f"Unknown TTS engine '{target_engine}' and no 'voicevox' fallback configured"
+            )
 
         # Use provided speaker ID or configured speaker name for the target engine
         if speaker_id is not None:
-            current_speaker_id = speaker_id
+            try:
+                current_speaker_id = int(speaker_id)
+            except (TypeError, ValueError):
+                try:
+                    current_speaker_id = int(engine_config.get("default_speaker", 3))
+                except (TypeError, ValueError):
+                    current_speaker_id = 3
         else:
             # Map Config.tts_speaker to the target engine's speakers; fallback to default
             speakers = engine_config.get("speakers", {})
             desired_name = str(getattr(self.config, "tts_speaker", "")).strip().lower()
-            current_speaker_id = speakers.get(desired_name, engine_config.get("default_speaker"))
+            _raw = speakers.get(desired_name, engine_config.get("default_speaker"))
+            try:
+                current_speaker_id = int(_raw)
+            except (TypeError, ValueError):
+                try:
+                    current_speaker_id = int(engine_config.get("default_speaker", 3))
+                except (TypeError, ValueError):
+                    current_speaker_id = 3
         target_api_url = engine_config["url"]
 
         result = await self._tts_client.generate_audio_query(text, current_speaker_id, target_api_url)
@@ -179,15 +198,34 @@ class TTSEngine:
         # Determine engine and speaker
         target_engine = engine_name or self.config.tts_engine
         engines = self.config.engines
-        engine_config = engines.get(target_engine, engines["voicevox"])
+        engine_config = engines.get(target_engine)
+        if engine_config is None:
+            engine_config = engines.get("voicevox")
+        if engine_config is None:
+            raise TTSEngineError(
+                f"Unknown TTS engine '{target_engine}' and no 'voicevox' fallback configured"
+            )
 
         # Use provided speaker ID or configured speaker name for the target engine
         if speaker_id is not None:
-            current_speaker_id = speaker_id
+            try:
+                current_speaker_id = int(speaker_id)
+            except (TypeError, ValueError):
+                try:
+                    current_speaker_id = int(engine_config.get("default_speaker", 3))
+                except (TypeError, ValueError):
+                    current_speaker_id = 3
         else:
             speakers = engine_config.get("speakers", {})
             desired_name = str(getattr(self.config, "tts_speaker", "")).strip().lower()
-            current_speaker_id = speakers.get(desired_name, engine_config.get("default_speaker"))
+            _raw = speakers.get(desired_name, engine_config.get("default_speaker"))
+            try:
+                current_speaker_id = int(_raw)
+            except (TypeError, ValueError):
+                try:
+                    current_speaker_id = int(engine_config.get("default_speaker", 3))
+                except (TypeError, ValueError):
+                    current_speaker_id = 3
         target_api_url = engine_config["url"]
 
         return await self._tts_client.synthesize_from_query(audio_query, current_speaker_id, target_api_url)  # type: ignore[arg-type]
