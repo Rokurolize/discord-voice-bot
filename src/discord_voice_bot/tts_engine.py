@@ -340,8 +340,3 @@ async def get_tts_engine(config: Config) -> TTSEngine:
     # Ensure started outside the global creation lock
     await engine.start()
     return engine
-
-    
-    
-    
-    
