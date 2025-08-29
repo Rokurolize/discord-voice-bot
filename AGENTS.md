@@ -38,3 +38,49 @@
 ## Security & Configuration Tips
 - Copy `.env.example` → `.env`; set `DISCORD_BOT_TOKEN`, `TARGET_VOICE_CHANNEL_ID`, and TTS settings (`TTS_ENGINE`, `VOICEVOX_URL`/`AIVIS_URL`).
 - Never commit secrets; `.env` is gitignored. Ensure Discord "Message Content Intent" is enabled for the bot.
+
+## Code Review Ops (gh + GraphQL)
+- Prereqs: Install `gh` and `jq`. Authenticate with `gh auth login`.
+- Auth Check: `gh auth status -h github.com` (verify repo:write if resolving).
+- List Unresolved (summary): `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> list-unresolved`
+  - Shows thread id, status, comment count, and comment databaseIds (no bodies).
+- List Unresolved (details): `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> list-unresolved-details`
+  - Shows each comment’s path, url, databaseId, and a truncated body preview (200–400 chars).
+- Unresolved JSON (full): `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> list-unresolved-json`
+  - Emits raw JSON nodes including full bodies and diffHunks (best for scripting).
+- Resolve By IDs: `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> resolve-by-discussion-ids <id ...>`
+- Resolve By URLs: `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> resolve-by-urls <url ...>`
+- Resolve All: `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> resolve-all-unresolved`
+- Unresolve: `scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> unresolve-thread-ids <thread-id ...>`
+- Dry‑Run: `DRY_RUN=1 scripts/gh-review-threads.sh --owner <O> --repo <R> --pr <N> resolve-all-unresolved`
+
+## GraphQL Snippets (Reference)
+- Fetch Threads: `gh api graphql -F owner='<O>' -F name='<R>' -F number=<N> -f query='query($owner:String!,$name:String!,$number:Int!){ repository(owner:$owner,name:$name){ pullRequest(number:$number){ reviewThreads(first:100){ nodes{ id isResolved isOutdated comments(first:50){ nodes{ databaseId url path body diffHunk } } } }}}}' --jq '.data.repository.pullRequest.reviewThreads.nodes'`
+- Purpose: Map `discussion_r<databaseId>` numbers to `thread.id`, inspect `path/body/diffHunk`, and decide resolution.
+
+## Verification Playbook Before Resolve
+- Read Thread: Fetch thread bodies and `path/diffHunk` (see GraphQL snippet).
+- Compare Code: Open the referenced file(s) and confirm the suggestion is applied.
+- Run Checks: `uv run poe check` (ruff + pyright + tests) must pass.
+- Resolve: Use `scripts/gh-review-threads.sh` to resolve only addressed threads.
+
+## Script Reference
+- Location: `scripts/gh-review-threads.sh:1`
+- Subcommands: `list`, `list-unresolved`, `resolve-all-unresolved`, `resolve-by-discussion-ids`, `resolve-by-urls`, `unresolve-thread-ids`
+- Notes: Uses GraphQL `resolveReviewThread` / `unresolveReviewThread`. Accepts IDs (`discussion_r...` numbers) or URLs. Supports pagination and `DRY_RUN`.
+
+## PR Ops (gh)
+- View PR: `gh pr view <N> --json title,headRefName,mergeable,url`
+- Append Body: `gh pr view <N> --json body -q .body > /tmp/body.md && echo "\n<update>\n" >> /tmp/body.md && gh pr edit <N> --body-file /tmp/body.md`
+- Submit Review: `gh pr review <N> --comment -b "<summary>"` or `--approve`/`--request-changes` as needed.
+
+## Maintenance Cheatsheet
+- Timeout Aliases (UP041): Prefer builtin `TimeoutError` (Python ≥3.11).
+  - Scan: `rg -n "asyncio\.TimeoutError|socket\.timeout" -S`
+  - Replace: Use `TimeoutError` directly and remove local `noqa: UP041`.
+  - Re‑enable: Ensure UP041 is not ignored in `pyproject.toml:169`.
+- PR Update Flow:
+  - Commit: `git add -A && git commit -m "refactor: replace timeout aliases (UP041) and re-enable rule"`
+  - Push: `git push origin HEAD`
+  - Validate: `uv run poe check`
+  - Resolve remaining threads after verification (see Code Review Ops).

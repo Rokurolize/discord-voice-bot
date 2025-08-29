@@ -38,15 +38,18 @@ Environment:
   DRY_RUN=1 — show actions without mutating
 
 Subcommands:
-  list                  List all threads with status and comment ids
-  list-unresolved       List only unresolved threads
-  resolve-all-unresolved  Resolve every unresolved thread
+  list                     List all threads (id/status/comment ids)
+  list-unresolved          List only unresolved threads (id/status/comment ids)
+  list-details             List all threads with per-comment details (path/url/body)
+  list-unresolved-details  List only unresolved threads with per-comment details
+  list-unresolved-json     Dump unresolved thread nodes (JSON) including bodies/diffs
+  resolve-all-unresolved   Resolve every unresolved thread
   resolve-by-discussion-ids <id ...>
-                        Resolve threads containing the given discussion_r numeric IDs
+                           Resolve threads containing the given discussion_r numeric IDs
   resolve-by-urls <url ...>
-                        Resolve threads referenced by discussion_r URLs
+                           Resolve threads referenced by discussion_r URLs
   unresolve-thread-ids <thread-id ...>
-                        Unresolve threads by GraphQL thread node ids
+                           Unresolve threads by GraphQL thread node ids
 
 Examples:
   scripts/gh-review-threads.sh --owner O --repo R --pr 4 list-unresolved
@@ -74,7 +77,7 @@ while [[ $# -gt 0 ]]; do
     --repo)  REPO="${2:-}"; shift 2 ;;
     --pr)    PR_NUMBER="${2:-}"; shift 2 ;;
     -h|--help) print_usage; exit 0 ;;
-    list|list-unresolved|resolve-all-unresolved|resolve-by-discussion-ids|resolve-by-urls|unresolve-thread-ids)
+    list|list-unresolved|list-details|list-unresolved-details|list-unresolved-json|resolve-all-unresolved|resolve-by-discussion-ids|resolve-by-urls|unresolve-thread-ids)
       SUBCOMMAND="$1"; shift; break ;;
     *) echo "Unknown arg: $1" >&2; print_usage; exit 1 ;;
   esac
@@ -106,7 +109,7 @@ fetch_threads() {
                 id
                 isResolved
                 isOutdated
-                comments(first: 100) { nodes { databaseId url } }
+                comments(first: 100) { nodes { databaseId url path body diffHunk } }
               }
             }
           }
@@ -133,7 +136,7 @@ fetch_threads() {
                   id
                   isResolved
                   isOutdated
-                  comments(first: 100) { nodes { databaseId url } }
+                  comments(first: 100) { nodes { databaseId url path body diffHunk } }
                 }
               }
             }
@@ -213,6 +216,14 @@ render_threads() {
   awk -F'\t' 'BEGIN{printf("%s\t%s\t%s\t%s\n","thread_id","status","comments","comment_databaseIds");} {print}'
 }
 
+# Render detailed per-comment rows with truncated body preview
+render_comment_details() {
+  local threads_json="$1"; shift
+  local filter="$1"; shift || true
+  jq -r "$filter | .[] as \$t | (\$t.comments.nodes[] | {tid: \$t.id, resolved: (if \$t.isResolved then \"resolved\" else \"unresolved\" end), outdated: \$t.isOutdated} + .) | [.tid, .resolved, .outdated, .path, .databaseId, .url, ((.body // \"\") | gsub(\"\\n\";\" \") | .[0:200])] | @tsv" <<<"$threads_json" |
+  awk -F'\t' 'BEGIN{printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n","thread_id","status","outdated","path","comment_id","url","body_preview");} {print}'
+}
+
 # Main subcommand handlers
 case "$SUBCOMMAND" in
   list)
@@ -223,6 +234,21 @@ case "$SUBCOMMAND" in
   list-unresolved)
     threads=$(fetch_threads)
     render_threads "$threads" '[ .[] | select(.isResolved == false) ]'
+    ;;
+
+  list-details)
+    threads=$(fetch_threads)
+    render_comment_details "$threads" '.' 400
+    ;;
+
+  list-unresolved-details)
+    threads=$(fetch_threads)
+    render_comment_details "$threads" '[ .[] | select(.isResolved == false) ]' 400
+    ;;
+
+  list-unresolved-json)
+    threads=$(fetch_threads)
+    jq '[ .[] | select(.isResolved == false) ]' <<<"$threads"
     ;;
 
   resolve-all-unresolved)
@@ -273,4 +299,3 @@ case "$SUBCOMMAND" in
   *)
     print_usage; exit 1 ;;
 esac
-
