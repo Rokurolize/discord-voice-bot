@@ -40,13 +40,18 @@
 - Never commit secrets; `.env` is gitignored. Ensure Discord "Message Content Intent" is enabled for the bot.
 
 ## PR Review Handling Workflow (gh-review-threads.sh)
-- Prereqs: install `gh` and `jq`; authenticate: `gh auth status -h ${GH_HOST:-github.com}`.
-- Project defaults (set once): `export GH_OWNER=Rokurolize GH_REPO=discord-voice-bot` (optionally `export GH_HOST=<hostname>` for GHES).
+- Prereqs: install `gh` and `jq`; authenticate (defaults to `github.com` if `GH_HOST` is unset):
+  - `gh auth status -h "${GH_HOST:-github.com}"`
+- Project defaults (set once):
+  - `export GH_OWNER=Rokurolize`
+  - `export GH_REPO=discord-voice-bot`
+  - (optional, for GHES) `export GH_HOST=<hostname>`
 - Help: `scripts/gh-review-threads.sh --help` shows all flags and subcommands.
 
 ### One-by-One Loop (full text, minimal steps)
 - Set PR: `export GH_PR=<number>` (or pass `--pr <number>` per call).
-- Get next unresolved (full body): `line="$(scripts/gh-review-threads.sh list-next-unresolved-ndjson)"`; empty output means done.
+- Get next unresolved (full body): `line="$(scripts/gh-review-threads.sh list-next-unresolved-ndjson)"`
+  - If the command prints nothing (empty output), you're done — no unresolved items remain.
 - Inspect context quickly:
   - Path/URL: `echo "$line" | jq -r '.path, .url'`
   - Diff: `echo "$line" | jq -r '.diffHunk' | less -R`
@@ -59,16 +64,17 @@
 - Repeat until no more output from `list-next-unresolved-ndjson`.
 
 ### Push Policy
-- Push once at the end to trigger CodeRabbit: `git push origin HEAD`.
+Push once at the end to trigger CodeRabbit: `git push origin HEAD`.
 
 Notes:
 - Owner/repo are fixed for this project via `GH_OWNER=Rokurolize` and `GH_REPO=discord-voice-bot`; you can still pass `--owner/--repo` explicitly if needed.
 - Use `DRY_RUN=1` with resolve subcommands to preview without mutating.
+- For GitHub Enterprise Server, set `GH_HOST`, e.g. `export GH_HOST=ghe.company.com`.
 - Prefer the one-by-one NDJSON flow above; XML/truncated previews and manual GraphQL are unnecessary here.
 
 ## Verification Before Resolve
 - Compare the referenced code locally and ensure the change is applied.
-- Run checks: `uv run poe check` must pass before resolving a thread.
+- Run checks: `uv run poe check` must pass (exit code 0) before resolving a thread.
 
 ## Resolve and Commit Strategy
 - Resolve only the thread you addressed using `resolve-by-discussion-ids` (see Loop above).
@@ -84,10 +90,10 @@ Notes:
   - Note: one discussion `databaseId` resolves the entire thread.
 
 ## Script Help
-- See `scripts/gh-review-threads.sh --help` for the complete list of subcommands and flags.
+See `scripts/gh-review-threads.sh --help` for the complete list of subcommands and flags.
 
 ## PR Ops (optional)
 - View PR metadata: `gh pr view <N> --json title,headRefName,mergeable,url`.
 
 ## Maintenance Note
-- When iterating on review fixes, prefer small focused commits; avoid pushing until all review items are addressed to batch CodeRabbit runs once.
+- When iterating on review fixes, prefer small focused commits; avoid pushing until all review items are addressed, to batch CodeRabbit runs into a single CodeRabbit run.
