@@ -26,7 +26,7 @@ class TempFileManager:
     def config(self) -> Config:
         cfg = self._config_ref()
         if cfg is None:
-            raise RuntimeError("Config has been garbage-collected; TempFileManager is unbound")
+            raise RuntimeError(f"Config weakref is dead; TempFileManager id={id(self)}; audio_processor={type(self._audio_processor).__name__}(id={id(self._audio_processor)})")
         return cfg
 
     async def create_audio_source(self, text: str, audio_data: bytes, speaker_id: int | None = None, engine_name: str | None = None) -> Any:
@@ -64,9 +64,13 @@ class TempFileManager:
                     metadata = {
                         "temp_path": temp_path,
                         "size_bytes": len(audio_data),
-                        "stage": "pre_discord_conversion",
+                        "stage": "pre_discord",
+                        "speaker_id": speaker_id,
+                        "engine_name": engine_name,
                     }
-                    saved_pre_path = audio_debugger.save_audio_stage(audio_data, "pre_discord", text, metadata)
+                    saved_pre_path = audio_debugger.save_audio_stage(
+                        audio_data, "pre_discord", text, metadata
+                    )
                     logger.debug(f"🔍 Saved pre-Discord audio for debugging: {saved_pre_path}")
                 except Exception as e:
                     logger.warning(f"Failed to save pre-Discord debug audio: {e}")
@@ -74,7 +78,7 @@ class TempFileManager:
             # Create Discord audio source with corrected FFmpeg options
             sample_rate = self.config.audio_sample_rate
             channels = self.config.audio_channels
-            ffmpeg_options = f"-vn -sn -ar {sample_rate} -ac {channels} -f s16le"
+            ffmpeg_options = f"-vn -sn -acodec pcm_s16le -ar {sample_rate} -ac {channels} -f s16le"
             before_options = "-nostdin -hide_banner -loglevel warning"
 
             logger.debug(f"FFmpeg options: before='{before_options}' options='{ffmpeg_options}'")
@@ -150,7 +154,7 @@ class TempFileManager:
                     stderr=asyncio.subprocess.PIPE,
                 )
             except FileNotFoundError as e:
-                logger.warning("ffmpeg not found; skipping conversion test: {}", e)
+                logger.warning(f"ffmpeg not found; skipping conversion test: {e}")
                 return
             try:
                 async with asyncio.timeout(10):
@@ -167,6 +171,9 @@ class TempFileManager:
                     "ffmpeg_options": ffmpeg_options,
                     "converted_size": len(out_bytes),
                     "conversion_success": True,
+                    "returncode": returncode,
+                    "sample_rate": self.config.audio_sample_rate,
+                    "channels": self.config.audio_channels,
                 }
                 # Save as raw PCM data (add WAV header for playability)
                 sample_rate = self.config.audio_sample_rate
@@ -249,5 +256,6 @@ class TempFileManager:
             "temp_directory": str(temp_dir),
             "total_space": int(total),
             "available_space": int(free),
+            "used_space": int(total - free),
             "temp_files_count": len(list(temp_dir.glob("*.wav"))),
         }
