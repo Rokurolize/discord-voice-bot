@@ -37,6 +37,15 @@ def _env_to_int(key: str, default: int) -> int:
         return default
 
 
+def _env_to_nonneg_int(key: str, default: int) -> int:
+    """Return environment variable as non-negative int.
+
+    Falls back to ``default`` if parsing fails or the parsed value is negative.
+    """
+    val = _env_to_int(key, default)
+    return default if val < 0 else val
+
+
 class EngineConfig(TypedDict):
     url: str
     default_speaker: int
@@ -130,13 +139,13 @@ class Config:
             engines=MappingProxyType(engines_map),
             command_prefix=os.environ.get("COMMAND_PREFIX", "!tts"),
             max_message_length=_env_to_int("MAX_MESSAGE_LENGTH", 10000),
-            message_queue_size=_env_to_int("MESSAGE_QUEUE_SIZE", 10),
-            reconnect_delay=_env_to_int("RECONNECT_DELAY", 5),
+            message_queue_size=_env_to_nonneg_int("MESSAGE_QUEUE_SIZE", 10),
+            reconnect_delay=_env_to_nonneg_int("RECONNECT_DELAY", 5),
             audio_sample_rate=48000,
             audio_channels=2,
             audio_frame_duration=20,
-            rate_limit_messages=_env_to_int("RATE_LIMIT_MESSAGES", 100),
-            rate_limit_period=_env_to_int("RATE_LIMIT_PERIOD", 60),
+            rate_limit_messages=_env_to_nonneg_int("RATE_LIMIT_MESSAGES", 100),
+            rate_limit_period=_env_to_nonneg_int("RATE_LIMIT_PERIOD", 60),
             log_level=os.environ.get("LOG_LEVEL", "DEBUG").upper(),
             log_file=os.environ.get("LOG_FILE", "discord_bot_error.log") or None,
             debug=os.environ.get("DEBUG", "false").lower() in ["true", "1", "yes"],

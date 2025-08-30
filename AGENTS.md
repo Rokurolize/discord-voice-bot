@@ -62,6 +62,6 @@
 
 ## Maintenance Note
 - Prefer small, focused commits. Accumulate them locally and push once after all review items are addressed to consolidate CodeRabbit into a single review run.
- - Optionally, tidy history before pushing:
-   - `git rebase -i origin/main` to squash/fixup work-in-progress commits.
-   - Or use “Squash and merge” on GitHub to keep main history clean.
+  - Optionally, tidy history before pushing:
+    - `git rebase -i origin/main` to squash/fixup work-in-progress commits.
+    - Or use "Squash and merge" on GitHub to keep main history clean.
