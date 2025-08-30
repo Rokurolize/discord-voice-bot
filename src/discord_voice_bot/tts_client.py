@@ -247,14 +247,19 @@ class TTSClient:
             target_engine = fallback
             engine_config = engines[target_engine]
 
-        # Use provided speaker ID or engine default with safe int fallback
+        # Use provided speaker ID or engine-local default with safe fallback derived from target_engine
         if speaker_id is not None:
             current_speaker_id = speaker_id
         else:
-            try:
-                current_speaker_id = int(engine_config.get("default_speaker", self.speaker_id))
-            except (TypeError, ValueError):
-                current_speaker_id = self.speaker_id
+            speakers_map = dict(engine_config.get("speakers", {}))
+            def _to_int(v: Any, d: int) -> int:
+                try:
+                    return int(v)
+                except (TypeError, ValueError):
+                    return d
+            first_speaker_any: Any = next(iter(speakers_map.values()), None)
+            default_local = _to_int(engine_config.get("default_speaker"), _to_int(first_speaker_any, 3))
+            current_speaker_id = default_local
         target_api_url = engine_config.get("url", self.api_url)
 
         logger.debug(f"Using {target_engine} engine (URL: {target_api_url}) with speaker {current_speaker_id}")
