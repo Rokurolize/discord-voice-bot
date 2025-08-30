@@ -12,7 +12,6 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any, TypedDict, cast
 
-import discord
 from dotenv import load_dotenv
 
 # Shared defaults (SSOT) for engine URLs
@@ -44,6 +43,17 @@ def _env_to_nonneg_int(key: str, default: int) -> int:
     """
     val = _env_to_int(key, default)
     return default if val < 0 else val
+
+
+def _env_to_bool(key: str, default: bool) -> bool:
+    """Return environment variable as boolean (true/1/yes/on).
+
+    Trims whitespace and accepts common truthy values.
+    """
+    val = os.environ.get(key)
+    if val is None:
+        return default
+    return val.strip().lower() in ("true", "1", "yes", "on")
 
 
 class EngineConfig(TypedDict):
@@ -109,8 +119,6 @@ class Config:
                 }
             ),
         }
-        voicevox_ro: EngineConfig = cast(EngineConfig, MappingProxyType(voicevox_cfg))
-
         aivis_cfg: EngineConfig = {
             "url": os.environ.get("AIVIS_URL", DEFAULT_AIVIS_URL),
             "default_speaker": 1512153250,
@@ -123,6 +131,20 @@ class Config:
                 }
             ),
         }
+
+        # -- Apply TTS_SPEAKER label -> numeric ID and reflect into default_speaker --
+        engine_name = os.environ.get("TTS_ENGINE", "voicevox").lower()
+        speaker_label = os.environ.get("TTS_SPEAKER", "normal").lower()
+        if engine_name == "voicevox":
+            sid = voicevox_cfg["speakers"].get(speaker_label)
+            if sid is not None:
+                voicevox_cfg["default_speaker"] = sid
+        elif engine_name == "aivis":
+            sid = aivis_cfg["speakers"].get(speaker_label)
+            if sid is not None:
+                aivis_cfg["default_speaker"] = sid
+
+        voicevox_ro: EngineConfig = cast(EngineConfig, MappingProxyType(voicevox_cfg))
         aivis_ro: EngineConfig = cast(EngineConfig, MappingProxyType(aivis_cfg))
 
         engines_map: dict[str, EngineConfig] = {
@@ -134,8 +156,8 @@ class Config:
             discord_token=os.environ.get("DISCORD_BOT_TOKEN", ""),
             target_guild_id=_env_to_int("TARGET_GUILD_ID", 0),
             target_voice_channel_id=_env_to_int("TARGET_VOICE_CHANNEL_ID", 0),
-            tts_engine=os.environ.get("TTS_ENGINE", "voicevox").lower(),
-            tts_speaker=os.environ.get("TTS_SPEAKER", "normal").lower(),
+            tts_engine=engine_name,
+            tts_speaker=speaker_label,
             engines=MappingProxyType(engines_map),
             command_prefix=os.environ.get("COMMAND_PREFIX", "!tts"),
             max_message_length=_env_to_int("MAX_MESSAGE_LENGTH", 10000),
@@ -148,9 +170,9 @@ class Config:
             rate_limit_period=_env_to_nonneg_int("RATE_LIMIT_PERIOD", 60),
             log_level=os.environ.get("LOG_LEVEL", "DEBUG").upper(),
             log_file=os.environ.get("LOG_FILE", "discord_bot_error.log") or None,
-            debug=os.environ.get("DEBUG", "false").lower() in ["true", "1", "yes"],
-            test_mode=os.environ.get("TEST_MODE", "false").lower() in ["true", "1", "yes"],
-            enable_self_message_processing=os.environ.get("ENABLE_SELF_MESSAGE_PROCESSING", "false").lower() in ["true", "1", "yes"],
+            debug=_env_to_bool("DEBUG", False),
+            test_mode=_env_to_bool("TEST_MODE", False),
+            enable_self_message_processing=_env_to_bool("ENABLE_SELF_MESSAGE_PROCESSING", False),
         )
 
     # Backward-compat helper for tests that expect this on Config
@@ -159,6 +181,8 @@ class Config:
 
         Enables message content, guilds, members, and voice state intents.
         """
+        import discord
+
         intents = discord.Intents.default()
         intents.message_content = True
         intents.guilds = True

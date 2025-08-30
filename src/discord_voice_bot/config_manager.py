@@ -7,8 +7,6 @@ imports and providing convenience helpers.
 
 from typing import Any, override
 
-import discord
-
 from .config import Config
 from .protocols import ConfigManager
 
@@ -168,6 +166,8 @@ class ConfigManagerImpl(ConfigManager):
 
         Enables members and message content intents to support command parsing.
         """
+        import discord
+
         intents = discord.Intents.default()
         intents.message_content = True
         intents.guilds = True

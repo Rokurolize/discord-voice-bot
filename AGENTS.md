@@ -42,7 +42,7 @@
 ## Resolving Review Threads
 - Verify locally that the referenced changes are applied:
   - Inspect working tree: `git status`
-  - Review exact diffs: `git diff -U0` (or open the file/PR patch)
+  - Review exact diffs: `git diff -U0` (or open the PR "Files changed" tab or raw patch)
 - Run verification: `uv run poe check` must exit with status code 0 before resolving a thread.
 - Even for doc-only changes, still run the checks to ensure lint/type/tests remain green.
 
@@ -52,6 +52,7 @@
   If your PR comes from a fork, verify remotes and push explicitly:
   ```bash
   git remote -v
+  # Tip: In fork-based PRs, 'origin' is your fork and 'upstream' is the base repo.
   # Confirm your fork is 'origin'. If not, set it:
   # git remote set-url origin git@github.com:<your-username>/<your-fork>.git
   git branch -vv
@@ -63,5 +64,6 @@
 ## Maintenance Note
 - Prefer small, focused commits. Accumulate them locally and push once after all review items are addressed to consolidate CodeRabbit into a single review run.
   - Optionally, tidy history before pushing:
-    - `git rebase -i origin/main` to squash/fixup work-in-progress commits.
+    - `git rebase -i origin/main` to squash/`fixup` work-in-progress commits.
+    - If this branch is shared or already published, avoid history rewrites; prefer a new commit or merge.
     - Or use "Squash and merge" on GitHub to keep main history clean.
