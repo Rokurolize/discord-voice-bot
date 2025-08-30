@@ -252,11 +252,13 @@ class TTSClient:
             current_speaker_id = speaker_id
         else:
             speakers_map = dict(engine_config.get("speakers", {}))
+
             def _to_int(v: Any, d: int) -> int:
                 try:
                     return int(v)
                 except (TypeError, ValueError):
                     return d
+
             first_speaker_any: Any = next(iter(speakers_map.values()), None)
             default_local = _to_int(engine_config.get("default_speaker"), _to_int(first_speaker_any, 3))
             current_speaker_id = default_local
