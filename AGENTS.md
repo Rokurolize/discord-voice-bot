@@ -39,31 +39,13 @@
 - Copy `.env.example` → `.env`; set `DISCORD_BOT_TOKEN`, `TARGET_VOICE_CHANNEL_ID`, and TTS settings (`TTS_ENGINE`, `VOICEVOX_URL`/`AIVIS_URL`).
 - Never commit secrets; `.env` is gitignored. Ensure Discord "Message Content Intent" is enabled for the bot.
 
-### Push Policy
-Push once at the end to trigger CodeRabbit: `git push origin HEAD`.
-
-Notes:
-- Owner/repo are fixed for this project via `GH_OWNER=Rokurolize` and `GH_REPO=discord-voice-bot`; you can still pass `--owner/--repo` explicitly if needed.
-- Use `DRY_RUN=1` with resolve subcommands to preview without mutating.
-- For GitHub Enterprise Server, set `GH_HOST`, e.g. `export GH_HOST=ghe.company.com`.
-- Prefer the one-by-one NDJSON flow above; XML/truncated previews and manual GraphQL are unnecessary here.
-
 ## Verification Before Resolve
 - Compare the referenced code locally and ensure the change is applied.
 - Run checks: `uv run poe check` must pass (exit code 0) before resolving a thread.
 
-## Resolve and Commit Strategy
-- Resolve only the thread you addressed using `resolve-by-discussion-ids` (see Loop above).
-- Commit each resolved item; push once when all review items are addressed.
-
 ## Single-Action Summary
-- Use `list-next-unresolved-ndjson` to fetch full-text comments one at a time.
-- After each fix: `uv run poe check` → resolve that thread → commit.
+- After each fix: `uv run poe check` → resolve → commit.
 - After all items: one final `git push origin HEAD`.
-
-
-## PR Ops (optional)
-- View PR metadata: `gh pr view <N> --json title,headRefName,mergeable,url`.
 
 ## Maintenance Note
 - When iterating on review fixes, prefer small focused commits; avoid pushing until all review items are addressed, to batch CodeRabbit runs into a single CodeRabbit run.
