@@ -7,9 +7,7 @@ from weakref import ref
 import aiohttp
 from loguru import logger
 
-from .config import Config
-
-DEFAULT_API_URL = "http://localhost:50021"
+from .config import DEFAULT_VOICEVOX_URL, Config
 
 
 class TTSClient:
@@ -33,11 +31,12 @@ class TTSClient:
     def api_url(self) -> str:
         """Get current API URL from config."""
         if self.config.tts_engine not in self.config.engines:
-            logger.warning(f"Configured TTS engine '{self.config.tts_engine}' not found in engines. Falling back to default URL.")
-            return DEFAULT_API_URL
+            known = ", ".join(sorted(self.config.engines.keys()))
+            logger.warning(f"Configured TTS engine '{self.config.tts_engine}' not found. Known engines=[{known}]. Falling back to default URL.")
+            return DEFAULT_VOICEVOX_URL
 
         engine_config = self.config.engines.get(self.config.tts_engine, {})
-        return engine_config.get("url", DEFAULT_API_URL)
+        return engine_config.get("url", DEFAULT_VOICEVOX_URL)
 
     @property
     def speaker_id(self) -> int:
@@ -49,11 +48,19 @@ class TTSClient:
         engine = self.config.tts_engine
         engine_cfg: dict[str, Any] = dict(engines.get(engine, {}))  # MappingProxyType is dict-like
         speakers: dict[str, Any] = dict(engine_cfg.get("speakers", {}))
+
+        # Prefer engine-local default; if missing, pick first speakers value; finally fallback to 3.
+        speakers_values = list(speakers.values())
         fallback = 3
-        try:
-            default = int(engine_cfg.get("default_speaker", fallback))
-        except (TypeError, ValueError):
-            default = fallback
+
+        def _to_int(v: Any, d: int) -> int:
+            try:
+                return int(v)
+            except (TypeError, ValueError):
+                return d
+
+        default = _to_int(engine_cfg.get("default_speaker"), _to_int(speakers_values[0] if speakers_values else None, fallback))
+
         try:
             cand = speakers.get(val, default)
             return int(cand)
@@ -76,7 +83,9 @@ class TTSClient:
             if not self._session:
                 logger.debug("🔗 Creating new aiohttp ClientSession for TTS client")
                 timeout = aiohttp.ClientTimeout(total=10, connect=2)
-                self._session = aiohttp.ClientSession(timeout=timeout)
+                # Optional: tune connector for better pooling/latency under load.
+                # connector = aiohttp.TCPConnector(limit=100, ttl_dns_cache=10)
+                self._session = aiohttp.ClientSession(timeout=timeout)  # , connector=connector)
                 logger.debug("✅ aiohttp ClientSession created successfully")
 
     async def close_session(self) -> None:

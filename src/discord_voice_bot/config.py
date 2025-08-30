@@ -1,4 +1,9 @@
-"""Configuration management for Discord Voice TTS Bot."""
+"""Configuration management for Discord Voice TTS Bot.
+
+Module-level defaults are defined here to act as a single source of truth
+for engine URLs and other shared constants. Import these values elsewhere
+instead of re-declaring literals to avoid drift.
+"""
 
 import os
 from collections.abc import Mapping
@@ -9,6 +14,10 @@ from typing import Any, TypedDict
 
 import discord
 from dotenv import load_dotenv
+
+# Shared defaults (SSOT) for engine URLs
+DEFAULT_VOICEVOX_URL = "http://localhost:50021"
+DEFAULT_AIVIS_URL = "http://127.0.0.1:10101"
 
 
 def _env_to_int(key: str, default: int) -> int:
@@ -71,7 +80,7 @@ class Config:
 
         # Build typed engine configurations
         voicevox_cfg: EngineConfig = {
-            "url": os.environ.get("VOICEVOX_URL", "http://localhost:50021"),
+            "url": os.environ.get("VOICEVOX_URL", DEFAULT_VOICEVOX_URL),
             "default_speaker": 3,
             "speakers": MappingProxyType(
                 {
@@ -84,7 +93,7 @@ class Config:
         }
 
         aivis_cfg: EngineConfig = {
-            "url": os.environ.get("AIVIS_URL", "http://127.0.0.1:10101"),
+            "url": os.environ.get("AIVIS_URL", DEFAULT_AIVIS_URL),
             "default_speaker": 1512153250,
             "speakers": MappingProxyType(
                 {
