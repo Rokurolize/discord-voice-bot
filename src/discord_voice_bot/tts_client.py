@@ -7,7 +7,7 @@ from weakref import ref
 import aiohttp
 from loguru import logger
 
-from .config import DEFAULT_VOICEVOX_URL, Config
+from .config import DEFAULT_AIVIS_URL, DEFAULT_VOICEVOX_URL, Config
 
 
 class TTSClient:
@@ -182,6 +182,9 @@ class TTSClient:
 
                 return await response.json()
 
+        except asyncio.CancelledError:
+            # Propagate cooperative cancellation
+            raise
         except Exception as e:
             logger.error(f"Failed to generate audio query: {e!s}")
             return None
@@ -210,6 +213,9 @@ class TTSClient:
 
                 return await response.read()
 
+        except asyncio.CancelledError:
+            # Propagate cooperative cancellation
+            raise
         except Exception as e:
             logger.error(f"Failed to synthesize from query: {e!s}")
             return None
@@ -240,7 +246,7 @@ class TTSClient:
         engine_config = engines.get(target_engine)
         if not engine_config:
             fallback = "voicevox" if "voicevox" in engines else (next(iter(engines.keys()), None))
-            logger.error("Unknown TTS engine requested; target={} fallback={}", target_engine, fallback)
+            logger.error(f"Unknown TTS engine requested; target={target_engine} fallback={fallback}")
             if not fallback:
                 logger.error("No TTS engines configured; aborting synthesis")
                 return None
@@ -262,7 +268,13 @@ class TTSClient:
             first_speaker_any: Any = next(iter(speakers_map.values()), None)
             default_local = _to_int(engine_config.get("default_speaker"), _to_int(first_speaker_any, 3))
             current_speaker_id = default_local
-        target_api_url = engine_config.get("url", self.api_url)
+        # Prefer engine's configured URL; if missing (unexpected), fall back to the
+        # known default of the selected engine to avoid cross-engine bleed-through.
+        if target_engine == "aivis":
+            default_url = DEFAULT_AIVIS_URL
+        else:
+            default_url = DEFAULT_VOICEVOX_URL
+        target_api_url = engine_config.get("url", default_url)
 
         logger.debug(f"Using {target_engine} engine (URL: {target_api_url}) with speaker {current_speaker_id}")
 

@@ -10,7 +10,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, TypedDict
+from typing import Any, TypedDict, cast
 
 import discord
 from dotenv import load_dotenv
@@ -21,11 +21,20 @@ DEFAULT_AIVIS_URL = "http://127.0.0.1:10101"
 
 
 def _env_to_int(key: str, default: int) -> int:
-    """Safely convert an environment variable to an integer."""
-    val = os.environ.get(key)
-    if val is None or not val.isdigit():
+    """Safely convert an environment variable to an integer.
+
+    - Trims surrounding whitespace
+    - Allows underscores in numbers (e.g., "1_000")
+    - Returns ``default`` on any parsing failure
+    """
+    val_raw = os.environ.get(key)
+    if val_raw is None:
         return default
-    return int(val)
+    val = val_raw.strip().replace("_", "")
+    try:
+        return int(val, 10)
+    except ValueError:
+        return default
 
 
 class EngineConfig(TypedDict):
@@ -91,6 +100,7 @@ class Config:
                 }
             ),
         }
+        voicevox_ro: EngineConfig = cast(EngineConfig, MappingProxyType(voicevox_cfg))
 
         aivis_cfg: EngineConfig = {
             "url": os.environ.get("AIVIS_URL", DEFAULT_AIVIS_URL),
@@ -104,10 +114,11 @@ class Config:
                 }
             ),
         }
+        aivis_ro: EngineConfig = cast(EngineConfig, MappingProxyType(aivis_cfg))
 
         engines_map: dict[str, EngineConfig] = {
-            "voicevox": voicevox_cfg,
-            "aivis": aivis_cfg,
+            "voicevox": voicevox_ro,
+            "aivis": aivis_ro,
         }
 
         return cls(
