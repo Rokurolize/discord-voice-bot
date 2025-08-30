@@ -9,6 +9,21 @@ from discord_voice_bot.protocols import DiscordBotClient
 
 
 # Mock Discord objects for testing
+class MockTTSClient:
+    def __init__(self, config_manager: Any) -> None:
+        self.config_manager = config_manager
+        self.session = None
+
+    async def start_session(self) -> None:
+        pass
+
+    async def close_session(self) -> None:
+        pass
+
+    async def check_api_availability(self) -> tuple[bool, str]:
+        return True, ""
+
+
 class MockVoiceState:
     def __init__(self, channel: Mock | None = None) -> None:  # type: ignore[reportMissingSuperCall]
         self.channel = channel
@@ -265,9 +280,10 @@ async def test_health_monitor() -> bool:
     # Create mock bot and health monitor
     bot: MockBot = MockBot()
     config_manager: MockConfigManager = MockConfigManager()
+    tts_client = MockTTSClient(config_manager)
     from discord_voice_bot.health_monitor import HealthMonitor
 
-    monitor: HealthMonitor = HealthMonitor(bot, config_manager)
+    monitor: HealthMonitor = HealthMonitor(bot, config_manager, tts_client)
     print("✅ Health monitor created")
 
     # Test disconnection recording
@@ -296,17 +312,9 @@ async def test_health_monitor() -> bool:
     # Test health check simulation
     print("\n🔍 Testing health check simulation...")
 
-    # Mock the TTS engine health check
-    original_tts_health_check: AsyncMock | None = None
-    try:
-        from discord_voice_bot.tts_engine import get_tts_engine
-
-        tts_engine = get_tts_engine(config_manager)
-        original_tts_health_check = tts_engine.health_check  # type: ignore[assignment]
-        mock_health_check = AsyncMock(return_value=True)
-        tts_engine.health_check = mock_health_check
-    except Exception:
-        pass
+    # Mock the TTS client health check
+    original_check = tts_client.check_api_availability
+    tts_client.check_api_availability = AsyncMock(return_value=(True, ""))  # type: ignore[assignment]
 
     # Perform health check
     try:
@@ -321,8 +329,7 @@ async def test_health_monitor() -> bool:
         print(f"   Health check error: {e}")
 
     # Restore original health check
-    if original_tts_health_check and "tts_engine" in locals():
-        tts_engine.health_check = original_tts_health_check  # type: ignore[assignment]
+    tts_client.check_api_availability = original_check
 
     # Test shutdown
     print("\n🛑 Testing shutdown...")

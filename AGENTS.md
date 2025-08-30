@@ -38,3 +38,32 @@
 ## Security & Configuration Tips
 - Copy `.env.example` → `.env`; set `DISCORD_BOT_TOKEN`, `TARGET_VOICE_CHANNEL_ID`, and TTS settings (`TTS_ENGINE`, `VOICEVOX_URL`/`AIVIS_URL`).
 - Never commit secrets; `.env` is gitignored. Ensure Discord "Message Content Intent" is enabled for the bot.
+
+## Resolving Review Threads
+- Verify locally that the referenced changes are applied:
+  - Inspect working tree: `git status`
+  - Review exact diffs: `git diff -U0` (or open the PR "Files changed" tab or raw patch)
+- Run verification: `uv run poe check` must exit with status code 0 before resolving a thread.
+- Even for doc-only changes, still run the checks to ensure lint/type/tests remain green.
+
+## Single-Action Summary
+- After each fix: `uv run poe check` → resolve → commit.
+- After all items: push once to your PR branch (e.g., `git push`).
+  If your PR comes from a fork, verify remotes and push explicitly:
+  ```bash
+  git remote -v
+  # Tip: In fork-based PRs, 'origin' is your fork and 'upstream' is the base repo.
+  # Confirm your fork is 'origin'. If not, set it:
+  # git remote set-url origin git@github.com:<your-username>/<your-fork>.git
+  git branch -vv
+  # Push the current HEAD to your PR branch on your fork:
+  git push origin HEAD:<your-branch-name>
+  ```
+  Tip: A single final push triggers pre-push hooks and CI once, keeping reviews consolidated.
+
+## Maintenance Note
+- Prefer small, focused commits. Accumulate them locally and push once after all review items are addressed to consolidate CodeRabbit into a single review run.
+  - Optionally, tidy history before pushing:
+    - `git rebase -i origin/main` to squash/`fixup` work-in-progress commits.
+    - If this branch is shared or already published, avoid history rewrites; prefer a new commit or merge.
+    - Or use "Squash and merge" on GitHub to keep main history clean.

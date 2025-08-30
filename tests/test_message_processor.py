@@ -4,7 +4,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from discord_voice_bot.config import get_config
 from discord_voice_bot.message_processor import MessageProcessor
 
 
@@ -35,8 +34,8 @@ def mock_message() -> MagicMock:
     msg.content = "Test message"
     msg.channel = MagicMock()
     msg.guild = MagicMock()  # Treat as a server message
-    config = get_config()
-    msg.channel.id = config.target_voice_channel_id  # Use actual config
+    # Align with processor fixture's target channel (any server text channel is allowed)
+    msg.channel.id = 123456789
     msg.id = 987654321
     msg.type = MagicMock()
     msg.type.name = "default"

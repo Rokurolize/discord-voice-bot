@@ -1,3 +1,4 @@
+# pyright: reportImplicitOverride=false
 """Voice handler facade for Discord Voice TTS Bot."""
 
 import asyncio
@@ -24,17 +25,36 @@ from .workers.player import PlayerWorker
 from .workers.synthesizer import SynthesizerWorker
 
 
+class NullVoiceClient:
+    """Minimal stub voice client for tests and uninitialized state."""
+
+    channel = None
+
+    def is_connected(self) -> bool:  # pragma: no cover - trivial
+        return False
+
+    def is_playing(self) -> bool:  # pragma: no cover - trivial
+        return False
+
+    def stop(self) -> None:  # pragma: no cover - trivial
+        return None
+
+    async def disconnect(self) -> None:  # pragma: no cover - trivial
+        return None
+
+
 class VoiceHandlerInterface(Protocol):
     """Interface for voice handler to avoid circular imports."""
 
     synthesis_queue: Any
     audio_queue: Any
     config: Config
+    # voice client property contract
     voice_client: Any
     target_channel: Any
     current_group_id: str | None
     is_playing: bool
-    stats: "StatsTracker"
+    stats: Any
     connection_state: str
     synthesizer: "SynthesizerWorker | None"
 
@@ -94,31 +114,49 @@ class VoiceHandlerInterface(Protocol):
 class VoiceHandler(VoiceHandlerInterface):
     """Manages Discord voice connections and audio playback using facade pattern."""
 
-    def __init__(self, bot_client: discord.Client, config: Config) -> None:
-        """Initialize voice handler with manager components."""
+    def __init__(self, bot_client: discord.Client, config: Config, tts_client: Any | None = None) -> None:
+        """Initialize voice handler with manager components.
+
+        Args:
+            bot_client: Discord client
+            config: App configuration
+            tts_client: Optional injected TTS client for health monitor/testing
+
+        """
         super().__init__()
         self.bot = bot_client
         self.config = config
 
         # Initialize manager components
-        self.connection_manager = VoiceConnectionManager(bot_client, config)
+        from ..config_manager import ConfigManagerImpl
+
+        self.connection_manager = VoiceConnectionManager(bot_client, ConfigManagerImpl(config))
         self.queue_manager = QueueManager()
         self.rate_limiter_manager = RateLimiterManager()
         self.stats_tracker = StatsTracker()
         self.task_manager = TaskManager()
-        self.health_monitor = HealthMonitor(self.connection_manager, config)
+        if tts_client is None:
+            from ..tts_client import TTSClient as _TTSClient
+
+            tts_client = _TTSClient(config)
+        self.health_monitor = HealthMonitor(self.connection_manager, ConfigManagerImpl(config), tts_client)
 
         # Maintain backward compatibility properties
         self.is_playing = False
 
         # Delegate properties to managers for backward compatibility
-        self.voice_client = self.connection_manager.voice_client
+        # Access voice_client through dynamic property to avoid stale copies
         self.target_channel = self.connection_manager.target_channel
         self.connection_state = self.connection_manager.connection_state
         self.synthesis_queue = self.queue_manager.synthesis_queue
         self.audio_queue = self.queue_manager.audio_queue
         self.current_group_id = self.queue_manager.current_group_id
-        self.stats = self.stats_tracker
+        # Dict-like stats for backward compatibility in tests
+        self.stats = {
+            "messages_processed": 0,
+            "connection_errors": 0,
+            "tts_messages_played": 0,
+        }
 
         # Backward compatibility for rate limiter
         self.rate_limiter = self.rate_limiter_manager.rate_limiter
@@ -147,7 +185,7 @@ class VoiceHandler(VoiceHandlerInterface):
         """Set voice gateway in connection manager."""
         self.connection_manager.voice_gateway = value
 
-    async def start(self, start_player: bool = True) -> None:  # type: ignore[override]
+    async def start(self, start_player: bool = True) -> None:
         """Start the voice handler tasks."""
         # Diagnostics: ensure opus is loaded; if not, voice playback will fail
         try:
@@ -217,32 +255,47 @@ class VoiceHandler(VoiceHandlerInterface):
         self.synthesizer = None
         logger.info("Sent stop signal to workers")
 
-    def is_connected(self) -> bool:  # type: ignore[override]
+    def _get_voice_client(self) -> Any:
+        vc = self.connection_manager.voice_client
+        return vc if vc is not None else NullVoiceClient()
+
+    def _set_voice_client(self, value: Any) -> None:
+        self.connection_manager.voice_client = value
+
+    voice_client = property(_get_voice_client, _set_voice_client)
+
+    def is_connected(self) -> bool:
         """Check if the bot is connected to a voice channel."""
         return self.connection_manager.is_connected()
 
-    async def connect_to_channel(self, channel_id: int) -> bool:  # type: ignore[override]
+    async def connect_to_channel(self, channel_id: int) -> bool:
         """Connect to a voice channel using connection manager."""
         return await self.connection_manager.connect_to_channel(channel_id)
 
-    async def handle_voice_server_update(self, payload: dict[str, Any]) -> None:  # type: ignore[override]
+    async def handle_voice_server_update(self, payload: dict[str, Any]) -> None:
         """Handle VOICE_SERVER_UPDATE event with proper Discord API compliance."""
         await self.connection_manager.handle_voice_server_update(payload)
 
-    async def handle_voice_state_update(self, payload: dict[str, Any]) -> None:  # type: ignore[override]
+    async def handle_voice_state_update(self, payload: dict[str, Any]) -> None:
         """Handle VOICE_STATE_UPDATE event with proper Discord API compliance."""
         await self.connection_manager.handle_voice_state_update(payload)
 
-    async def make_rate_limited_request(self, api_call: Any, *args: Any, **kwargs: Any) -> Any:  # type: ignore[override]
+    async def make_rate_limited_request(self, api_call: Any, *args: Any, **kwargs: Any) -> Any:
         """Make a rate-limited API request with circuit breaker pattern."""
         return await self.rate_limiter_manager.make_rate_limited_request(api_call, *args, **kwargs)
 
-    async def add_to_queue(self, message_data: dict[str, Any]) -> None:  # type: ignore[override]
+    async def add_to_queue(self, message_data: dict[str, Any]) -> None:
         """Add message to synthesis queue with deduplication."""
         await self.queue_manager.add_to_queue(message_data)
 
-    async def skip_current(self) -> int:  # type: ignore[override]
+    async def skip_current(self, group_id: str | None = None) -> int:
         """Skip the current message group."""
+        # Allow caller to specify target group id for compatibility
+        if group_id is not None:
+            self.current_group_id = group_id
+            # Keep QueueManager in sync before performing skip logic
+            self.queue_manager.current_group_id = group_id
+
         if not self.current_group_id:
             return 0
 
@@ -261,7 +314,7 @@ class VoiceHandler(VoiceHandlerInterface):
         logger.info(f"Skipped {total_skipped} chunks from group {self.current_group_id}")
         return total_skipped
 
-    async def clear_all(self) -> int:  # type: ignore[override]
+    async def clear_all(self) -> int:
         """Clear all queues."""
         total = await self.queue_manager.clear_all()
 
@@ -271,7 +324,7 @@ class VoiceHandler(VoiceHandlerInterface):
         logger.info(f"Cleared {total} items from queues")
         return total
 
-    def get_status(self) -> dict[str, Any]:  # type: ignore[override]
+    def get_status(self) -> dict[str, Any]:
         """Get current status information from all managers."""
         connection_info = self.connection_manager.get_connection_info()
         queue_sizes = self.queue_manager.get_queue_sizes()
@@ -295,11 +348,52 @@ class VoiceHandler(VoiceHandlerInterface):
             "max_queue_size": 50,
         }
 
-    async def health_check(self) -> dict[str, Any]:  # type: ignore[override]
+    @property
+    def stats(self) -> dict[str, Any]:
+        """Backward-compatible stats dict for legacy tests and integrations.
+
+        Maps the new StatsTracker counters to the legacy keys expected by
+        older tests (messages_processed, connection_errors,
+        tts_messages_played).
+        """
+        s = self.stats_tracker.get_stats()
+        return {
+            "messages_processed": s.get("messages_played", 0) + s.get("messages_skipped", 0),
+            "connection_errors": s.get("errors", 0),
+            "tts_messages_played": s.get("messages_played", 0),
+        }
+
+    @stats.setter
+    def stats(self, value: dict[str, Any]) -> None:
+        """Allow legacy tests to assign a stats dict.
+
+        The assignment updates the internal StatsTracker counters by mapping
+        legacy keys to current ones. Unrecognized keys are ignored.
+        """
+        # Reset and map known keys into the tracker
+        self.stats_tracker.reset_stats()
+        # Prefer direct keys if present
+        played = value.get("messages_played")
+        skipped = value.get("messages_skipped")
+        errors = value.get("errors")
+        # Map legacy keys
+        if played is None:
+            played = value.get("tts_messages_played")
+        if errors is None:
+            errors = value.get("connection_errors")
+
+        if isinstance(played, int):
+            self.stats_tracker.stats["messages_played"] = played
+        if isinstance(skipped, int):
+            self.stats_tracker.stats["messages_skipped"] = skipped
+        if isinstance(errors, int):
+            self.stats_tracker.stats["errors"] = errors
+
+    async def health_check(self) -> dict[str, Any]:
         """Perform comprehensive voice connection health check."""
         return await self.health_monitor.perform_health_check()
 
-    async def cleanup(self) -> None:  # type: ignore[override]
+    async def cleanup(self) -> None:
         """Clean up resources."""
         # Stop workers gracefully before cleanup
         self.stop_workers()
@@ -313,6 +407,6 @@ class VoiceHandler(VoiceHandlerInterface):
 
         logger.info("Voice handler cleaned up")
 
-    async def cleanup_voice_client(self) -> None:  # type: ignore[override]
+    async def cleanup_voice_client(self) -> None:
         """Aggressively clean up voice client state."""
         await self.connection_manager.cleanup_voice_client()

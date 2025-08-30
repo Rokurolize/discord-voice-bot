@@ -4,7 +4,6 @@ from typing import Any
 
 import discord
 
-
 from ...config import Config
 
 
@@ -25,8 +24,8 @@ async def create_status_embed(status: dict[str, Any], config: Config) -> discord
     )
 
     # TTS status
-    engine = getattr(config, 'tts_engine', None)
-    speaker = getattr(config, 'tts_speaker', None)
+    engine = getattr(config, "tts_engine", None)
+    speaker = getattr(config, "tts_speaker", None)
     engine_display = engine.upper() if engine else "Unknown"
     speaker_display = speaker if speaker else "Unknown"
     _ = embed.add_field(

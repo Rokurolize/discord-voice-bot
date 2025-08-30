@@ -1,6 +1,7 @@
 """Audio processing and optimization for TTS engine."""
 
 from typing import TypedDict
+from weakref import ref
 
 from loguru import logger
 
@@ -34,7 +35,14 @@ class AudioProcessor:
     def __init__(self, config: Config) -> None:
         """Initialize audio processor with a configuration object."""
         super().__init__()
-        self.config = config
+        self._config_ref = ref(config)
+
+    @property
+    def config(self) -> Config:
+        cfg = self._config_ref()
+        if cfg is None:
+            raise RuntimeError("Config has been garbage-collected; AudioProcessor is unbound")
+        return cfg
 
     def optimize_audio_parameters(self, audio_query: AudioQuery) -> None:
         """Optimize audio parameters for Discord voice quality.
@@ -47,7 +55,8 @@ class AudioProcessor:
             return
 
         # Set optimal sample rate from config for Discord
-        audio_query["outputSamplingRate"] = self.config.audio_sample_rate
+        cfg = self.config
+        audio_query["outputSamplingRate"] = cfg.audio_sample_rate
 
         # Adjust volume to prevent clipping
         if "volumeScale" in audio_query:

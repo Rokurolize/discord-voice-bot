@@ -18,14 +18,17 @@ from .health_monitor import HealthMonitor
 class BotManager:
     """Manages bot lifecycle and graceful shutdown."""
 
-    def __init__(self, config: Config) -> None:
-        """Initialize bot manager."""
+    def __init__(self, config: Config | None = None) -> None:
+        """Initialize bot manager.
+
+        If no config is supplied, load from environment.
+        """
         super().__init__()
         self.bot_task: asyncio.Task[None] | None = None
         self.shutdown_event = asyncio.Event()
         self.is_shutting_down = False
         self.health_monitor: HealthMonitor | None = None
-        self.config = config
+        self.config = config or Config.from_env()
 
     def setup_logging(self) -> None:
         """Set up structured logging."""

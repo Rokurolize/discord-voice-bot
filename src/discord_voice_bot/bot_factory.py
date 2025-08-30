@@ -1,5 +1,6 @@
 """Bot factory for Discord Voice TTS Bot initialization and configuration."""
 
+import dataclasses
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
@@ -68,12 +69,13 @@ class BotFactory:
         self.registry = ComponentRegistry()
         logger.info("Bot factory initialized")
 
-    async def create_bot(self, config: Config, bot_class: type[Any] | None = None) -> Any:
+    async def create_bot(self, config: Config | None = None, bot_class: type[Any] | None = None, *, test_mode: bool | None = None) -> Any:
         """Create and configure a new bot instance.
 
         Args:
-            config: Configuration object
+            config: Configuration object (optional; falls back to env)
             bot_class: Bot class to instantiate (defaults to DiscordVoiceTTSBot)
+            test_mode: Optional override for test mode
 
         Returns:
             Configured bot instance
@@ -88,16 +90,21 @@ class BotFactory:
                 bot_module = importlib.import_module(".bot", package="discord_voice_bot")
                 bot_class = bot_module.DiscordVoiceTTSBot
 
-            # Create bot instance with configuration
+            # Prepare configuration
+            cfg = config or Config.from_env()
+            if test_mode is not None:
+                cfg = dataclasses.replace(cfg, test_mode=test_mode)
+
+            # Create bot instance with configuration (direct dataclass injection)
             if bot_class is None:
                 raise ValueError("Bot class cannot be None")
-            bot: Any = bot_class(config)
+            bot: Any = bot_class(config=cfg)
 
             # Setup all components with config
-            await self._setup_components(bot, config)
+            await self._setup_components(bot, cfg)
 
             # Validate configuration
-            await self._validate_configuration(bot, config)
+            await self._validate_configuration(bot, cfg)
 
             logger.info("Bot instance created and configured successfully")
             return bot
@@ -130,7 +137,7 @@ class BotFactory:
         for component_name, creator_func in components_to_setup:
             try:
                 # Pass config to components that need it
-                if component_name in ["event_handler", "voice_handler", "health_monitor"]:
+                if component_name in ["event_handler", "voice_handler", "health_monitor", "message_validator"]:
                     component = await creator_func(bot, config)  # type: ignore[call-arg]
                 else:
                     component = await creator_func(bot)  # type: ignore[call-arg]
@@ -182,14 +189,16 @@ class BotFactory:
             success_msg: Message to log on success
 
         """
+        import inspect
+
         logger.info(start_msg)
         try:
             if callable(operation):
                 result = operation()
-                if hasattr(result, "__await__"):
+                if inspect.isawaitable(result):
                     await result
             else:
-                if hasattr(operation, "__await__"):
+                if inspect.isawaitable(operation):
                     await operation
             logger.info(success_msg)
         except Exception as e:
@@ -197,8 +206,12 @@ class BotFactory:
             raise
 
     async def _create_event_handler(self, bot: Any, config: Config) -> "EventHandler":
-        """Create event handler."""
-        return self._create_component("discord_voice_bot.event_handler", "EventHandler", bot, config)
+        """Create event handler using a ConfigManager wrapper around Config."""
+        # Lazy import to avoid cycles
+        from .config_manager import ConfigManagerImpl
+
+        config_manager = ConfigManagerImpl(config)
+        return self._create_component("discord_voice_bot.event_handler", "EventHandler", bot, config_manager)
 
     async def _create_command_handler(self, bot: Any) -> "CommandHandler":
         """Create command handler."""
@@ -212,9 +225,9 @@ class BotFactory:
             logger.warning("Slash command handler not available")
             return None
 
-    async def _create_message_validator(self, bot: Any) -> "MessageValidator":
-        """Create message validator."""
-        return self._create_component("discord_voice_bot.message_validator", "MessageValidator")
+    async def _create_message_validator(self, bot: Any, config: Config) -> "MessageValidator":
+        """Create message validator with direct Config injection (no bot coupling)."""
+        return self._create_component("discord_voice_bot.message_validator", "MessageValidator", config)
 
     async def _create_status_manager(self, bot: Any) -> "StatusManager":
         """Create status manager."""
@@ -229,8 +242,14 @@ class BotFactory:
             raise
 
     async def _create_health_monitor(self, bot: Any, config: Config) -> Any:
-        """Create health monitor."""
-        return self._create_component("discord_voice_bot.health_monitor", "HealthMonitor", bot, config)
+        """Create health monitor with ConfigManager and TTS client."""
+        # Lazy imports to avoid cycles
+        from .config_manager import ConfigManagerImpl
+        from .tts_client import TTSClient
+
+        config_manager = ConfigManagerImpl(config)
+        tts_client = TTSClient(config)
+        return self._create_component("discord_voice_bot.health_monitor", "HealthMonitor", bot, config_manager, tts_client)
 
     async def _setup_existing_components(self, bot: Any) -> None:
         """Setup existing components that are already part of the bot.
@@ -288,9 +307,13 @@ class BotFactory:
             # Initialize TTS engine
             from .tts_engine import get_tts_engine
 
-            # Use the bot's existing config
-            tts_engine = await get_tts_engine(bot.config)
-            await tts_engine.start()
+            # Use the bot's underlying Config dataclass
+            raw_cfg: Any = getattr(bot, "config", None)
+            cfg: Any = raw_cfg() if callable(raw_cfg) else raw_cfg
+            if not isinstance(cfg, Config):
+                raise RuntimeError("Bot is missing a valid Config instance")
+            tts_engine = await get_tts_engine(cfg)  # already started inside factory
+            bot.tts_engine = tts_engine
             logger.debug("TTS engine initialized")
 
             # Initialize voice handler
@@ -393,6 +416,15 @@ class BotFactory:
 
         # Clear registry
         self.registry.clear()
+
+        # Stop TTS engine if attached to the bot
+        try:
+            tts_engine = getattr(bot, "tts_engine", None)
+            if tts_engine is not None and hasattr(tts_engine, "close"):
+                await tts_engine.close()
+                logger.debug("Shutdown TTS engine")
+        except Exception as e:
+            logger.warning(f"Error shutting down TTS engine: {e}")
 
         logger.info("Bot shutdown completed")
 

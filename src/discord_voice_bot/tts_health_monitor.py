@@ -1,6 +1,7 @@
 """Health monitoring for TTS engine."""
 
 from typing import Any
+from weakref import ref
 
 from loguru import logger
 
@@ -13,8 +14,16 @@ class TTSHealthMonitor:
 
     def __init__(self, config: Config, tts_client: TTSClient) -> None:
         """Initialize TTS health monitor with configuration and TTS client."""
-        self.config = config
+        super().__init__()
+        self._config_ref = ref(config)
         self._tts_client = tts_client
+
+    @property
+    def config(self) -> Config:
+        cfg = self._config_ref()
+        if cfg is None:
+            raise RuntimeError("Config has been garbage-collected; TTSHealthMonitor is unbound")
+        return cfg
 
     async def perform_health_check(self) -> bool:
         """Perform comprehensive health check on TTS engine.
@@ -166,12 +175,16 @@ class TTSHealthMonitor:
                     issues.append("🔴 No TTS engines configured")
                     issues.append("   💡 Check configuration file for engine settings")
                 else:
-                    # Check each engine configuration (dict or object/dataclass)
+                    # Check each engine configuration
                     for engine_name, engine_config in engines.items():
-                        getter = engine_config.get if isinstance(engine_config, dict) else (lambda k, d=None: getattr(engine_config, k, d))
-                        if not getter("url"):
+                        url = engine_config.get("url")
+                        default_speaker = engine_config.get("default_speaker")
+
+                        if not url:
                             issues.append(f"🔴 Engine '{engine_name}' missing URL configuration")
-                        if not getter("default_speaker"):
+                        try:
+                            _ = int(default_speaker)
+                        except (TypeError, ValueError):
                             issues.append(f"🔴 Engine '{engine_name}' missing default speaker")
             except Exception as e:
                 issues.append(f"🔴 Configuration error: {e}")

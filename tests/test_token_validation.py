@@ -189,7 +189,7 @@ async def test_bot_start_with_config_dry_run(mock_login, test_config_manager):
 
 @pytest.mark.asyncio
 @patch("discord.Client.login", new_callable=AsyncMock)
-async def test_actual_bot_startup_simulation(mock_login, prod_config_manager):
+async def test_actual_bot_startup_simulation(mock_login, prod_config_manager, config):
     """Simulate the actual bot startup process to identify the issue."""
 
     print("🎯 Simulating actual bot startup process...")
@@ -198,8 +198,8 @@ async def test_actual_bot_startup_simulation(mock_login, prod_config_manager):
         # Import the actual main module
         from src.discord_voice_bot import __main__
 
-        # Create BotManager with explicit production config
-        bot_manager = __main__.BotManager()
+        # Create BotManager with explicit test config (avoid env-dependent defaults)
+        bot_manager = __main__.BotManager(config)
         # Override the config manager with our production one
         bot_manager.config_manager = prod_config_manager
 

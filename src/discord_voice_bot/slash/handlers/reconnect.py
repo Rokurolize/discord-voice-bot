@@ -20,24 +20,24 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
     try:
         # Guard against use in DMs
         if not interaction.guild:
-            await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
+            _ = await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
             return
 
         # Guard against uninitialized voice handler
         if not hasattr(bot, "voice_handler") or not bot.voice_handler:
             embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.red(), description="❌ Voice handler not initialized")
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            _ = await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
         # Guard against no target channel configured
         if not bot.config.target_voice_channel_id:
             embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.red(), description="❌ No target voice channel is configured for this bot.")
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            _ = await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
-        await interaction.response.defer(ephemeral=True)
+        _ = await interaction.response.defer(ephemeral=True)
         embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.orange(), description="Attempting to reconnect to voice channel...")
-        await interaction.edit_original_response(embed=embed)
+        _ = await interaction.edit_original_response(embed=embed)
 
         try:
             # Attempt reconnection
@@ -48,7 +48,24 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
                 interaction.user.id,
                 (interaction.guild_id or "DM"),
             )
-            success = await bot.voice_handler.connect_to_channel(bot.config.target_voice_channel_id)
+            timed_out = False
+            try:
+                # Use asyncio.timeout for consistent cancellation semantics
+                async with asyncio.timeout(10):
+                    success = await bot.voice_handler.connect_to_channel(bot.config.target_voice_channel_id)
+            except TimeoutError:
+                success = False
+                timed_out = True
+                # Best-effort cleanup of any partial voice client
+                try:
+                    await bot.voice_handler.cleanup_voice_client()
+                except Exception:
+                    logger.opt(exception=True).warning("Cleanup after reconnect timeout failed")
+                embed = discord.Embed(
+                    title="🔄 Voice Reconnection",
+                    color=discord.Color.red(),
+                    description="❌ Reconnection timed out after 10s.",
+                )
 
             # Get new status
             new_status = bot.voice_handler.get_status()
@@ -62,7 +79,9 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
 
                 logger.info("✅ MANUAL RECONNECTION SUCCESSFUL - connected_to={}", new_status["voice_channel_name"])
             else:
-                embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.red(), description="❌ Reconnection failed")
+                # Preserve timeout-specific embed; otherwise show generic failure
+                if not timed_out:
+                    embed = discord.Embed(title="🔄 Voice Reconnection", color=discord.Color.red(), description="❌ Reconnection failed")
 
                 _ = embed.add_field(
                     name="🔍 Troubleshooting",
@@ -89,7 +108,7 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
                 (interaction.guild_id or "DM"),
             )
 
-        await interaction.edit_original_response(embed=embed)
+        _ = await interaction.edit_original_response(embed=embed)
 
     except asyncio.CancelledError:
         raise
@@ -102,8 +121,8 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
         )
         try:
             if interaction.response.is_done():
-                await interaction.followup.send("❌ Error during reconnection", ephemeral=True)
+                _ = await interaction.followup.send("❌ Error during reconnection", ephemeral=True)
             else:
-                await interaction.response.send_message("❌ Error during reconnection", ephemeral=True)
+                _ = await interaction.response.send_message("❌ Error during reconnection", ephemeral=True)
         except Exception as followup_err:
             logger.opt(exception=followup_err).debug("Suppressed secondary error while responding to interaction")

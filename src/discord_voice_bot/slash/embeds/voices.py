@@ -2,23 +2,26 @@
 
 import discord
 
-
 from ...config import Config
 from ...tts_engine import TTSEngine
 from ...user_settings import UserSettings
 
 
-async def create_voices_embed(
-    user_id: str | int, config: Config, tts_engine: TTSEngine, user_settings: UserSettings
-) -> discord.Embed:
+async def create_voices_embed(user_id: str | int, config: Config, tts_engine: TTSEngine, user_settings: UserSettings) -> discord.Embed:
     """Create voices embed showing available speakers."""
     try:
         speakers = await tts_engine.get_available_speakers()
 
-        # Get user's current setting
+        # Get user's current setting (prefer ID to avoid name mismatches)
         user_id_str = str(user_id)
-        current_settings = user_settings.get_user_settings(user_id_str)
-        current_speaker = current_settings.get("speaker_name") if current_settings else None
+        current_speaker_id = user_settings.get_user_speaker(user_id_str, current_engine=config.tts_engine)
+        current_speaker_name = None
+        if current_speaker_id is not None:
+            # Map ID back to a display name if available
+            for name, sid in speakers.items():
+                if sid == current_speaker_id:
+                    current_speaker_name = name
+                    break
 
         embed = discord.Embed(
             title=f"🎭 Available Voices ({config.tts_engine.upper()})",
@@ -39,16 +42,16 @@ async def create_voices_embed(
         for base_name, variants in speaker_groups.items():
             field_lines: list[str] = []
             for name, speaker_id in variants:
-                marker = "🔹" if name == current_speaker else "▫️"
+                marker = "🔹" if current_speaker_id is not None and speaker_id == current_speaker_id else "▫️"
                 field_lines.append(f"{marker} `{name}` ({speaker_id})")
 
-            _ = embed.add_field(name=base_name.title(), value="\n".join(field_lines), inline=True)
+            embed = embed.add_field(name=base_name.title(), value="\n".join(field_lines), inline=True)
 
         # Add current setting info
-        if current_speaker:
-            _ = embed.set_footer(text=f"Your current voice: {current_speaker}")
+        if current_speaker_name:
+            embed = embed.set_footer(text=f"Your current voice: {current_speaker_name}")
         else:
-            _ = embed.set_footer(text="You're using the default voice")
+            embed = embed.set_footer(text="You're using the default voice")
 
         return embed
 

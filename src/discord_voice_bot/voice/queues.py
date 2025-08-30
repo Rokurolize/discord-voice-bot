@@ -17,6 +17,10 @@ class SynthesisQueue:
         """Add item to synthesis queue."""
         await self._queue.put(item)
 
+    def put_nowait(self, item: dict[str, Any]) -> None:
+        """Add item to synthesis queue without waiting."""
+        self._queue.put_nowait(item)
+
     async def get(self) -> dict[str, Any]:
         """Get item from synthesis queue."""
         return await self._queue.get()

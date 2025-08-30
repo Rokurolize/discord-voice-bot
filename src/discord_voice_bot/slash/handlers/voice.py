@@ -1,11 +1,14 @@
 """Voice slash command handler."""
 
 import asyncio
+from collections.abc import Mapping
+from typing import Any, cast
 
 import discord
 from loguru import logger
 
 from ...bot import DiscordVoiceTTSBot
+from ...config import EngineConfig
 
 
 async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, speaker: str | None = None) -> None:
@@ -53,17 +56,17 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, spea
                 _ = await interaction.response.send_message("ℹ️ You don't have a custom voice set", ephemeral=True)
             return
 
-        # Get available speakers
-        from ...tts_engine import get_tts_engine
-
+        # Get available speakers from static mapping (no engine startup needed)
         config = bot.config
-        tts_engine = await get_tts_engine(config)
-        speakers = await tts_engine.get_available_speakers()
+        engine_key = (config.tts_engine or "voicevox").lower()
+        engine_cfg = cast(EngineConfig, config.engines.get(engine_key, {}))
+        speakers_map: Mapping[str, int] = engine_cfg.get("speakers", {})
+        speakers: dict[str, int] = dict(speakers_map)
 
         # Find matching speaker (case-insensitive)
         speaker_lower = speaker.lower()
-        matched_speaker = None
-        matched_id = None
+        matched_speaker: str | None = None
+        matched_id: int | None = None
 
         for name, speaker_id in speakers.items():
             if name.lower() == speaker_lower or str(speaker_id) == speaker:
@@ -77,8 +80,9 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, spea
                 _ = await interaction.response.send_message(f"✅ Voice set to **{matched_speaker}** (ID: {matched_id}) on {config.tts_engine.upper()}", ephemeral=True)
                 # Test the new voice
                 test_text = f"{matched_speaker}の声です"
-                if hasattr(bot, "voice_handler") and bot.voice_handler and hasattr(bot, "message_processor"):
-                    chunks = bot.message_processor.chunk_message(test_text)
+                if hasattr(bot, "voice_handler") and bot.voice_handler:
+                    mp: Any = getattr(bot, "message_processor", None)
+                    chunks: list[str] = mp.chunk_message(test_text) if mp and hasattr(mp, "chunk_message") else [test_text]
                     processed_message = {
                         "text": test_text,
                         "user_id": interaction.user.id,

@@ -26,9 +26,14 @@ class ValidationResult:
 class MessageValidator:
     """Core validation logic for Discord messages."""
 
-    def __init__(self, config: Config) -> None:
-        """Initialize message validator."""
-        self.config = config
+    def __init__(self, config: Config | None = None) -> None:
+        """Initialize message validator.
+
+        If no config is provided, load from environment for backward
+        compatibility with older tests that instantiate without args.
+        """
+        super().__init__()
+        self.config = config or Config.from_env()
 
         # Initialize components
         self.content_filter = ContentFilter()
