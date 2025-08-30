@@ -126,6 +126,15 @@ class TTSClient:
             logger.error(f"{self.engine_name} TTS API: {error_msg}")
             return False, error_msg
 
+        # Why we catch the built-in TimeoutError (Python ≥ 3.11, our project uses 3.12):
+        # - In Python 3.11+, asyncio.TimeoutError is an alias of the built-in TimeoutError.
+        #   (See Python docs: asyncio.TimeoutError — deprecated alias of TimeoutError.)
+        # - aiohttp raises timeout-specific exceptions (ServerTimeoutError, ConnectionTimeoutError,
+        #   SocketTimeoutError) that all inherit from asyncio.TimeoutError — and therefore from TimeoutError.
+        # - Catching TimeoutError thus handles all aiohttp timeouts without redundancy; writing
+        #   (asyncio.TimeoutError, TimeoutError) is equivalent but noisier.
+        # - Linters (e.g., Ruff UP041) recommend using the built-in TimeoutError directly on 3.11+.
+        # - If this code is ever backported to Python ≤ 3.10, revisit this decision.
         except TimeoutError:
             error_msg = "connection timeout - server may be starting up"
             logger.error(f"{self.engine_name} TTS API: {error_msg}")
