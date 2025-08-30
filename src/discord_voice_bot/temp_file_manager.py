@@ -4,7 +4,7 @@ import shutil
 import tempfile
 from pathlib import Path
 from typing import Any
-from weakref import ref
+from weakref import finalize, ref
 
 from loguru import logger
 
@@ -68,9 +68,7 @@ class TempFileManager:
                         "speaker_id": speaker_id,
                         "engine_name": engine_name,
                     }
-                    saved_pre_path = audio_debugger.save_audio_stage(
-                        audio_data, "pre_discord", text, metadata
-                    )
+                    saved_pre_path = audio_debugger.save_audio_stage(audio_data, "pre_discord", text, metadata)
                     logger.debug(f"🔍 Saved pre-Discord audio for debugging: {saved_pre_path}")
                 except Exception as e:
                     logger.warning(f"Failed to save pre-Discord debug audio: {e}")
@@ -90,10 +88,12 @@ class TempFileManager:
                 audio_source._temp_path = temp_path  # type: ignore[attr-defined]
                 # Optional safety net: cleanup when audio_source is GC'ed
                 try:
-                    import weakref
-
-                    _ = weakref.finalize(audio_source, Path(temp_path).unlink, missing_ok=True)
+                    # Retain Finalize object to prevent GC from discarding it
+                    audio_source._finalizer = finalize(  # type: ignore[attr-defined]
+                        audio_source, Path(temp_path).unlink, missing_ok=True
+                    )
                 except Exception:
+                    # Best-effort; explicit cleanup still happens in cleanup_audio_source
                     pass
 
                 # DEBUG: Test the created audio source and save converted audio (only when debug enabled)
