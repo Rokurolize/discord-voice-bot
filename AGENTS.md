@@ -40,12 +40,16 @@
 - Never commit secrets; `.env` is gitignored. Ensure Discord "Message Content Intent" is enabled for the bot.
 
 ## Verification Before Resolve
-- Compare the referenced code locally and ensure the change is applied.
-- Run checks: `uv run poe check` must pass (exit code 0) before resolving a thread.
+- Verify locally that the referenced changes are actually applied:
+  - Inspect working tree: `git status`
+  - Review exact diffs: `git diff -U0` (or open the file/PR patch)
+- Run verification: `uv run poe check` must exit with code 0 before resolving a thread.
+- Even for doc-only changes, still run the checks to ensure lint/type/tests remain green.
 
 ## Single-Action Summary
 - After each fix: `uv run poe check` → resolve → commit.
-- After all items: one final `git push origin HEAD`.
+- After all items: push once to your PR branch (e.g., `git push`).
+  If your PR comes from a fork, ensure `origin` points to your fork or push to the correct remote/branch explicitly.
 
 ## Maintenance Note
-- When iterating on review fixes, prefer small focused commits; avoid pushing until all review items are addressed, to batch CodeRabbit runs into a single CodeRabbit run.
+- Prefer small, focused commits. Accumulate them locally and push once after all review items are addressed to consolidate CodeRabbit into a single review run.
