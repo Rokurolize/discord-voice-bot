@@ -49,7 +49,19 @@
 ## Single-Action Summary
 - After each fix: `uv run poe check` → resolve → commit.
 - After all items: push once to your PR branch (e.g., `git push`).
-  If your PR comes from a fork, ensure `origin` points to your fork or push to the correct remote/branch explicitly.
+  If your PR comes from a fork, verify remotes and push explicitly:
+  ```bash
+  git remote -v
+  # Confirm your fork is 'origin'. If not, set it:
+  # git remote set-url origin git@github.com:<your-username>/<your-fork>.git
+  git branch -vv
+  # Push the current HEAD to your PR branch on your fork:
+  git push origin HEAD:<your-branch-name>
+  ```
+  Tip: A single final push triggers pre-push hooks and CI once, keeping reviews consolidated.
 
 ## Maintenance Note
 - Prefer small, focused commits. Accumulate them locally and push once after all review items are addressed to consolidate CodeRabbit into a single review run.
+ - Optionally, tidy history before pushing:
+   - `git rebase -i origin/main` to squash/fixup work-in-progress commits.
+   - Or use “Squash and merge” on GitHub to keep main history clean.
