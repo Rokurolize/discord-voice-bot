@@ -39,11 +39,11 @@
 - Copy `.env.example` → `.env`; set `DISCORD_BOT_TOKEN`, `TARGET_VOICE_CHANNEL_ID`, and TTS settings (`TTS_ENGINE`, `VOICEVOX_URL`/`AIVIS_URL`).
 - Never commit secrets; `.env` is gitignored. Ensure Discord "Message Content Intent" is enabled for the bot.
 
-## Verification Before Resolve
-- Verify locally that the referenced changes are actually applied:
+## Resolving Review Threads
+- Verify locally that the referenced changes are applied:
   - Inspect working tree: `git status`
   - Review exact diffs: `git diff -U0` (or open the file/PR patch)
-- Run verification: `uv run poe check` must exit with code 0 before resolving a thread.
+- Run verification: `uv run poe check` must exit with status code 0 before resolving a thread.
 - Even for doc-only changes, still run the checks to ensure lint/type/tests remain green.
 
 ## Single-Action Summary
