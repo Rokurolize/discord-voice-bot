@@ -39,37 +39,6 @@
 - Copy `.env.example` → `.env`; set `DISCORD_BOT_TOKEN`, `TARGET_VOICE_CHANNEL_ID`, and TTS settings (`TTS_ENGINE`, `VOICEVOX_URL`/`AIVIS_URL`).
 - Never commit secrets; `.env` is gitignored. Ensure Discord "Message Content Intent" is enabled for the bot.
 
-## PR Review Handling Workflow (gh-review-threads.sh)
-- Prereqs: install `gh` and `jq`; authenticate (defaults to `github.com` if `GH_HOST` is unset):
-  - `gh auth status -h "${GH_HOST:-github.com}"`
-- Project defaults (set once):
-  - `export GH_OWNER=Rokurolize`
-  - `export GH_REPO=discord-voice-bot`
-  - (optional, for GHES) `export GH_HOST=<hostname>`
-- Help: `scripts/gh-review-threads.sh --help` shows all flags and subcommands.
-
-### NDJSON Schema (stable)
-- Command: `scripts/gh-review-threads.sh list-unresolved-ndjson`
-- Fields: `thread_id, status, outdated, path, databaseId, url, body, diffHunk`
-- Notes:
-  - Field names are stable for tool integrations.
-  - `list-next-unresolved-ndjson` picks the smallest `databaseId` (stable order).
-
-### One-by-One Loop (full text, minimal steps)
-- Set PR: `export GH_PR=<number>` (or pass `--pr <number>` per call).
-- Get next unresolved (full body): `line="$(scripts/gh-review-threads.sh list-next-unresolved-ndjson)"`
-  - If the command prints nothing (empty output), you're done — no unresolved items remain.
-- Inspect context quickly:
-  - Path/URL: `echo "$line" | jq -r '.path, .url'`
-  - Diff: `echo "$line" | jq -r '.diffHunk' | less -R`
-  - Body: `echo "$line" | jq -r '.body' | less -R`
-- Implement the fix, then verify: `uv run poe check`.
-- Resolve the addressed thread only:
-  - `id="$(echo "$line" | jq -r '.databaseId')"`
-  - `scripts/gh-review-threads.sh resolve-by-discussion-ids "$id"`
-- Commit after each item: `git add -A && git commit -m "fix: address review — <short>"`.
-- Repeat until no more output from `list-next-unresolved-ndjson`.
-
 ### Push Policy
 Push once at the end to trigger CodeRabbit: `git push origin HEAD`.
 
@@ -92,14 +61,6 @@ Notes:
 - After each fix: `uv run poe check` → resolve that thread → commit.
 - After all items: one final `git push origin HEAD`.
 
-### Optional Filters
-- To skip outdated comments, filter (pick first non-outdated):
-  - `scripts/gh-review-threads.sh list-unresolved-ndjson | jq -c 'select(.outdated==false)' | head -n 1`
-  - Or slurp with jq: `scripts/gh-review-threads.sh list-unresolved-ndjson | jq -sc 'map(select(.outdated==false)) | first'`
-  - Note: one discussion `databaseId` resolves the entire thread.
-
-## Script Help
-See `scripts/gh-review-threads.sh --help` for the complete list of subcommands and flags.
 
 ## PR Ops (optional)
 - View PR metadata: `gh pr view <N> --json title,headRefName,mergeable,url`.
