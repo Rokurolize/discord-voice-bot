@@ -39,6 +39,10 @@
 - Copy `.env.example` → `.env`; set `DISCORD_BOT_TOKEN`, `TARGET_VOICE_CHANNEL_ID`, and TTS settings (`TTS_ENGINE`, `VOICEVOX_URL`/`AIVIS_URL`).
 - Never commit secrets; `.env` is gitignored. Ensure Discord "Message Content Intent" is enabled for the bot.
 
+### Test-only overrides
+- `TEST_TARGET_VOICE_CHANNEL_ID` (default: `123456789`) — overrides the voice channel while in test mode.
+- `TEST_RATE_LIMIT_MESSAGES` (default: `5`) and `TEST_RATE_LIMIT_PERIOD` (default: `60`) — override rate limits in test mode.
+
 ## Resolving Review Threads
 - Verify locally that the referenced changes are applied to your working tree:
   - Inspect working tree: `git status`
@@ -59,7 +63,7 @@
   # git remote set-url origin git@github.com:<your-username>/<your-fork>.git
   git branch -vv
   # Push the current HEAD to your PR branch on your fork:
-  git push origin HEAD:<your-branch-name>
+  git push -u origin HEAD:<your-branch-name>
   ```
   Tip: A single final push triggers pre-push hooks and CI only once, keeping reviews consolidated.
 

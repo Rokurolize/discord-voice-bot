@@ -10,6 +10,10 @@ from typing import Any, cast
 
 from .config import DEFAULT_AIVIS_URL, DEFAULT_VOICEVOX_URL, Config
 
+# Test-only environment variable names (centralized for discoverability)
+TEST_RATE_LIMIT_MESSAGES_ENV = "TEST_RATE_LIMIT_MESSAGES"
+TEST_RATE_LIMIT_PERIOD_ENV = "TEST_RATE_LIMIT_PERIOD"
+
 
 class ConfigManagerImpl:
     """Configuration manager that adapts a ``Config`` dataclass to the protocol."""
@@ -40,17 +44,27 @@ class ConfigManagerImpl:
     def get_api_url(self) -> str:
         """Get TTS API URL from current engine configuration."""
         cfg = self._get_config()
-        ec = cfg.engines.get(cfg.tts_engine, {})
-        # Use SSOT defaults from config for engine-specific fallback
-        default_url = DEFAULT_AIVIS_URL if cfg.tts_engine == "aivis" else DEFAULT_VOICEVOX_URL
+        if cfg.tts_engine not in cfg.engines:
+            raise ValueError(f"unknown tts_engine: {cfg.tts_engine!r}")
+        ec = cfg.engines[cfg.tts_engine]
+        if cfg.tts_engine == "aivis":
+            default_url = DEFAULT_AIVIS_URL
+        elif cfg.tts_engine == "voicevox":
+            default_url = DEFAULT_VOICEVOX_URL
+        else:
+            raise ValueError(f"unsupported tts_engine for default URL: {cfg.tts_engine!r}")
         return ec.get("url", default_url)
 
     def get_speaker_id(self) -> int:
         """Get default speaker ID for current engine."""
         cfg = self._get_config()
-        ec = cfg.engines.get(cfg.tts_engine, {})
-        # Engine-specific sensible defaults
-        default_sid = {"voicevox": 3, "aivis": 1512153250}.get(cfg.tts_engine, 3)
+        if cfg.tts_engine not in cfg.engines:
+            raise ValueError(f"unknown tts_engine: {cfg.tts_engine!r}")
+        ec = cfg.engines[cfg.tts_engine]
+        default_map = {"voicevox": 3, "aivis": 1512153250}
+        default_sid = default_map.get(cfg.tts_engine)
+        if default_sid is None and "default_speaker" not in ec:
+            raise ValueError(f"default speaker not configured for engine: {cfg.tts_engine!r}")
         return int(ec.get("default_speaker", default_sid))
 
     def get_tts_engine(self) -> str:
@@ -90,7 +104,7 @@ class ConfigManagerImpl:
 
     def get_target_voice_channel_id(self) -> int:
         """Get target voice channel ID."""
-        # In test mode, use env override if provided; otherwise a fixed default
+        # In test mode, use TEST_TARGET_VOICE_CHANNEL_ID if set; otherwise default
         if self.is_test_mode():
             import os
 
@@ -139,19 +153,22 @@ class ConfigManagerImpl:
     def get_rate_limit_messages(self) -> int:
         """Get rate limit messages."""
         if self.is_test_mode():
-            return self._get_env_int("TEST_RATE_LIMIT_MESSAGES", 5)
+            return self._get_env_int(TEST_RATE_LIMIT_MESSAGES_ENV, 5)
         return self._get_config().rate_limit_messages
 
     def get_rate_limit_period(self) -> int:
         """Get rate limit period."""
         if self.is_test_mode():
-            return self._get_env_int("TEST_RATE_LIMIT_PERIOD", 60)
+            return self._get_env_int(TEST_RATE_LIMIT_PERIOD_ENV, 60)
         return self._get_config().rate_limit_period
 
     def _get_env_int(self, name: str, default: int) -> int:
         import os
 
-        v = os.getenv(name, str(default))
+        v = os.getenv(name)
+        if v is None:
+            return default
+        v = v.strip()
         try:
             n = int(v)
             if n >= 0:
