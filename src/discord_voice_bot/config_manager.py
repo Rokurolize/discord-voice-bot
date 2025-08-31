@@ -13,6 +13,9 @@ from .config import DEFAULT_AIVIS_URL, DEFAULT_VOICEVOX_URL, Config
 # Test-only environment variable names (centralized for discoverability)
 TEST_RATE_LIMIT_MESSAGES_ENV = "TEST_RATE_LIMIT_MESSAGES"
 TEST_RATE_LIMIT_PERIOD_ENV = "TEST_RATE_LIMIT_PERIOD"
+TEST_TARGET_VOICE_CHANNEL_ID_ENV = "TEST_TARGET_VOICE_CHANNEL_ID"
+TEST_TARGET_VOICE_CHANNEL_ID_DEFAULT = 123456789
+DEFAULT_SPEAKER_IDS: dict[str, int] = {"voicevox": 3, "aivis": 1512153250}
 
 
 class ConfigManagerImpl:
@@ -61,8 +64,7 @@ class ConfigManagerImpl:
         if cfg.tts_engine not in cfg.engines:
             raise ValueError(f"unknown tts_engine: {cfg.tts_engine!r}")
         ec = cfg.engines[cfg.tts_engine]
-        default_map = {"voicevox": 3, "aivis": 1512153250}
-        default_sid = default_map.get(cfg.tts_engine)
+        default_sid = DEFAULT_SPEAKER_IDS.get(cfg.tts_engine)
         if default_sid is None and "default_speaker" not in ec:
             raise ValueError(f"default speaker not configured for engine: {cfg.tts_engine!r}")
         return int(ec.get("default_speaker", default_sid))
@@ -92,6 +94,8 @@ class ConfigManagerImpl:
             raise ValueError("target_voice_channel_id must be a positive integer in non-test mode")
         if cfg.tts_engine not in cfg.engines:
             raise ValueError(f"unknown tts_engine: {cfg.tts_engine!r}")
+        if not cfg.test_mode and getattr(cfg, "target_guild_id", 0) <= 0:
+            raise ValueError("target_guild_id must be a positive integer in non-test mode")
 
     # Additional convenience methods for specific config access
     def get_discord_token(self) -> str:
@@ -104,18 +108,18 @@ class ConfigManagerImpl:
 
     def get_target_voice_channel_id(self) -> int:
         """Get target voice channel ID."""
-        # In test mode, use TEST_TARGET_VOICE_CHANNEL_ID if set; otherwise default
+        # In test mode, use TEST_TARGET_VOICE_CHANNEL_ID if set; otherwise default (env-first for test determinism)
         if self.is_test_mode():
             import os
 
-            v = os.getenv("TEST_TARGET_VOICE_CHANNEL_ID", "123456789")
+            v = os.getenv(TEST_TARGET_VOICE_CHANNEL_ID_ENV, str(TEST_TARGET_VOICE_CHANNEL_ID_DEFAULT))
             try:
                 n = int(v)
                 if n > 0:
                     return n
             except ValueError:
                 pass
-            return 123456789
+            return TEST_TARGET_VOICE_CHANNEL_ID_DEFAULT
         channel_id = int(self._get_config().target_voice_channel_id)
         if channel_id <= 0:
             raise ValueError("target_voice_channel_id must be a positive integer")
@@ -129,7 +133,9 @@ class ConfigManagerImpl:
         """Get current TTS engine configuration."""
         cfg = self._get_config()
         # Deep copy to avoid accidental mutation of nested mappings (e.g., "speakers")
-        return cast(dict[str, Any], deepcopy(cfg.engines.get(cfg.tts_engine, {})))
+        if cfg.tts_engine not in cfg.engines:
+            raise ValueError(f"unknown tts_engine: {cfg.tts_engine!r}")
+        return cast(dict[str, Any], deepcopy(cfg.engines[cfg.tts_engine]))
 
     def get_engines(self) -> dict[str, dict[str, Any]]:
         """Get all engine configurations."""
@@ -168,7 +174,7 @@ class ConfigManagerImpl:
         v = os.getenv(name)
         if v is None:
             return default
-        v = v.strip()
+        v = v.strip().replace("_", "")
         try:
             n = int(v)
             if n >= 0:

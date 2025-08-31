@@ -40,6 +40,10 @@
 - Never commit secrets; `.env` is gitignored. Ensure Discord "Message Content Intent" is enabled for the bot.
 
 ### Test-only overrides
+- `TEST_TARGET_VOICE_CHANNEL_ID` (default: `123456789`) — overrides the voice channel while in test mode (set via environment variables or `.env`).
+- `TEST_RATE_LIMIT_MESSAGES` (default: `5`) and `TEST_RATE_LIMIT_PERIOD` (default: `60`) — override rate limits in test mode (set via environment variables or `.env`).
+
+### Test-only overrides
 - `TEST_TARGET_VOICE_CHANNEL_ID` (default: `123456789`) — overrides the voice channel while in test mode.
 - `TEST_RATE_LIMIT_MESSAGES` (default: `5`) and `TEST_RATE_LIMIT_PERIOD` (default: `60`) — override rate limits in test mode.
 
@@ -63,7 +67,7 @@
   # git remote set-url origin git@github.com:<your-username>/<your-fork>.git
   git branch -vv
   # Push the current HEAD to your PR branch on your fork:
-  git push -u origin HEAD:<your-branch-name>
+  git push -u origin HEAD:$(git rev-parse --abbrev-ref HEAD)
   ```
   Tip: A single final push triggers pre-push hooks and CI only once, keeping reviews consolidated.
 
@@ -73,3 +77,4 @@
     - `git rebase -i origin/main` to squash commits or mark work-in-progress commits as `fixup`.
     - If this branch is shared or already published, avoid history rewrites; prefer a new commit or merge.
     - Or use "Squash and merge" on GitHub to keep the main history clean.
+    - If you rebased local history, push safely: `git push --force-with-lease`
