@@ -20,7 +20,6 @@ DEFAULT_SPEAKER_IDS: dict[str, int] = {"voicevox": 3, "aivis": 1512153250}
 
 
 class ConfigManagerImpl:
-
     def _normalize_to_plain_dict(self, m: Mapping[str, Any]) -> dict[str, Any]:
         out: dict[str, Any] = {}
         for k, v in m.items():
@@ -180,9 +179,7 @@ class ConfigManagerImpl:
         """Get target voice channel ID."""
         # In test mode, use TEST_TARGET_VOICE_CHANNEL_ID if set; otherwise default (env-first for test determinism)
         if self.is_test_mode():
-            return self._get_env_int(
-                TEST_TARGET_VOICE_CHANNEL_ID_ENV, TEST_TARGET_VOICE_CHANNEL_ID_DEFAULT, min_value=1
-            )
+            return self._get_env_int(TEST_TARGET_VOICE_CHANNEL_ID_ENV, TEST_TARGET_VOICE_CHANNEL_ID_DEFAULT, min_value=1)
         channel_id = int(self._get_config().target_voice_channel_id)
         if channel_id <= 0:
             raise ValueError("target_voice_channel_id must be a positive integer")
