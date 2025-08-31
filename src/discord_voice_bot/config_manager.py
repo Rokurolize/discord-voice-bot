@@ -81,8 +81,10 @@ class ConfigManagerImpl:
         cfg = self._get_config()
         # Prefer explicit URL when provided in engine config
         ec = cfg.engines.get(cfg.tts_engine)
-        if ec is not None and ec.get("url"):
-            url = str(ec["url"])  # minimal validation for common mistakes
+        if ec is not None and "url" in ec:
+            url = str(ec["url"]).strip()  # minimal validation for common mistakes
+            if not url:
+                raise ValueError(f"invalid url for engine {cfg.tts_engine!r}: {ec['url']!r} (empty)")
             try:
                 from urllib.parse import urlparse
 
@@ -99,7 +101,6 @@ class ConfigManagerImpl:
             return DEFAULT_VOICEVOX_URL
         # Unknown engine without URL/default
         raise ValueError(f"unknown or unsupported tts_engine {cfg.tts_engine!r}; provide an explicit 'url' under engines[engine] or switch to a supported engine")
-
     def get_speaker_id(self) -> int:
         """Get default speaker ID for current engine."""
         cfg = self._get_config()
@@ -253,7 +254,7 @@ class ConfigManagerImpl:
         v = os.getenv(name)
         if v is None:
             return default
-        v = v.strip().replace("_", "")
+        v = v.strip().replace("_", "").replace(" ", "")
         try:
             n = int(v)
             if n >= min_value:
