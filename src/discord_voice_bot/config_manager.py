@@ -221,10 +221,7 @@ class ConfigManagerImpl:
         """Get all engine configurations."""
         # Return plain dicts; convert nested mappings to dicts to avoid leaking MappingProxyType
         cfg = self._get_config()
-        return {
-            name: self._normalize_to_plain_dict(cast(Mapping[str, Any], ev))
-            for name, ev in cfg.engines.items()
-        }
+        return {name: self._normalize_to_plain_dict(cast(Mapping[str, Any], ev)) for name, ev in cfg.engines.items()}
 
     def get_max_message_length(self) -> int:
         """Get maximum message length."""
