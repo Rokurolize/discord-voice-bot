@@ -92,6 +92,7 @@ class ConfigManagerImpl:
         # In test mode, use env override if provided; otherwise a fixed default
         if self.is_test_mode():
             import os
+
             v = os.getenv("TEST_TARGET_VOICE_CHANNEL_ID", "123456789")
             try:
                 n = int(v)
@@ -136,6 +137,7 @@ class ConfigManagerImpl:
         """Get rate limit messages."""
         if self.is_test_mode():
             import os
+
             v = os.getenv("TEST_RATE_LIMIT_MESSAGES", "5")
             try:
                 n = int(v)
@@ -150,6 +152,7 @@ class ConfigManagerImpl:
         """Get rate limit period."""
         if self.is_test_mode():
             import os
+
             v = os.getenv("TEST_RATE_LIMIT_PERIOD", "60")
             try:
                 n = int(v)
