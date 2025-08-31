@@ -75,6 +75,8 @@ class ConfigManagerImpl:
             raise ValueError("discord_token is empty")
         if not cfg.target_voice_channel_id and not cfg.test_mode:
             raise ValueError("target_voice_channel_id is not set (non-test mode)")
+        if cfg.tts_engine not in cfg.engines:
+            raise ValueError(f"unknown tts_engine: {cfg.tts_engine!r}")
 
     # Additional convenience methods for specific config access
     def get_discord_token(self) -> str:
@@ -87,8 +89,16 @@ class ConfigManagerImpl:
 
     def get_target_voice_channel_id(self) -> int:
         """Get target voice channel ID."""
-        # In test mode, normalize to a fixed test channel ID used by fixtures
+        # In test mode, use env override if provided; otherwise a fixed default
         if self.is_test_mode():
+            import os
+            v = os.getenv("TEST_TARGET_VOICE_CHANNEL_ID", "123456789")
+            try:
+                n = int(v)
+                if n >= 0:
+                    return n
+            except ValueError:
+                pass
             return 123456789
         channel_id = self._get_config().target_voice_channel_id
         if not channel_id:
@@ -126,16 +136,28 @@ class ConfigManagerImpl:
         """Get rate limit messages."""
         if self.is_test_mode():
             import os
-
-            return int(os.getenv("TEST_RATE_LIMIT_MESSAGES", "5"))
+            v = os.getenv("TEST_RATE_LIMIT_MESSAGES", "5")
+            try:
+                n = int(v)
+                if n >= 0:
+                    return n
+            except ValueError:
+                pass
+            return 5
         return self._get_config().rate_limit_messages
 
     def get_rate_limit_period(self) -> int:
         """Get rate limit period."""
         if self.is_test_mode():
             import os
-
-            return int(os.getenv("TEST_RATE_LIMIT_PERIOD", "60"))
+            v = os.getenv("TEST_RATE_LIMIT_PERIOD", "60")
+            try:
+                n = int(v)
+                if n >= 0:
+                    return n
+            except ValueError:
+                pass
+            return 60
         return self._get_config().rate_limit_period
 
     def get_log_file(self) -> str | None:

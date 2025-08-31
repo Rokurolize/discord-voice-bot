@@ -49,8 +49,10 @@
 ## Single-Action Summary
 - After each fix: `uv run poe check` → commit locally → resolve in the PR UI.
 - After all items: push once to your PR branch (e.g., `git push`).
+ - Do not bypass pre-push hooks; if hooks fail, fix issues and re-run `uv run poe check` before pushing again.
   If your PR originates from a fork, verify your remotes and push explicitly:
   ```bash
+  set -euo pipefail
   git remote -v
   # Tip: In fork-based PRs, 'origin' is your fork and 'upstream' is the base repository.
   # Confirm your fork is 'origin'. If not, set it explicitly:
