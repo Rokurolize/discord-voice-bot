@@ -39,6 +39,10 @@ class ConfigManagerImpl:
             self._config = Config.from_env()
         return self._config
 
+    def config(self) -> Config:
+        """Public accessor for the underlying Config (avoids private usage)."""
+        return self._get_config()
+
     def get(self, key: str, default: Any = None) -> Any:
         """Get configuration value by key."""
         config = self._get_config()
@@ -47,16 +51,17 @@ class ConfigManagerImpl:
     def get_api_url(self) -> str:
         """Get TTS API URL from current engine configuration."""
         cfg = self._get_config()
-        if cfg.tts_engine not in cfg.engines:
-            raise ValueError(f"unknown tts_engine: {cfg.tts_engine!r}")
-        ec = cfg.engines[cfg.tts_engine]
+        # Prefer explicit URL when provided in engine config
+        ec = cfg.engines.get(cfg.tts_engine)
+        if ec is not None and ec.get("url"):
+            return str(ec["url"])
+        # Known-engine defaults
         if cfg.tts_engine == "aivis":
-            default_url = DEFAULT_AIVIS_URL
-        elif cfg.tts_engine == "voicevox":
-            default_url = DEFAULT_VOICEVOX_URL
-        else:
-            raise ValueError(f"unsupported tts_engine for default URL: {cfg.tts_engine!r}")
-        return ec.get("url", default_url)
+            return DEFAULT_AIVIS_URL
+        if cfg.tts_engine == "voicevox":
+            return DEFAULT_VOICEVOX_URL
+        # Unknown engine without URL
+        raise ValueError(f"missing 'url' and no default defined for engine: {cfg.tts_engine!r}")
 
     def get_speaker_id(self) -> int:
         """Get default speaker ID for current engine."""
@@ -67,7 +72,10 @@ class ConfigManagerImpl:
         default_sid = DEFAULT_SPEAKER_IDS.get(cfg.tts_engine)
         if default_sid is None and "default_speaker" not in ec:
             raise ValueError(f"default speaker not configured for engine: {cfg.tts_engine!r}")
-        return int(ec.get("default_speaker", default_sid))
+        sid = int(ec.get("default_speaker", default_sid))
+        if sid <= 0:
+            raise ValueError("default_speaker must be a positive integer")
+        return sid
 
     def get_tts_engine(self) -> str:
         """Get TTS engine name."""
@@ -96,6 +104,10 @@ class ConfigManagerImpl:
             raise ValueError(f"unknown tts_engine: {cfg.tts_engine!r}")
         if not cfg.test_mode and getattr(cfg, "target_guild_id", 0) <= 0:
             raise ValueError("target_guild_id must be a positive integer in non-test mode")
+        if not cfg.test_mode and getattr(cfg, "audio_sample_rate", 0) <= 0:
+            raise ValueError("audio_sample_rate must be > 0 in non-test mode")
+        if not cfg.test_mode and getattr(cfg, "audio_channels", 0) not in (1, 2):
+            raise ValueError("audio_channels must be 1 or 2 in non-test mode")
 
     # Additional convenience methods for specific config access
     def get_discord_token(self) -> str:
@@ -113,6 +125,7 @@ class ConfigManagerImpl:
             import os
 
             v = os.getenv(TEST_TARGET_VOICE_CHANNEL_ID_ENV, str(TEST_TARGET_VOICE_CHANNEL_ID_DEFAULT))
+            v = v.strip().replace("_", "")
             try:
                 n = int(v)
                 if n > 0:
@@ -139,9 +152,8 @@ class ConfigManagerImpl:
 
     def get_engines(self) -> dict[str, dict[str, Any]]:
         """Get all engine configurations."""
-        # Return a shallow copy to prevent accidental mutation
+        # Return a deep-copied mapping to prevent accidental mutation of nested dicts
         cfg = self._get_config()
-        # Deep copy to avoid callers mutating nested dicts
         return {k: cast(dict[str, Any], deepcopy(v)) for k, v in cfg.engines.items()}
 
     def get_max_message_length(self) -> int:

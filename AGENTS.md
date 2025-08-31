@@ -43,10 +43,6 @@
 - `TEST_TARGET_VOICE_CHANNEL_ID` (default: `123456789`) — overrides the voice channel while in test mode (set via environment variables or `.env`).
 - `TEST_RATE_LIMIT_MESSAGES` (default: `5`) and `TEST_RATE_LIMIT_PERIOD` (default: `60`) — override rate limits in test mode (set via environment variables or `.env`).
 
-### Test-only overrides
-- `TEST_TARGET_VOICE_CHANNEL_ID` (default: `123456789`) — overrides the voice channel while in test mode.
-- `TEST_RATE_LIMIT_MESSAGES` (default: `5`) and `TEST_RATE_LIMIT_PERIOD` (default: `60`) — override rate limits in test mode.
-
 ## Resolving Review Threads
 - Verify locally that the referenced changes are applied to your working tree:
   - Inspect working tree: `git status`
@@ -69,7 +65,7 @@
   # Push the current HEAD to your PR branch on your fork:
   git push -u origin HEAD:$(git rev-parse --abbrev-ref HEAD)
   ```
-  Tip: A single final push triggers pre-push hooks and CI only once, keeping reviews consolidated.
+Tip: A single final push triggers pre-push hooks and CI only once, keeping reviews consolidated.
 
 ## Maintenance Note
 - Prefer small, focused commits. Accumulate them locally and push once after all review items are addressed to consolidate CodeRabbit into a single review run.
