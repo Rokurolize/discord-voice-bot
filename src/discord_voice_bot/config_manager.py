@@ -20,6 +20,34 @@ DEFAULT_SPEAKER_IDS: dict[str, int] = {"voicevox": 3, "aivis": 1512153250}
 
 
 class ConfigManagerImpl:
+
+    def _normalize_to_plain_dict(self, m: Mapping[str, Any]) -> dict[str, Any]:
+        out: dict[str, Any] = {}
+        for k, v in m.items():
+            if isinstance(v, Mapping):
+                out[k] = self._normalize_to_plain_dict(cast(Mapping[str, Any], v))
+            elif isinstance(v, list):
+                lv = cast(list[Any], v)
+                out_list: list[Any] = []
+                for item in lv:
+                    if isinstance(item, Mapping):
+                        out_list.append(self._normalize_to_plain_dict(cast(Mapping[str, Any], item)))
+                    else:
+                        out_list.append(deepcopy(item))
+                out[k] = out_list
+            elif isinstance(v, tuple):
+                tv = cast(tuple[Any, ...], v)
+                out_items: list[Any] = []
+                for item in tv:
+                    if isinstance(item, Mapping):
+                        out_items.append(self._normalize_to_plain_dict(cast(Mapping[str, Any], item)))
+                    else:
+                        out_items.append(deepcopy(item))
+                out[k] = tuple(out_items)
+            else:
+                out[k] = deepcopy(v)
+        return out
+
     """Configuration manager that adapts a ``Config`` dataclass to the protocol."""
 
     def __init__(self, config: Config | None = None, *, test_mode: bool | None = None) -> None:
@@ -70,8 +98,8 @@ class ConfigManagerImpl:
             return DEFAULT_AIVIS_URL
         if cfg.tts_engine == "voicevox":
             return DEFAULT_VOICEVOX_URL
-        # Unknown engine without URL
-        raise ValueError(f"missing 'url' and no default defined for engine: {cfg.tts_engine!r}")
+        # Unknown engine without URL/default
+        raise ValueError(f"unknown or unsupported tts_engine {cfg.tts_engine!r}; provide an explicit 'url' under engines[engine] or switch to a supported engine")
 
     def get_speaker_id(self) -> int:
         """Get default speaker ID for current engine."""
@@ -82,7 +110,11 @@ class ConfigManagerImpl:
         default_sid = DEFAULT_SPEAKER_IDS.get(cfg.tts_engine)
         if default_sid is None and "default_speaker" not in ec:
             raise ValueError(f"default speaker not configured for engine: {cfg.tts_engine!r}")
-        sid = int(ec.get("default_speaker", default_sid))
+        raw_sid = ec.get("default_speaker", default_sid)
+        try:
+            sid = int(raw_sid)
+        except (TypeError, ValueError):
+            raise ValueError("default_speaker must be an integer") from None
         if sid <= 0:
             raise ValueError("default_speaker must be a positive integer")
         return sid
@@ -148,8 +180,9 @@ class ConfigManagerImpl:
         """Get target voice channel ID."""
         # In test mode, use TEST_TARGET_VOICE_CHANNEL_ID if set; otherwise default (env-first for test determinism)
         if self.is_test_mode():
-            n = self._get_env_int(TEST_TARGET_VOICE_CHANNEL_ID_ENV, TEST_TARGET_VOICE_CHANNEL_ID_DEFAULT, min_value=1)
-            return n if n > 0 else TEST_TARGET_VOICE_CHANNEL_ID_DEFAULT
+            return self._get_env_int(
+                TEST_TARGET_VOICE_CHANNEL_ID_ENV, TEST_TARGET_VOICE_CHANNEL_ID_DEFAULT, min_value=1
+            )
         channel_id = int(self._get_config().target_voice_channel_id)
         if channel_id <= 0:
             raise ValueError("target_voice_channel_id must be a positive integer")
@@ -197,13 +230,13 @@ class ConfigManagerImpl:
     def get_rate_limit_messages(self) -> int:
         """Get rate limit messages."""
         if self.is_test_mode():
-            return self._get_env_int(TEST_RATE_LIMIT_MESSAGES_ENV, 5)
+            return self._get_env_int(TEST_RATE_LIMIT_MESSAGES_ENV, 5, min_value=1)
         return self._get_config().rate_limit_messages
 
     def get_rate_limit_period(self) -> int:
         """Get rate limit period."""
         if self.is_test_mode():
-            return self._get_env_int(TEST_RATE_LIMIT_PERIOD_ENV, 60)
+            return self._get_env_int(TEST_RATE_LIMIT_PERIOD_ENV, 60, min_value=1)
         return self._get_config().rate_limit_period
 
     def _get_env_int(self, name: str, default: int, *, min_value: int = 0) -> int:
