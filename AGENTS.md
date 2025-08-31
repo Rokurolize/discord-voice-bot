@@ -41,10 +41,27 @@
 
 - Test mode is enabled by setting the `TEST_MODE` environment variable (e.g., `TEST_MODE=true`) or by instantiating with `ConfigManagerImpl(test_mode=True)`.
 - Precedence: process environment variables override `.env`, which override built-in defaults.
+- Truthy values for `TEST_MODE` (case-insensitive): `true`, `1`, `yes`, `on`. Any other value is treated as false.
 
 ### Test-only overrides
 - `TEST_TARGET_VOICE_CHANNEL_ID` (default: `123456789`) — overrides the voice channel while in test mode (set via environment variables or `.env`).
 - `TEST_RATE_LIMIT_MESSAGES` (default: `5`) and `TEST_RATE_LIMIT_PERIOD` (default: `60`) — override rate limits in test mode (set via environment variables or `.env`).
+
+Examples:
+
+```dotenv
+# .env (test mode)
+TEST_MODE=true
+TEST_TARGET_VOICE_CHANNEL_ID=123456789
+TEST_RATE_LIMIT_MESSAGES=5
+TEST_RATE_LIMIT_PERIOD=60
+```
+
+```bash
+# one-off shell (no .env change)
+export TEST_MODE=true TEST_TARGET_VOICE_CHANNEL_ID=123456789 TEST_RATE_LIMIT_MESSAGES=5 TEST_RATE_LIMIT_PERIOD=60
+uv run poe check
+```
 
 ## Resolving Review Threads
 - Verify locally that the referenced changes are applied in your working tree:
@@ -66,7 +83,7 @@
   # git remote set-url origin git@github.com:<your-username>/<your-fork>.git
   git branch -vv
   # Push the current HEAD to your PR branch on your fork:
-  git push -u origin HEAD:$(git rev-parse --abbrev-ref HEAD)
+  git push -u origin HEAD:$(git branch --show-current)
   ```
 - Tip: A single final push triggers pre-push hooks and CI only once, keeping reviews consolidated.
 

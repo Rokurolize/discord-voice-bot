@@ -20,6 +20,8 @@ DEFAULT_SPEAKER_IDS: dict[str, int] = {"voicevox": 3, "aivis": 1512153250}
 
 
 class ConfigManagerImpl:
+    """Configuration manager that adapts a ``Config`` dataclass to the protocol."""
+
     def _normalize_to_plain_dict(self, m: Mapping[str, Any]) -> dict[str, Any]:
         out: dict[str, Any] = {}
         for k, v in m.items():
@@ -46,8 +48,6 @@ class ConfigManagerImpl:
             else:
                 out[k] = deepcopy(v)
         return out
-
-    """Configuration manager that adapts a ``Config`` dataclass to the protocol."""
 
     def __init__(self, config: Config | None = None, *, test_mode: bool | None = None) -> None:
         """Initialize configuration manager.
@@ -105,6 +105,13 @@ class ConfigManagerImpl:
         cfg = self._get_config()
         if cfg.tts_engine not in cfg.engines:
             raise ValueError(f"unknown tts_engine: {cfg.tts_engine!r}")
+        # Custom engine sanity (no baked-in defaults)
+        if cfg.tts_engine not in ("aivis", "voicevox"):
+            ec = cfg.engines[cfg.tts_engine]
+            if not ec.get("url"):
+                raise ValueError("custom engine requires 'url' in engines[engine]")
+            if "default_speaker" not in ec:
+                raise ValueError("custom engine requires 'default_speaker' in engines[engine]")
         ec = cfg.engines[cfg.tts_engine]
         default_sid = DEFAULT_SPEAKER_IDS.get(cfg.tts_engine)
         if default_sid is None and "default_speaker" not in ec:
@@ -143,6 +150,13 @@ class ConfigManagerImpl:
             raise ValueError("target_voice_channel_id must be a positive integer in non-test mode")
         if cfg.tts_engine not in cfg.engines:
             raise ValueError(f"unknown tts_engine: {cfg.tts_engine!r}")
+        # Custom engine sanity (no baked-in defaults)
+        if cfg.tts_engine not in ("aivis", "voicevox"):
+            ec = cfg.engines[cfg.tts_engine]
+            if not ec.get("url"):
+                raise ValueError("custom engine requires 'url' in engines[engine]")
+            if "default_speaker" not in ec:
+                raise ValueError("custom engine requires 'default_speaker' in engines[engine]")
         if not cfg.test_mode and getattr(cfg, "target_guild_id", 0) <= 0:
             raise ValueError("target_guild_id must be a positive integer in non-test mode")
         if not cfg.test_mode and getattr(cfg, "audio_sample_rate", 0) <= 0:
@@ -194,23 +208,23 @@ class ConfigManagerImpl:
         cfg = self._get_config()
         if cfg.tts_engine not in cfg.engines:
             raise ValueError(f"unknown tts_engine: {cfg.tts_engine!r}")
-        ec = cfg.engines[cfg.tts_engine]
-        # Normalize to a plain dict for typing/serialization
-        ec_cast = cast(dict[str, Any], ec)
-        ec_dict: dict[str, Any] = dict(ec_cast.items())
-        # Produce a plain dict; convert nested mappings (e.g., "speakers") into dicts as well.
-        return {k: (dict(cast(Mapping[str, Any], v)) if isinstance(v, Mapping) else deepcopy(v)) for k, v in ec_dict.items()}
+        # Custom engine sanity (no baked-in defaults)
+        if cfg.tts_engine not in ("aivis", "voicevox"):
+            ec = cfg.engines[cfg.tts_engine]
+            if not ec.get("url"):
+                raise ValueError("custom engine requires 'url' in engines[engine]")
+            if "default_speaker" not in ec:
+                raise ValueError("custom engine requires 'default_speaker' in engines[engine]")
+        return self._normalize_to_plain_dict(cast(Mapping[str, Any], cfg.engines[cfg.tts_engine]))
 
     def get_engines(self) -> dict[str, dict[str, Any]]:
         """Get all engine configurations."""
         # Return plain dicts; convert nested mappings to dicts to avoid leaking MappingProxyType
         cfg = self._get_config()
-        result: dict[str, dict[str, Any]] = {}
-        for name, ev in cfg.engines.items():
-            ev_cast = cast(dict[str, Any], ev)
-            ev_dict: dict[str, Any] = dict(ev_cast.items())
-            result[name] = {k: (dict(cast(Mapping[str, Any], val)) if isinstance(val, Mapping) else deepcopy(val)) for k, val in ev_dict.items()}
-        return result
+        return {
+            name: self._normalize_to_plain_dict(cast(Mapping[str, Any], ev))
+            for name, ev in cfg.engines.items()
+        }
 
     def get_max_message_length(self) -> int:
         """Get maximum message length."""
