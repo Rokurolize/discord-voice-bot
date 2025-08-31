@@ -171,7 +171,8 @@ class Config:
             log_level=os.environ.get("LOG_LEVEL", "DEBUG").upper(),
             log_file=os.environ.get("LOG_FILE", "discord_bot_error.log") or None,
             debug=_env_to_bool("DEBUG", False),
-            test_mode=_env_to_bool("TEST_MODE", False),
+            # Treat pytest runs as test mode unless explicitly disabled
+            test_mode=_env_to_bool("TEST_MODE", False) or ("PYTEST_CURRENT_TEST" in os.environ),
             enable_self_message_processing=_env_to_bool("ENABLE_SELF_MESSAGE_PROCESSING", False),
         )
 

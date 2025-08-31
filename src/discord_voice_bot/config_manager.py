@@ -43,14 +43,20 @@ class ConfigManagerImpl(ConfigManager):
         """Get TTS API URL from current engine configuration."""
         cfg = self._get_config()
         ec = cfg.engines.get(cfg.tts_engine, {})
-        return ec.get("url", "http://localhost:50021")
+        # Use SSOT defaults from config for engine-specific fallback
+        from .config import DEFAULT_AIVIS_URL, DEFAULT_VOICEVOX_URL
+
+        default_url = DEFAULT_AIVIS_URL if cfg.tts_engine == "aivis" else DEFAULT_VOICEVOX_URL
+        return ec.get("url", default_url)
 
     @override
     def get_speaker_id(self) -> int:
         """Get default speaker ID for current engine."""
         cfg = self._get_config()
         ec = cfg.engines.get(cfg.tts_engine, {})
-        return int(ec.get("default_speaker", 3))
+        # Engine-specific sensible defaults
+        default_sid = {"voicevox": 3, "aivis": 1512153250}.get(cfg.tts_engine, 3)
+        return int(ec.get("default_speaker", default_sid))
 
     @override
     def get_tts_engine(self) -> str:
@@ -91,10 +97,8 @@ class ConfigManagerImpl(ConfigManager):
     @override
     def get_target_voice_channel_id(self) -> int:
         """Get target voice channel ID."""
-        import os
-
-        # In test environments, normalize to a fixed test channel ID
-        if os.getenv("PYTEST_CURRENT_TEST"):
+        # In test mode, normalize to a fixed test channel ID
+        if self.is_test_mode():
             return 123456789
         channel_id = self._get_config().target_voice_channel_id
         return channel_id or 123456789
@@ -162,18 +166,9 @@ class ConfigManagerImpl(ConfigManager):
 
     @override
     def get_intents(self) -> Any:
-        """Get Discord intents configured for the bot.
-
-        Enables members and message content intents to support command parsing.
-        """
-        import discord
-
-        intents = discord.Intents.default()
-        intents.message_content = True
-        intents.guilds = True
-        intents.members = True
-        intents.voice_states = True
-        return intents
+        """Get Discord intents configured for the bot."""
+        # Delegate to Config to keep a single source of truth
+        return self._get_config().get_intents()
 
     @override
     def get_enable_self_message_processing(self) -> bool:
