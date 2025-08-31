@@ -47,7 +47,7 @@
 - Even for doc-only changes, still run the checks to ensure linting, type checking, and tests remain green.
 
 ## Single-Action Summary
-- After each fix: `uv run poe check` → resolve → commit.
+- After each fix: `uv run poe check` → commit locally → resolve in the PR UI.
 - After all items: push once to your PR branch (e.g., `git push`).
   If your PR originates from a fork, verify your remotes and push explicitly:
   ```bash
