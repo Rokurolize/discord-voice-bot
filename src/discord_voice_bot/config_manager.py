@@ -5,7 +5,8 @@ operate with the newer immutable ``Config`` dataclass while avoiding circular
 imports and providing convenience helpers.
 """
 
-from typing import Any
+from copy import deepcopy
+from typing import Any, cast
 
 from .config import DEFAULT_AIVIS_URL, DEFAULT_VOICEVOX_URL, Config
 
@@ -73,8 +74,8 @@ class ConfigManagerImpl:
         cfg = self._get_config()
         if not cfg.discord_token:
             raise ValueError("discord_token is empty")
-        if not cfg.target_voice_channel_id and not cfg.test_mode:
-            raise ValueError("target_voice_channel_id is not set (non-test mode)")
+        if not cfg.test_mode and getattr(cfg, "target_voice_channel_id", 0) <= 0:
+            raise ValueError("target_voice_channel_id must be a positive integer in non-test mode")
         if cfg.tts_engine not in cfg.engines:
             raise ValueError(f"unknown tts_engine: {cfg.tts_engine!r}")
 
@@ -96,14 +97,14 @@ class ConfigManagerImpl:
             v = os.getenv("TEST_TARGET_VOICE_CHANNEL_ID", "123456789")
             try:
                 n = int(v)
-                if n >= 0:
+                if n > 0:
                     return n
             except ValueError:
                 pass
             return 123456789
-        channel_id = self._get_config().target_voice_channel_id
-        if not channel_id:
-            raise ValueError("target_voice_channel_id is not configured")
+        channel_id = int(self._get_config().target_voice_channel_id)
+        if channel_id <= 0:
+            raise ValueError("target_voice_channel_id must be a positive integer")
         return channel_id
 
     def get_command_prefix(self) -> str:
@@ -113,13 +114,15 @@ class ConfigManagerImpl:
     def get_engine_config(self) -> dict[str, Any]:
         """Get current TTS engine configuration."""
         cfg = self._get_config()
-        return dict(cfg.engines.get(cfg.tts_engine, {}))
+        # Deep copy to avoid accidental mutation of nested mappings (e.g., "speakers")
+        return cast(dict[str, Any], deepcopy(cfg.engines.get(cfg.tts_engine, {})))
 
     def get_engines(self) -> dict[str, dict[str, Any]]:
         """Get all engine configurations."""
         # Return a shallow copy to prevent accidental mutation
         cfg = self._get_config()
-        return {k: dict(v) for k, v in cfg.engines.items()}
+        # Deep copy to avoid callers mutating nested dicts
+        return {k: cast(dict[str, Any], deepcopy(v)) for k, v in cfg.engines.items()}
 
     def get_max_message_length(self) -> int:
         """Get maximum message length."""
@@ -136,32 +139,26 @@ class ConfigManagerImpl:
     def get_rate_limit_messages(self) -> int:
         """Get rate limit messages."""
         if self.is_test_mode():
-            import os
-
-            v = os.getenv("TEST_RATE_LIMIT_MESSAGES", "5")
-            try:
-                n = int(v)
-                if n >= 0:
-                    return n
-            except ValueError:
-                pass
-            return 5
+            return self._get_env_int("TEST_RATE_LIMIT_MESSAGES", 5)
         return self._get_config().rate_limit_messages
 
     def get_rate_limit_period(self) -> int:
         """Get rate limit period."""
         if self.is_test_mode():
-            import os
-
-            v = os.getenv("TEST_RATE_LIMIT_PERIOD", "60")
-            try:
-                n = int(v)
-                if n >= 0:
-                    return n
-            except ValueError:
-                pass
-            return 60
+            return self._get_env_int("TEST_RATE_LIMIT_PERIOD", 60)
         return self._get_config().rate_limit_period
+
+    def _get_env_int(self, name: str, default: int) -> int:
+        import os
+
+        v = os.getenv(name, str(default))
+        try:
+            n = int(v)
+            if n >= 0:
+                return n
+        except ValueError:
+            pass
+        return default
 
     def get_log_file(self) -> str | None:
         """Get log file path."""

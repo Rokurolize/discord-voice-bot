@@ -49,7 +49,7 @@
 ## Single-Action Summary
 - After each fix: `uv run poe check` → commit locally → resolve in the PR UI.
 - After all items: push once to your PR branch (e.g., `git push`).
- - Do not bypass pre-push hooks; if hooks fail, fix issues and re-run `uv run poe check` before pushing again.
+- Do not bypass pre-push hooks; if hooks fail, address issues and rerun `uv run poe check` before pushing again.
   If your PR originates from a fork, verify your remotes and push explicitly:
   ```bash
   set -euo pipefail
@@ -66,6 +66,6 @@
 ## Maintenance Note
 - Prefer small, focused commits. Accumulate them locally and push once after all review items are addressed to consolidate CodeRabbit into a single review run.
   - Optionally, tidy history before pushing:
-    - `git rebase -i origin/main` to squash or `fixup` work-in-progress commits.
+    - `git rebase -i origin/main` to squash commits or mark work-in-progress commits as `fixup`.
     - If this branch is shared or already published, avoid history rewrites; prefer a new commit or merge.
     - Or use "Squash and merge" on GitHub to keep the main history clean.
