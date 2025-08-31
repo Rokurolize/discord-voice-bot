@@ -40,12 +40,12 @@
 - Never commit secrets; `.env` is gitignored. Ensure Discord "Message Content Intent" is enabled for the bot.
 
 - Test mode is enabled by setting the `TEST_MODE` environment variable (e.g., `TEST_MODE=true`) or by instantiating with `ConfigManagerImpl(test_mode=True)`.
-- Precedence: process environment variables override `.env`, which override built-in defaults.
-- Values recognized as true (case-insensitive): `true`, `1`, `yes`, `on`. Any other value, as well as an unset/empty `TEST_MODE`, is treated as false.
+- Precedence: process environment variables override entries in `.env`; `.env` overrides built-in defaults.
+- Values recognized as true (case-insensitive): `true`, `1`, `yes`, `on`. Any other value (or an unset/empty `TEST_MODE`) is treated as false.
 
 ### Test-only overrides
-- `TEST_TARGET_VOICE_CHANNEL_ID` (default: `123456789`) — overrides the voice channel while in test mode (set via environment variables or `.env`). Accepts underscores/spaces in digits (e.g., `1_234_567_890`).
-- `TEST_RATE_LIMIT_MESSAGES` (default: `5`) and `TEST_RATE_LIMIT_PERIOD` (default: `60`) — override rate limits in test mode (set via environment variables or `.env`). Accept digits with underscores/spaces.
+- `TEST_TARGET_VOICE_CHANNEL_ID` (default: `123456789`) — overrides the voice channel while in test mode (set via environment variables or `.env`). Accepts underscores/spaces/commas in digits (e.g., `1_234_567_890` or `1,234,567,890`).
+- `TEST_RATE_LIMIT_MESSAGES` (default: `5`) and `TEST_RATE_LIMIT_PERIOD` (default: `60`) — override rate limits in test mode (set via environment variables or `.env`). Accept digits with underscores/spaces/commas.
 
 Examples:
 

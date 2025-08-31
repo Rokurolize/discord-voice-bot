@@ -68,6 +68,9 @@ class ConfigManagerImpl:
     def get_api_url(self) -> str:
         """Get TTS API URL from current engine configuration."""
         cfg = self._get_config()
+        # Consistency: require declared engine unless using known defaults
+        if cfg.tts_engine not in cfg.engines and cfg.tts_engine not in ("aivis", "voicevox"):
+            raise ValueError(f"unknown tts_engine: {cfg.tts_engine!r}")
         # Prefer explicit URL when provided in engine config
         ec = cfg.engines.get(cfg.tts_engine)
         if ec is not None and "url" in ec:
