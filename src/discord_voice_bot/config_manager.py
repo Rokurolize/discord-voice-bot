@@ -5,6 +5,7 @@ operate with the newer immutable ``Config`` dataclass while avoiding circular
 imports and providing convenience helpers.
 """
 
+from collections.abc import Mapping
 from copy import deepcopy
 from typing import Any, cast
 
@@ -108,6 +109,13 @@ class ConfigManagerImpl:
             raise ValueError("audio_sample_rate must be > 0 in non-test mode")
         if not cfg.test_mode and getattr(cfg, "audio_channels", 0) not in (1, 2):
             raise ValueError("audio_channels must be 1 or 2 in non-test mode")
+        # Additional non-test constraints
+        if not cfg.test_mode and getattr(cfg, "reconnect_delay", 0) < 0:
+            raise ValueError("reconnect_delay must be >= 0 in non-test mode")
+        if not cfg.test_mode and getattr(cfg, "message_queue_size", 0) < 0:
+            raise ValueError("message_queue_size must be >= 0 in non-test mode")
+        if not cfg.test_mode and getattr(cfg, "max_message_length", 0) <= 0:
+            raise ValueError("max_message_length must be > 0 in non-test mode")
 
     # Additional convenience methods for specific config access
     def get_discord_token(self) -> str:
@@ -122,17 +130,8 @@ class ConfigManagerImpl:
         """Get target voice channel ID."""
         # In test mode, use TEST_TARGET_VOICE_CHANNEL_ID if set; otherwise default (env-first for test determinism)
         if self.is_test_mode():
-            import os
-
-            v = os.getenv(TEST_TARGET_VOICE_CHANNEL_ID_ENV, str(TEST_TARGET_VOICE_CHANNEL_ID_DEFAULT))
-            v = v.strip().replace("_", "")
-            try:
-                n = int(v)
-                if n > 0:
-                    return n
-            except ValueError:
-                pass
-            return TEST_TARGET_VOICE_CHANNEL_ID_DEFAULT
+            n = self._get_env_int(TEST_TARGET_VOICE_CHANNEL_ID_ENV, TEST_TARGET_VOICE_CHANNEL_ID_DEFAULT)
+            return n if n > 0 else TEST_TARGET_VOICE_CHANNEL_ID_DEFAULT
         channel_id = int(self._get_config().target_voice_channel_id)
         if channel_id <= 0:
             raise ValueError("target_voice_channel_id must be a positive integer")
@@ -145,16 +144,25 @@ class ConfigManagerImpl:
     def get_engine_config(self) -> dict[str, Any]:
         """Get current TTS engine configuration."""
         cfg = self._get_config()
-        # Deep copy to avoid accidental mutation of nested mappings (e.g., "speakers")
         if cfg.tts_engine not in cfg.engines:
             raise ValueError(f"unknown tts_engine: {cfg.tts_engine!r}")
-        return cast(dict[str, Any], deepcopy(cfg.engines[cfg.tts_engine]))
+        ec = cfg.engines[cfg.tts_engine]
+        # Normalize to a plain dict for typing/serialization
+        ec_cast = cast(dict[str, Any], ec)
+        ec_dict: dict[str, Any] = {k: v for k, v in ec_cast.items()}
+        # Produce a plain dict; convert nested mappings (e.g., "speakers") into dicts as well.
+        return {k: (dict(cast(Mapping[str, Any], v)) if isinstance(v, Mapping) else deepcopy(v)) for k, v in ec_dict.items()}
 
     def get_engines(self) -> dict[str, dict[str, Any]]:
         """Get all engine configurations."""
-        # Return a deep-copied mapping to prevent accidental mutation of nested dicts
+        # Return plain dicts; convert nested mappings to dicts to avoid leaking MappingProxyType
         cfg = self._get_config()
-        return {k: cast(dict[str, Any], deepcopy(v)) for k, v in cfg.engines.items()}
+        result: dict[str, dict[str, Any]] = {}
+        for name, ev in cfg.engines.items():
+            ev_cast = cast(dict[str, Any], ev)
+            ev_dict: dict[str, Any] = {k: v for k, v in ev_cast.items()}
+            result[name] = {k: (dict(cast(Mapping[str, Any], val)) if isinstance(val, Mapping) else deepcopy(val)) for k, val in ev_dict.items()}
+        return result
 
     def get_max_message_length(self) -> int:
         """Get maximum message length."""

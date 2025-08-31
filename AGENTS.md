@@ -65,7 +65,7 @@
   # Push the current HEAD to your PR branch on your fork:
   git push -u origin HEAD:$(git rev-parse --abbrev-ref HEAD)
   ```
-Tip: A single final push triggers pre-push hooks and CI only once, keeping reviews consolidated.
+- Tip: A single final push triggers pre-push hooks and CI only once, keeping reviews consolidated.
 
 ## Maintenance Note
 - Prefer small, focused commits. Accumulate them locally and push once after all review items are addressed to consolidate CodeRabbit into a single review run.
