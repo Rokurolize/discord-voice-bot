@@ -55,7 +55,16 @@ class ConfigManagerImpl:
         # Prefer explicit URL when provided in engine config
         ec = cfg.engines.get(cfg.tts_engine)
         if ec is not None and ec.get("url"):
-            return str(ec["url"])
+            url = str(ec["url"])  # minimal validation for common mistakes
+            try:
+                from urllib.parse import urlparse
+
+                pu = urlparse(url)
+                if pu.scheme in ("http", "https") and pu.netloc:
+                    return url
+            except Exception:
+                pass
+            raise ValueError(f"invalid url for engine {cfg.tts_engine!r}: {url!r}")
         # Known-engine defaults
         if cfg.tts_engine == "aivis":
             return DEFAULT_AIVIS_URL
@@ -109,6 +118,15 @@ class ConfigManagerImpl:
             raise ValueError("audio_sample_rate must be > 0 in non-test mode")
         if not cfg.test_mode and getattr(cfg, "audio_channels", 0) not in (1, 2):
             raise ValueError("audio_channels must be 1 or 2 in non-test mode")
+        # Optional: typical audio constraints & rate limits
+        if not cfg.test_mode:
+            afd = getattr(cfg, "audio_frame_duration", 0)
+            if afd <= 0 or (1000 % afd) != 0:
+                raise ValueError("audio_frame_duration must be a positive divisor of 1000 (e.g., 20)")
+            if getattr(cfg, "rate_limit_messages", 0) <= 0:
+                raise ValueError("rate_limit_messages must be > 0 in non-test mode")
+            if getattr(cfg, "rate_limit_period", 0) <= 0:
+                raise ValueError("rate_limit_period must be > 0 in non-test mode")
         # Additional non-test constraints
         if not cfg.test_mode and getattr(cfg, "reconnect_delay", 0) < 0:
             raise ValueError("reconnect_delay must be >= 0 in non-test mode")
@@ -130,7 +148,7 @@ class ConfigManagerImpl:
         """Get target voice channel ID."""
         # In test mode, use TEST_TARGET_VOICE_CHANNEL_ID if set; otherwise default (env-first for test determinism)
         if self.is_test_mode():
-            n = self._get_env_int(TEST_TARGET_VOICE_CHANNEL_ID_ENV, TEST_TARGET_VOICE_CHANNEL_ID_DEFAULT)
+            n = self._get_env_int(TEST_TARGET_VOICE_CHANNEL_ID_ENV, TEST_TARGET_VOICE_CHANNEL_ID_DEFAULT, min_value=1)
             return n if n > 0 else TEST_TARGET_VOICE_CHANNEL_ID_DEFAULT
         channel_id = int(self._get_config().target_voice_channel_id)
         if channel_id <= 0:
@@ -188,7 +206,7 @@ class ConfigManagerImpl:
             return self._get_env_int(TEST_RATE_LIMIT_PERIOD_ENV, 60)
         return self._get_config().rate_limit_period
 
-    def _get_env_int(self, name: str, default: int) -> int:
+    def _get_env_int(self, name: str, default: int, *, min_value: int = 0) -> int:
         import os
 
         v = os.getenv(name)
@@ -197,7 +215,7 @@ class ConfigManagerImpl:
         v = v.strip().replace("_", "")
         try:
             n = int(v)
-            if n >= 0:
+            if n >= min_value:
                 return n
         except ValueError:
             pass

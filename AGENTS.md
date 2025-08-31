@@ -39,6 +39,9 @@
 - Copy `.env.example` → `.env`; set `DISCORD_BOT_TOKEN`, `TARGET_VOICE_CHANNEL_ID`, and TTS settings (`TTS_ENGINE`, `VOICEVOX_URL`/`AIVIS_URL`).
 - Never commit secrets; `.env` is gitignored. Ensure Discord "Message Content Intent" is enabled for the bot.
 
+- Test mode is enabled by setting the `TEST_MODE` environment variable (e.g., `TEST_MODE=true`) or by instantiating with `ConfigManagerImpl(test_mode=true)`.
+- Precedence: process environment variables override `.env`, which override built-in defaults.
+
 ### Test-only overrides
 - `TEST_TARGET_VOICE_CHANNEL_ID` (default: `123456789`) — overrides the voice channel while in test mode (set via environment variables or `.env`).
 - `TEST_RATE_LIMIT_MESSAGES` (default: `5`) and `TEST_RATE_LIMIT_PERIOD` (default: `60`) — override rate limits in test mode (set via environment variables or `.env`).
@@ -73,4 +76,4 @@
     - `git rebase -i origin/main` to squash commits or mark work-in-progress commits as `fixup`.
     - If this branch is shared or already published, avoid history rewrites; prefer a new commit or merge.
     - Or use "Squash and merge" on GitHub to keep the main history clean.
-    - If you rebased local history, push safely: `git push --force-with-lease`
+    - If you rebased local history, run `uv run poe check` again, then push safely: `git push --force-with-lease`
