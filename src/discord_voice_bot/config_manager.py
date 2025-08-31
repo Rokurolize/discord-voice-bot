@@ -149,7 +149,7 @@ class ConfigManagerImpl:
         ec = cfg.engines[cfg.tts_engine]
         # Normalize to a plain dict for typing/serialization
         ec_cast = cast(dict[str, Any], ec)
-        ec_dict: dict[str, Any] = {k: v for k, v in ec_cast.items()}
+        ec_dict: dict[str, Any] = dict(ec_cast.items())
         # Produce a plain dict; convert nested mappings (e.g., "speakers") into dicts as well.
         return {k: (dict(cast(Mapping[str, Any], v)) if isinstance(v, Mapping) else deepcopy(v)) for k, v in ec_dict.items()}
 
@@ -160,7 +160,7 @@ class ConfigManagerImpl:
         result: dict[str, dict[str, Any]] = {}
         for name, ev in cfg.engines.items():
             ev_cast = cast(dict[str, Any], ev)
-            ev_dict: dict[str, Any] = {k: v for k, v in ev_cast.items()}
+            ev_dict: dict[str, Any] = dict(ev_cast.items())
             result[name] = {k: (dict(cast(Mapping[str, Any], val)) if isinstance(val, Mapping) else deepcopy(val)) for k, val in ev_dict.items()}
         return result
 
