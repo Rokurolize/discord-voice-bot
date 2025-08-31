@@ -41,11 +41,11 @@
 
 - Test mode is enabled by setting the `TEST_MODE` environment variable (e.g., `TEST_MODE=true`) or by instantiating with `ConfigManagerImpl(test_mode=True)`.
 - Precedence: process environment variables override `.env`, which override built-in defaults.
-- Truthy values for `TEST_MODE` (case-insensitive): `true`, `1`, `yes`, `on`. Any other value is treated as false.
+- Values recognized as true (case-insensitive): `true`, `1`, `yes`, `on`. Any other value, as well as an unset/empty `TEST_MODE`, is treated as false.
 
 ### Test-only overrides
-- `TEST_TARGET_VOICE_CHANNEL_ID` (default: `123456789`) — overrides the voice channel while in test mode (set via environment variables or `.env`).
-- `TEST_RATE_LIMIT_MESSAGES` (default: `5`) and `TEST_RATE_LIMIT_PERIOD` (default: `60`) — override rate limits in test mode (set via environment variables or `.env`).
+- `TEST_TARGET_VOICE_CHANNEL_ID` (default: `123456789`) — overrides the voice channel while in test mode (set via environment variables or `.env`). Accepts underscores/spaces in digits (e.g., `1_234_567_890`).
+- `TEST_RATE_LIMIT_MESSAGES` (default: `5`) and `TEST_RATE_LIMIT_PERIOD` (default: `60`) — override rate limits in test mode (set via environment variables or `.env`). Accept digits with underscores/spaces.
 
 Examples:
 
@@ -66,7 +66,7 @@ uv run poe check
 ## Resolving Review Threads
 - Verify locally that the referenced changes are applied in your working tree:
   - Inspect working tree: `git status`
-  - Review exact diffs: `git diff -U0` (or open the PR “Files changed” tab, or download the raw patch)
+  - Review exact diffs: `git diff -U0` (or open the PR "Files changed" tab, or download the raw patch)
 - Run verification: `uv run poe check` must exit with status code 0 before resolving a thread.
 - Even for doc-only changes, still run the checks to ensure linting, type checking, and tests remain green.
 

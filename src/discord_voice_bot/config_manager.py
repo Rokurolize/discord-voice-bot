@@ -23,31 +23,20 @@ class ConfigManagerImpl:
     """Configuration manager that adapts a ``Config`` dataclass to the protocol."""
 
     def _normalize_to_plain_dict(self, m: Mapping[str, Any]) -> dict[str, Any]:
-        out: dict[str, Any] = {}
-        for k, v in m.items():
-            if isinstance(v, Mapping):
-                out[k] = self._normalize_to_plain_dict(cast(Mapping[str, Any], v))
-            elif isinstance(v, list):
-                lv = cast(list[Any], v)
-                out_list: list[Any] = []
-                for item in lv:
-                    if isinstance(item, Mapping):
-                        out_list.append(self._normalize_to_plain_dict(cast(Mapping[str, Any], item)))
-                    else:
-                        out_list.append(deepcopy(item))
-                out[k] = out_list
-            elif isinstance(v, tuple):
-                tv = cast(tuple[Any, ...], v)
-                out_items: list[Any] = []
-                for item in tv:
-                    if isinstance(item, Mapping):
-                        out_items.append(self._normalize_to_plain_dict(cast(Mapping[str, Any], item)))
-                    else:
-                        out_items.append(deepcopy(item))
-                out[k] = tuple(out_items)
-            else:
-                out[k] = deepcopy(v)
-        return out
+        def _norm(x: Any) -> Any:
+            if isinstance(x, Mapping):
+                mm = cast(Mapping[Any, Any], x)
+                return {cast(str, k): _norm(v) for k, v in mm.items()}
+            if isinstance(x, list):
+                ll = cast(list[Any], x)
+                return [_norm(i) for i in ll]
+            if isinstance(x, tuple):
+                tt = cast(tuple[Any, ...], x)
+                return tuple(_norm(i) for i in tt)
+            return deepcopy(x)
+
+        mm = cast(Mapping[Any, Any], m)
+        return {cast(str, k): _norm(v) for k, v in mm.items()}
 
     def __init__(self, config: Config | None = None, *, test_mode: bool | None = None) -> None:
         """Initialize configuration manager.
@@ -255,7 +244,7 @@ class ConfigManagerImpl:
         v = os.getenv(name)
         if v is None:
             return default
-        v = v.strip().replace("_", "").replace(" ", "")
+        v = v.strip().replace("_", "").replace(" ", "").replace(",", "")
         try:
             n = int(v)
             if n >= min_value:
