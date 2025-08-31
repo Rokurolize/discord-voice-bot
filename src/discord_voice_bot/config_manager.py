@@ -101,6 +101,7 @@ class ConfigManagerImpl:
             return DEFAULT_VOICEVOX_URL
         # Unknown engine without URL/default
         raise ValueError(f"unknown or unsupported tts_engine {cfg.tts_engine!r}; provide an explicit 'url' under engines[engine] or switch to a supported engine")
+
     def get_speaker_id(self) -> int:
         """Get default speaker ID for current engine."""
         cfg = self._get_config()
