@@ -31,15 +31,41 @@ class NullVoiceClient:
     channel = None
 
     def is_connected(self) -> bool:  # pragma: no cover - trivial
+        """
+        Return whether a voice client is connected.
+        
+        For the null stub client this always returns False.
+        Returns:
+            bool: False, indicating no active voice connection.
+        """
         return False
 
     def is_playing(self) -> bool:  # pragma: no cover - trivial
+        """
+        Return whether audio is currently playing.
+        
+        This stub implementation always reports False (no audio is playing).
+        
+        Returns:
+            bool: Always False.
+        """
         return False
 
     def stop(self) -> None:  # pragma: no cover - trivial
+        """
+        No-op stop method for the null voice client.
+        
+        This method intentionally does nothing and exists to provide a compatible interface with real voice clients
+        when no voice connection is present (e.g., testing or uninitialized state).
+        """
         return None
 
     async def disconnect(self) -> None:  # pragma: no cover - trivial
+        """
+        No-op asynchronous disconnect for the null/stub voice client.
+        
+        Implements the async disconnect signature of a real voice client but performs no action and returns immediately.
+        """
         return None
 
 
@@ -115,13 +141,13 @@ class VoiceHandler(VoiceHandlerInterface):
     """Manages Discord voice connections and audio playback using facade pattern."""
 
     def __init__(self, bot_client: discord.Client, config: Config, tts_client: Any | None = None) -> None:
-        """Initialize voice handler with manager components.
-
-        Args:
-            bot_client: Discord client
-            config: App configuration
-            tts_client: Optional injected TTS client for health monitor/testing
-
+        """
+        Create a VoiceHandler and wire up its manager components, health monitor, and backward-compatible attributes.
+        
+        Initializes the connection, queue, rate-limiter, stats, and task managers; constructs a HealthMonitor (injecting a TTS client if none is provided); and sets legacy-compatible properties (is_playing, target_channel, connection_state, synthesis_queue, audio_queue, current_group_id, stats, rate_limiter, circuit_breaker, tasks) so existing callers/tests continue to work. Also prepares internal worker slots (_synthesizer_worker, _player_worker) for later lifecycle management.
+        
+        Parameters:
+            tts_client (optional): An injected TTS client instance used by the HealthMonitor (primarily for testing or custom TTS implementations). If omitted, a default TTSClient is created from the provided config.
         """
         super().__init__()
         self.bot = bot_client
@@ -182,11 +208,25 @@ class VoiceHandler(VoiceHandlerInterface):
 
     @voice_gateway.setter
     def voice_gateway(self, value: "VoiceGatewayManager | None") -> None:
-        """Set voice gateway in connection manager."""
+        """
+        Set the voice gateway manager used by the connection manager.
+        
+        If `value` is None, clear the current gateway reference.
+        """
         self.connection_manager.voice_gateway = value
 
     async def start(self, start_player: bool = True) -> None:
-        """Start the voice handler tasks."""
+        """
+        Start the voice handler: perform a best-effort Opus availability check and start background worker tasks.
+        
+        This coroutine checks for the Opus library (tries to load it if missing) as a diagnostic step — failures are logged and do not prevent startup. After the Opus check completes, it creates and starts the synthesizer worker and, if requested, the player worker.
+        
+        Parameters:
+            start_player (bool): If True (default), start the player worker in addition to the synthesizer worker.
+        
+        Returns:
+            None
+        """
         # Diagnostics: ensure opus is loaded; if not, voice playback will fail
         try:
             logger.debug("🔊 Checking Opus library availability...")
@@ -247,7 +287,12 @@ class VoiceHandler(VoiceHandlerInterface):
         self.task_manager.add_task(task)
 
     def stop_workers(self) -> None:
-        """Stop all worker tasks gracefully."""
+        """
+        Signal synthesizer and player workers to stop and clear the external synthesizer reference.
+        
+        If present, calls each worker's stop() method (best-effort) and sets self.synthesizer to None.
+        This does not wait for the worker tasks to finish; task cleanup is handled separately by the task manager.
+        """
         if self._synthesizer_worker:
             self._synthesizer_worker.stop()
         if self._player_worker:
@@ -256,10 +301,19 @@ class VoiceHandler(VoiceHandlerInterface):
         logger.info("Sent stop signal to workers")
 
     def _get_voice_client(self) -> Any:
+        """
+        Return the current voice client from the connection manager, or a NullVoiceClient when none is set.
+        
+        Returns:
+            Any: The active voice client instance from the connection manager, or a NullVoiceClient() stub if no client is present.
+        """
         vc = self.connection_manager.voice_client
         return vc if vc is not None else NullVoiceClient()
 
     def _set_voice_client(self, value: Any) -> None:
+        """
+        Set the active voice client on the underlying connection manager.
+        """
         self.connection_manager.voice_client = value
 
     voice_client = property(_get_voice_client, _set_voice_client)
@@ -269,27 +323,79 @@ class VoiceHandler(VoiceHandlerInterface):
         return self.connection_manager.is_connected()
 
     async def connect_to_channel(self, channel_id: int) -> bool:
-        """Connect to a voice channel using connection manager."""
+        """
+        Connect to a Discord voice channel by ID.
+        
+        Attempts to establish a voice connection for the given Discord channel ID and returns whether the connection succeeded.
+        
+        Parameters:
+            channel_id (int): Discord channel (snowflake) ID to connect to.
+        
+        Returns:
+            bool: True if the connection was established, False otherwise.
+        """
         return await self.connection_manager.connect_to_channel(channel_id)
 
     async def handle_voice_server_update(self, payload: dict[str, Any]) -> None:
-        """Handle VOICE_SERVER_UPDATE event with proper Discord API compliance."""
+        """
+        Handle a Discord VOICE_SERVER_UPDATE event.
+        
+        Delegates the raw VOICE_SERVER_UPDATE payload (the event data received from Discord) to the VoiceConnectionManager to update voice gateway connection details.
+        """
         await self.connection_manager.handle_voice_server_update(payload)
 
     async def handle_voice_state_update(self, payload: dict[str, Any]) -> None:
-        """Handle VOICE_STATE_UPDATE event with proper Discord API compliance."""
+        """
+        Handle a Discord VOICE_STATE_UPDATE gateway event by delegating it to the VoiceConnectionManager.
+        
+        Parameters:
+            payload (dict[str, Any]): Raw VOICE_STATE_UPDATE gateway event payload as received from Discord.
+        """
         await self.connection_manager.handle_voice_state_update(payload)
 
     async def make_rate_limited_request(self, api_call: Any, *args: Any, **kwargs: Any) -> Any:
-        """Make a rate-limited API request with circuit breaker pattern."""
+        """
+        Make a rate-limited API request using the configured rate limiter and circuit breaker.
+        
+        Parameters:
+            api_call (Callable): The callable to invoke under rate limiting/circuit-breaking. May be a coroutine function or regular callable.
+            *args: Positional arguments forwarded to `api_call`.
+            **kwargs: Keyword arguments forwarded to `api_call`.
+        
+        Returns:
+            Any: The result returned by `api_call`.
+        """
         return await self.rate_limiter_manager.make_rate_limited_request(api_call, *args, **kwargs)
 
     async def add_to_queue(self, message_data: dict[str, Any]) -> None:
-        """Add message to synthesis queue with deduplication."""
+        """
+        Enqueue a synthesis task for TTS playback, with duplicate detection.
+        
+        The provided `message_data` dictionary represents a synthesis task (content and any required metadata)
+        and will be enqueued for processing. The queue manager performs deduplication so identical or
+        already-scheduled tasks will not be added multiple times.
+        
+        Parameters:
+            message_data (dict[str, Any]): Payload describing the message to synthesize (text, voice, group id, etc.).
+        
+        Returns:
+            None
+        """
         await self.queue_manager.add_to_queue(message_data)
 
     async def skip_current(self, group_id: str | None = None) -> int:
-        """Skip the current message group."""
+        """
+        Skip the currently playing message group and clear its pending chunks.
+        
+        If a group_id is provided, updates the handler's current_group_id (and the QueueManager's current_group_id) before skipping.
+        Skips items from both the audio playback queue and the synthesis queue for the active group, stops the voice client if it's playing, and increments the internal "messages skipped" counter.
+        
+        Parameters:
+            group_id (str | None): Optional group identifier to target for skipping; if omitted, the handler's current_group_id is used.
+        
+        Returns:
+            int: Total number of chunks removed/skipped across audio and synthesis queues. Returns 0 if there is no current group to skip.
+        """
         # Allow caller to specify target group id for compatibility
         if group_id is not None:
             self.current_group_id = group_id
@@ -315,7 +421,14 @@ class VoiceHandler(VoiceHandlerInterface):
         return total_skipped
 
     async def clear_all(self) -> int:
-        """Clear all queues."""
+        """
+        Clear all pending synthesis and audio items and stop playback if active.
+        
+        Calls the queue manager to remove all items from both synthesis and audio queues. If a voice client is present and currently playing, it will be stopped.
+        
+        Returns:
+            int: Total number of items removed from the queues.
+        """
         total = await self.queue_manager.clear_all()
 
         if self.voice_client and self.voice_client.is_playing():
@@ -325,7 +438,27 @@ class VoiceHandler(VoiceHandlerInterface):
         return total
 
     def get_status(self) -> dict[str, Any]:
-        """Get current status information from all managers."""
+        """
+        Return a snapshot of the handler's current state aggregated from the connection, queue, and stats managers.
+        
+        Returns:
+            dict[str, Any]: Status map containing:
+                - connected (bool): whether a voice connection exists.
+                - voice_connected (bool): same as `connected` (backwards-compatible).
+                - voice_channel_name (str | None): human-readable channel name or None if not connected.
+                - voice_channel_id (int | None): channel id or None if not connected.
+                - playing (bool): whether audio is currently being played.
+                - synthesis_queue_size (int): number of pending synthesis tasks.
+                - audio_queue_size (int): number of pending audio chunks.
+                - total_queue_size (int): sum of synthesis and audio queue sizes.
+                - current_group (str | None): identifier for the currently active group, if any.
+                - messages_played (int): total messages successfully played.
+                - messages_skipped (int): total messages skipped.
+                - errors (int): total errors recorded.
+                - connection_state (str): low-level connection state string from the connection manager.
+                - is_playing (bool): same as `playing` (backwards-compatible).
+                - max_queue_size (int): configured maximum queue size (fixed value: 50).
+        """
         connection_info = self.connection_manager.get_connection_info()
         queue_sizes = self.queue_manager.get_queue_sizes()
         stats = self.stats_tracker.get_stats()
@@ -350,11 +483,13 @@ class VoiceHandler(VoiceHandlerInterface):
 
     @property
     def stats(self) -> dict[str, Any]:
-        """Backward-compatible stats dict for legacy tests and integrations.
-
-        Maps the new StatsTracker counters to the legacy keys expected by
-        older tests (messages_processed, connection_errors,
-        tts_messages_played).
+        """
+        Return a legacy-compatible stats dictionary mapping internal StatsTracker counters to legacy keys.
+        
+        Returns a dict with:
+        - "messages_processed": sum of messages played and skipped.
+        - "connection_errors": number of recorded errors.
+        - "tts_messages_played": number of messages successfully synthesized/played.
         """
         s = self.stats_tracker.get_stats()
         return {
@@ -365,10 +500,15 @@ class VoiceHandler(VoiceHandlerInterface):
 
     @stats.setter
     def stats(self, value: dict[str, Any]) -> None:
-        """Allow legacy tests to assign a stats dict.
-
-        The assignment updates the internal StatsTracker counters by mapping
-        legacy keys to current ones. Unrecognized keys are ignored.
+        """
+        Set stats using a legacy-style dictionary by mapping legacy keys into the internal StatsTracker.
+        
+        Resets the internal stats counters, then reads legacy keys from `value` and updates the tracker:
+        - `messages_played` or fallback `tts_messages_played` → internal `messages_played`
+        - `messages_skipped` → internal `messages_skipped`
+        - `errors` or fallback `connection_errors` → internal `errors`
+        
+        Unrecognized or non-integer values are ignored.
         """
         # Reset and map known keys into the tracker
         self.stats_tracker.reset_stats()
@@ -394,7 +534,11 @@ class VoiceHandler(VoiceHandlerInterface):
         return await self.health_monitor.perform_health_check()
 
     async def cleanup(self) -> None:
-        """Clean up resources."""
+        """
+        Shut down workers and release voice-related resources.
+        
+        Performs an orderly, best-effort cleanup: signals synthesizer/player workers to stop, waits for task manager cleanup, clears both synthesis and audio queues, and instructs the connection manager to clean up the active voice client. This is an async operation that completes once all cleanup steps have finished.
+        """
         # Stop workers gracefully before cleanup
         self.stop_workers()
 
@@ -408,5 +552,7 @@ class VoiceHandler(VoiceHandlerInterface):
         logger.info("Voice handler cleaned up")
 
     async def cleanup_voice_client(self) -> None:
-        """Aggressively clean up voice client state."""
+        """
+        Aggressively clean up the underlying voice client, stopping playback, disconnecting, and releasing associated resources.
+        """
         await self.connection_manager.cleanup_voice_client()

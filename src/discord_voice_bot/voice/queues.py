@@ -14,15 +14,35 @@ class SynthesisQueue:
         self.maxsize = maxsize
 
     async def put(self, item: dict[str, Any]) -> None:
-        """Add item to synthesis queue."""
+        """
+        Enqueue a synthesis request, awaiting until space is available.
+        
+        Parameters:
+            item (dict[str, Any]): A synthesis request payload to be processed by the TTS pipeline. The dictionary may contain keys such as input text, voice settings, and metadata required by consumers.
+        """
         await self._queue.put(item)
 
     def put_nowait(self, item: dict[str, Any]) -> None:
-        """Add item to synthesis queue without waiting."""
+        """
+        Enqueue a synthesis request without awaiting.
+        
+        Add the given synthesis request dict to the internal queue immediately. This is a non-blocking enqueue operation — if the internal queue is full, an asyncio.QueueFull exception will be raised.
+        
+        Parameters:
+            item (dict[str, Any]): Synthesis request payload (TTS request details) to enqueue.
+        
+        Raises:
+            asyncio.QueueFull: If the queue has reached its maxsize.
+        """
         self._queue.put_nowait(item)
 
     async def get(self) -> dict[str, Any]:
-        """Get item from synthesis queue."""
+        """
+        Retrieve the next synthesis request from the queue, awaiting until one is available.
+        
+        Returns:
+            dict[str, Any]: The next queued synthesis item (a request dictionary).
+        """
         return await self._queue.get()
 
     def qsize(self) -> int:

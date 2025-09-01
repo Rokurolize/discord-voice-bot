@@ -10,7 +10,12 @@ class TestQueueManagement:
 
     @pytest.mark.asyncio
     async def test_add_to_queue(self, voice_handler_old) -> None:
-        """Test adding messages to the queue."""
+        """
+        Test that a message can be enqueued via the handler's add_to_queue method.
+        
+        If the subject under test exposes an `add_to_queue` coroutine, this test calls it with a small message payload.
+        When a `synthesis_queue` attribute is present, the test asserts the queue size is at least 1 after enqueuing.
+        """
         # Create test message data
         message_data = {"text": "Hello World", "chunks": [{"text": "Hello", "index": 0}], "user_id": 123456789, "username": "test_user", "group_id": "group_1"}
 
@@ -25,7 +30,11 @@ class TestQueueManagement:
                 assert queue_size >= 1, "Item should be enqueued after add_to_queue()"
 
     def test_voice_handler_has_queues(self, voice_handler_old) -> None:
-        """Test that VoiceHandler has queue attributes."""
+        """
+        Assert that the provided VoiceHandler exposes non-None queue attributes used for work dispatch.
+        
+        Verifies the instance has both `synthesis_queue` and `audio_queue` attributes and that neither is None.
+        """
         assert hasattr(voice_handler_old, "synthesis_queue")
         assert hasattr(voice_handler_old, "audio_queue")
 
@@ -45,7 +54,12 @@ class TestQueueManagement:
         assert hasattr(voice_handler_old.audio_queue, "empty")
 
     def test_clear_all_queues(self, voice_handler_old) -> None:
-        """Test that all queues can be cleared."""
+        """
+        Verify the VoiceHandler exposes a callable `clear_all` method.
+        
+        If the instance has a `clear_all` attribute, this test asserts it is callable.
+        This is a structural check only and does not invoke `clear_all` or verify queue contents are actually cleared.
+        """
         # This test depends on whether clear_all method exists and works
         if hasattr(voice_handler_old, "clear_all") and callable(voice_handler_old.clear_all):
             # Test the method exists and is callable
@@ -55,13 +69,25 @@ class TestQueueManagement:
             # But since this is structure testing, we'll just verify the method exists
 
     def test_cleanup_does_not_close_shared_tts_client(self, voice_handler_old) -> None:
-        """Test that cleanup doesn't close shared TTS client."""
+        """
+        Verify the VoiceHandler exposes a callable cleanup method.
+        
+        Asserts that the provided `voice_handler_old` has an attribute named
+        `cleanup` and that it is callable. This test does not invoke the method or
+        check resource shutdown behavior.
+        """
         # This test verifies cleanup method exists
         assert hasattr(voice_handler_old, "cleanup")
         assert callable(voice_handler_old.cleanup)
 
     def test_cleanup_voice_client_works(self, voice_handler_old) -> None:
-        """Test that voice client cleanup functionality exists."""
+        """
+        Assert the voice handler exposes a cleanup method and that it is callable.
+        
+        This test does not execute cleanup; it only verifies the presence of a `cleanup`
+        attribute on the provided `voice_handler_old` and confirms that the attribute
+        is callable (i.e., has a valid method signature).
+        """
         # Verify cleanup method is available
         assert hasattr(voice_handler_old, "cleanup")
 

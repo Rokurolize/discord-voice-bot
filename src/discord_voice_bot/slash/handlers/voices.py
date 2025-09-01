@@ -10,7 +10,17 @@ from ..embeds.voices import create_voices_embed
 
 
 async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> None:
-    """Handle voices slash command."""
+    """
+    Handle the `/voices` slash command: build and send an embed describing available TTS voices.
+    
+    This coroutine obtains a shared TTS engine and user settings, builds a voices embed with
+    create_voices_embed, and sends it as the interaction response. On failure it logs the
+    exception and sends an ephemeral error message (as an initial response or a follow-up
+    depending on whether an initial response was already sent).
+    
+    Raises:
+        asyncio.CancelledError: Propagated to allow upstream cancellation/timeouts to take effect.
+    """
     logger.debug("Handling /voices command from user id={} name={}", interaction.user.id, interaction.user.display_name)
     tts_engine = None
     try:

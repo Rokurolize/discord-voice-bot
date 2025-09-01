@@ -359,7 +359,11 @@ class TestWorkerInitialization:
     @pytest.mark.asyncio
     @patch("discord_voice_bot.voice.workers.synthesizer.get_tts_engine", new_callable=AsyncMock)
     async def test_worker_cleanup_on_handler_cleanup_fixed(self, mock_get_engine, voice_handler: VoiceHandler) -> None:
-        """Test that workers are properly cleaned up when handler is cleaned up with fixed mocking."""
+        """
+        Verify that synthesizer and player workers are stopped or cleared when VoiceHandler.cleanup() is invoked using a mocked TTS engine.
+        
+        Starts the VoiceHandler, asserts that worker tasks were created, calls cleanup(), and then checks that the synthesizer and player workers are either None or marked not running.
+        """
         try:
             async with asyncio.timeout(5.0):  # 5 second timeout
                 # Mock the TTS engine to avoid real HTTP requests

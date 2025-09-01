@@ -52,7 +52,17 @@ DEFAULT_SPEAKERS = MappingProxyType(
 
 
 def detect_engine(speaker_id: int) -> Engine:
-    """Keep heuristic centralized; evolve here when engines/IDs change."""
+    """
+    Return the TTS engine corresponding to a speaker ID.
+    
+    Determines whether a numeric speaker_id belongs to "aivis" (IDs >= 100000) or "voicevox" (IDs < 100000). Centralizes the heuristic so the threshold can be changed in one place.
+    
+    Parameters:
+        speaker_id (int): Numeric speaker identifier.
+    
+    Returns:
+        Engine: "aivis" or "voicevox".
+    """
     return "aivis" if speaker_id >= 100000 else "voicevox"
 
 
@@ -62,18 +72,19 @@ def get_compatible_speaker(
     to_engine: Engine,
     engine_configs: dict[str, dict[str, Any]] | None = None,
 ) -> int | None:
-    """Get compatible speaker ID for different engine.
-
-    Args:
-        speaker_id: Original speaker ID
-        from_engine: Source engine name (voicevox or aivis)
-        to_engine: Target engine name (voicevox or aivis)
-        engine_configs: Engine configuration dictionary from config
-
+    """
+    Return a speaker ID on the target TTS engine that is compatible with the given source speaker.
+    
+    If from_engine == to_engine, returns the original speaker_id. Otherwise attempts to map via the shared SPEAKER_MAPPING; if no mapping exists, returns a default speaker for the target engine — preferring engine_configs[to_engine]["default_speaker"] when provided, then the module-wide DEFAULT_SPEAKERS. Returns None if no default is available.
+    
+    Parameters:
+        speaker_id: Source engine speaker identifier.
+        from_engine: Source engine ("voicevox" or "aivis").
+        to_engine: Target engine ("voicevox" or "aivis").
+        engine_configs: Optional per-engine configuration dict; used to read an explicit "default_speaker" for the target engine.
+    
     Returns:
-        Compatible speaker ID for the target engine. If engines are the same,
-        returns the original speaker_id.
-
+        An integer speaker ID valid for the target engine, or None if no compatible ID or default is available.
     """
     # If same engine, no mapping needed
     if from_engine == to_engine:
@@ -133,15 +144,18 @@ SPEAKER_DB = MappingProxyType(
 
 
 def get_speaker_info(speaker_id: int, engine: Engine) -> dict[str, Any]:
-    """Get speaker information for given ID and engine.
-
-    Args:
-        speaker_id: Speaker ID
-        engine: Engine name (voicevox or aivis)
-
+    """
+    Return speaker metadata for the given speaker ID and engine.
+    
+    If the ID is not present in the engine's speaker database, returns a fallback
+    dictionary with "name" set to "Unknown (<id>)" and "character" set to "Unknown".
+    
+    Parameters:
+        speaker_id (int): Numeric speaker identifier.
+        engine (Engine): "voicevox" or "aivis".
+    
     Returns:
-        Speaker information dict with name and character
-
+        dict[str, Any]: Speaker info with at least the keys "name" and "character".
     """
     speaker_db = SPEAKER_DB
 

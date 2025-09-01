@@ -27,7 +27,12 @@ class TestStatusGeneration:
             assert "connection_errors" in stats
 
     def test_status_fields_exist(self, voice_handler_old) -> None:
-        """Test that essential status fields exist."""
+        """
+        Verify that, when present, the handler's `stats` mapping contains the essential keys:
+        `messages_processed`, `connection_errors`, and `tts_messages_played`.
+        
+        If the `voice_handler_old` object has no `stats` attribute, the test is skipped (guarded).
+        """
         if hasattr(voice_handler_old, "stats"):
             stats = voice_handler_old.stats
             expected_fields = ["messages_processed", "connection_errors", "tts_messages_played"]
@@ -36,7 +41,11 @@ class TestStatusGeneration:
                 assert field in stats, f"Missing status field: {field}"
 
     def test_status_values_accessible(self, voice_handler_old) -> None:
-        """Test that status values can be accessed and are numeric."""
+        """
+        Verify that if the fixture exposes a `stats` dict, the `messages_processed`
+        and `connection_errors` entries are retrievable and are either `None` or a
+        numeric type (`int` or `float`).
+        """
         if hasattr(voice_handler_old, "stats"):
             stats = voice_handler_old.stats
 

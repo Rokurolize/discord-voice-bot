@@ -95,15 +95,23 @@ class MessageProcessor:
             logger.info("Message processor initialized without rate limiting")
 
     async def should_process_message(self, message: Any, bot_user_id: int | None = None) -> bool:
-        """Determine if message should be processed for TTS.
-
-        Args:
-            message: Discord message object
-            bot_user_id: Optional bot user ID for self-message processing
-
+        """
+        Decide whether a Discord message is eligible for TTS processing.
+        
+        Performs a series of checks and returns True only when the message should be converted to speech:
+        - Only server (guild) text messages are allowed; direct messages are ignored.
+        - Bot messages are normally skipped unless they are the bot's own messages and self-message processing is enabled, or a test-time override marker is present.
+          - If the message has an attribute `_bot_user_id` matching the message author's id, the message is allowed immediately (after verifying the content is non-empty). This provides a safe opt-in path for tests and callers.
+          - If self-message processing is enabled in the configuration and `bot_user_id` is supplied, messages from that bot id are permitted to continue through additional checks.
+        - System message types, empty content, messages from blocked users, and messages starting with configured ignored prefixes are rejected.
+        - Enforces per-user rate limiting as configured; users currently on cooldown are rejected.
+        
+        Parameters:
+            message: Discord message-like object to evaluate. Expected to have attributes used in the checks (guild, author.id, author.bot, author.name, type.name, content).
+            bot_user_id: Optional integer bot user id used to identify and allow the bot's own messages when self-message processing is enabled.
+        
         Returns:
-            True if message should be processed, False otherwise
-
+            bool: True if the message passes all checks and should be processed for TTS; False otherwise.
         """
         # Only process messages from servers (ignore DMs), but do not restrict to
         # a single channel: the bot should TTS all server text messages.

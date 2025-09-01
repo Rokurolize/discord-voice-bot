@@ -10,7 +10,16 @@ class QueueManager:
     """Manages synthesis and audio queues for voice handler."""
 
     def __init__(self) -> None:
-        """Initialize queue manager."""
+        """
+        Create a QueueManager and initialize its internal queues, state, and synchronization primitives.
+        
+        Initializes:
+        - synthesis_queue: SynthesisQueue with a maxsize of 100 for pending synthesis tasks.
+        - audio_queue: PriorityAudioQueue for queued audio playback items.
+        - current_group_id: Optional[str] tracking the active group; starts as None.
+        - _recent_messages: list[int] used as a sliding-window cache of recent message hashes for deduplication.
+        - _synthesis_lock: asyncio.Lock used to serialize non-blocking insertions into the synthesis queue.
+        """
         super().__init__()
         self.synthesis_queue = SynthesisQueue(maxsize=100)
         self.audio_queue = PriorityAudioQueue()
@@ -19,7 +28,17 @@ class QueueManager:
         self._synthesis_lock = asyncio.Lock()
 
     async def add_to_queue(self, message_data: dict[str, Any]) -> None:
-        """Add message to synthesis queue with deduplication."""
+        """
+        Add a message's chunks to the synthesis queue, skipping duplicates and honoring queue capacity.
+        
+        Expects message_data to contain a "chunks" iterable of text chunks. Also reads (if present) "original_content" to detect duplicates, "user_id", "username", and "group_id". Behavior:
+        - Skips queuing if "chunks" is missing or if the message's content hash was seen recently (deduplication).
+        - Maintains a short (recent) history of message hashes to prevent re-queuing the same content.
+        - Respects the synthesis queue's maxsize; if the queue is full the message (or remaining chunks) will not be enqueued.
+        - Enqueues each chunk as a dict containing text, user info, group_id, chunk index/total, and the message hash.
+        
+        This method is asynchronous and uses an internal lock to protect the non-blocking enqueue critical section. It does not return a value.
+        """
         from loguru import logger
 
         logger.debug(f"🎤 QUEUE: add_to_queue called with message_data keys: {list(message_data.keys())}")
@@ -81,7 +100,11 @@ class QueueManager:
         return skipped
 
     async def clear_group_from_synthesis_queue(self, group_id: str) -> int:
-        """Clear items with specific group_id from synthesis queue."""
+        """
+        Remove all items with the given group_id from the synthesis queue and return how many were removed.
+        
+        This acquires the manager's internal synthesis lock and performs a non-blocking drain/reinsert of queue items: items whose "group_id" does not match are kept and reinserted, preserving their relative order. Returns the number of items removed (original queue size minus final queue size).
+        """
         # This is a simplified implementation - in real scenario,
         # you might need more sophisticated queue management
         original_size = self.synthesis_queue.qsize()
