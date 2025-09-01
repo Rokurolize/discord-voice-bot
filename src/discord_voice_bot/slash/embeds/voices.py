@@ -45,7 +45,7 @@ async def create_voices_embed(user_id: str | int, config: Config, tts_engine: TT
         speaker_groups: dict[str, list[tuple[str, int]]] = {}
         for name, speaker_id in speakers.items():
             # Extract base name (e.g., "zunda" from "zunda_normal")
-            base_name = name.split("_")[0] if "_" in name else name
+            base_name = name.split("_", 1)[0]
             if base_name not in speaker_groups:
                 speaker_groups[base_name] = []
             speaker_groups[base_name].append((name, speaker_id))
