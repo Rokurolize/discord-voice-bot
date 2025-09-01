@@ -224,10 +224,10 @@ class TTSEngine:
             engine_name: Optional engine key to select a configured engine. If not found, the function
                 falls back to the config entry "voicevox" when available.
 
-        Returns
+        Returns:
             AudioQuery | None: The generated AudioQuery from the TTS client, or None if the client returns no result.
 
-        Raises
+        Raises:
             TTSEngineError: If no suitable engine is found (neither the requested engine nor a 'voicevox' fallback)
                 or if the resolved engine configuration lacks a 'url'.
 
@@ -286,10 +286,10 @@ class TTSEngine:
             engine_name: Optional engine key to select a specific engine configuration from Config.engines. If omitted
                 the engine from Config.tts_engine is used; if that is unavailable, a 'voicevox' entry is used as a fallback.
 
-        Returns
+        Returns:
             bytes | None: Raw synthesized PCM audio bytes on success, or None if the underlying client returns None.
 
-        Raises
+        Raises:
             TTSEngineError: If no suitable engine configuration is found or if the selected engine is missing a 'url'.
 
         """
