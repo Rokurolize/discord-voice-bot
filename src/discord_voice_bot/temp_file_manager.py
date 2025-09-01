@@ -36,6 +36,7 @@ class TempFileManager:
         
         Returns:
             Config: The referenced configuration object.
+
         """
         cfg = self._config_ref()
         if cfg is None:
@@ -63,14 +64,15 @@ class TempFileManager:
           FFmpeg-based conversion debug step that can save the converted audio stage.
         - FFmpeg options (sample rate and channels) are taken from the configuration.
         
-        Parameters:
+        Parameters
             text: Original text that produced the audio (used only for debugging metadata).
             audio_data: WAV-formatted audio bytes to write to the temporary file.
             speaker_id: Optional speaker identifier used for debug metadata.
             engine_name: Optional engine name used for debug metadata.
         
-        Returns:
+        Returns
             A discord.FFmpegPCMAudio audio source on success, or None on failure.
+
         """
         # Import discord here to avoid circular imports
         try:
@@ -162,13 +164,14 @@ class TempFileManager:
         - On successful conversion (non-empty stdout and exit code 0), prepends a WAV header and saves the result via the audio_debugger with metadata that includes `ffmpeg_options`, converted size, sample rate, and channels.
         - Logs warnings when conversion fails or when exceptions occur; does not raise.
         
-        Parameters:
+        Parameters
             temp_path: Path to the temporary audio file to test (expected readable WAV/PCM).
             text: Original input text associated with the audio (used for debug save metadata).
             ffmpeg_options: The FFmpeg option string used when creating the Discord source (stored in debug metadata).
         
-        Returns:
+        Returns
             None
+
         """
         try:
             # Try to read the converted audio using FFmpeg

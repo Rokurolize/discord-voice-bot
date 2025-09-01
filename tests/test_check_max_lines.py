@@ -13,12 +13,10 @@ The tests focus on behaviors visible in the diff:
 - Aggregation of failures across multiple inputs
 """
 
-import os
 import stat
 import subprocess
-import sys
-from pathlib import Path
 from collections.abc import Iterable
+from pathlib import Path
 
 SCRIPT_CONTENT = """#!/usr/bin/env bash
 set -euo pipefail

@@ -106,12 +106,13 @@ class MessageProcessor:
         - System message types, empty content, messages from blocked users, and messages starting with configured ignored prefixes are rejected.
         - Enforces per-user rate limiting as configured; users currently on cooldown are rejected.
         
-        Parameters:
+        Parameters
             message: Discord message-like object to evaluate. Expected to have attributes used in the checks (guild, author.id, author.bot, author.name, type.name, content).
             bot_user_id: Optional integer bot user id used to identify and allow the bot's own messages when self-message processing is enabled.
         
-        Returns:
+        Returns
             bool: True if the message passes all checks and should be processed for TTS; False otherwise.
+
         """
         # Only process messages from servers (ignore DMs), but do not restrict to
         # a single channel: the bot should TTS all server text messages.

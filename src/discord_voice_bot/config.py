@@ -60,11 +60,14 @@ def _env_to_bool(key: str, default: bool) -> bool:
     
     If the environment variable named by `key` is not set, returns `default`. When present,
     the value is trimmed and compared case-insensitively to common truthy tokens: `"true"`, `"1"`, `"yes"`, and `"on"`. Any other value yields False.
+
     Parameters:
-        key (str): Name of the environment variable to read.
-        default (bool): Value to return when the environment variable is not set.
+        key: Name of the environment variable to read.
+        default: Value to return when the environment variable is not set.
+
     Returns:
         bool: Parsed boolean value or `default` if the variable is missing.
+
     """
     val = os.environ.get(key)
     if val is None:
@@ -117,6 +120,7 @@ class Config:
         
         Returns:
             Config: An immutable configuration populated from environment, secrets, .env, and defaults.
+
         """
         # Precedence: process env > .env > secrets > defaults
         # Load secrets and .env as dicts, then seed missing keys into process env
@@ -199,6 +203,7 @@ class Config:
         
         Returns:
             discord.Intents: Intents instance with the required flags enabled.
+
         """
         import discord
 

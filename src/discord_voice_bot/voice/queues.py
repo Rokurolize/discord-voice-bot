@@ -17,8 +17,9 @@ class SynthesisQueue:
         """
         Enqueue a synthesis request, awaiting until space is available.
         
-        Parameters:
+        Parameters
             item (dict[str, Any]): A synthesis request payload to be processed by the TTS pipeline. The dictionary may contain keys such as input text, voice settings, and metadata required by consumers.
+
         """
         await self._queue.put(item)
 
@@ -28,11 +29,12 @@ class SynthesisQueue:
         
         Add the given synthesis request dict to the internal queue immediately. This is a non-blocking enqueue operation — if the internal queue is full, an asyncio.QueueFull exception will be raised.
         
-        Parameters:
+        Parameters
             item (dict[str, Any]): Synthesis request payload (TTS request details) to enqueue.
         
-        Raises:
+        Raises
             asyncio.QueueFull: If the queue has reached its maxsize.
+
         """
         self._queue.put_nowait(item)
 
@@ -42,6 +44,7 @@ class SynthesisQueue:
         
         Returns:
             dict[str, Any]: The next queued synthesis item (a request dictionary).
+
         """
         return await self._queue.get()
 

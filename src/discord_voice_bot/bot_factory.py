@@ -79,9 +79,10 @@ class BotFactory:
             config: Optional per-bot Config; when omitted the configuration is loaded from the environment.
             bot_class: Optional bot class to instantiate; when omitted the default DiscordVoiceTTSBot is imported and used.
             test_mode: Optional override for the Config.test_mode field (applied by creating a replaced Config).
-        
+
         Returns:
             The configured bot instance (type depends on `bot_class`).
+
         """
         try:
             # Import here to avoid circular imports
@@ -130,6 +131,8 @@ class BotFactory:
                  (e.g., bot.event_handler) and registered in the factory registry.
             config: The per-bot Config dataclass used when constructing components that depend on
                     configuration (event_handler, message_validator, voice_handler, health_monitor).
+
+
         
         Side effects:
             - Mutates the factory registry and the bot by registering and setting component attributes.
@@ -137,6 +140,7 @@ class BotFactory:
         
         Errors:
             - Any exception raised while creating or registering a component is logged and re-raised.
+
         """
         logger.info("Setting up bot components...")
 
@@ -196,15 +200,14 @@ class BotFactory:
         This helper logs start_msg, executes the provided operation (which may be a callable that returns an awaitable, a coroutine, or a synchronous callable), logs success_msg on completion, and re-raises any exception after logging it.
         
         Parameters:
-            start_msg (str): Message logged before executing the operation.
-            operation (Callable[[], Any] | Awaitable[Any]): A callable (sync or returning an awaitable) or an awaitable/coroutine to execute.
-            success_msg (str): Message logged if the operation completes successfully.
-        
-        Returns:
-            None
+            start_msg: Message logged before executing the operation.
+            operation: A callable (sync or returning an awaitable) or an awaitable/coroutine to execute.
+            success_msg: Message logged if the operation completes successfully.
+
         
         Raises:
             Exception: Any exception raised by the operation is logged and re-raised.
+
         """
         """Execute operation with standardized logging.
 
@@ -250,6 +253,7 @@ class BotFactory:
         
         Returns:
             CommandHandler: an initialized command handler attached to the bot.
+
         """
         return self._create_component("discord_voice_bot.command_handler", "CommandHandler", bot)
 
@@ -261,6 +265,7 @@ class BotFactory:
         
         Returns:
             An instance of `SlashCommandRegistry` when available, otherwise `None`.
+
         """
         try:
             return self._create_component("discord_voice_bot.slash.registry", "SlashCommandRegistry", bot)
@@ -275,10 +280,13 @@ class BotFactory:
         This constructs and returns a MessageValidator instance with the given Config injected directly (the validator is not coupled to the bot instance).
         
         Parameters:
-            config (Config): Per-bot configuration dataclass used to configure the MessageValidator.
+            bot: The bot that will own the validator (unused by constructor but kept for symmetry).
+            config: Per-bot configuration dataclass used to configure the MessageValidator.
+
         
         Returns:
             MessageValidator: A new MessageValidator configured with `config`.
+
         """
         return self._create_component("discord_voice_bot.message_validator", "MessageValidator", config)
 
@@ -288,6 +296,7 @@ class BotFactory:
         
         Returns:
             StatusManager: Newly constructed StatusManager component.
+
         """
         return self._create_component("discord_voice_bot.status_manager", "StatusManager")
 
@@ -302,13 +311,15 @@ class BotFactory:
         
         Parameters:
             bot: The bot instance that the VoiceHandler will control/attach to.
-            config (Config): The per-bot configuration dataclass used to configure the handler.
+            config: The per-bot configuration dataclass used to configure the handler.
+
         
         Returns:
             Any: An instantiated VoiceHandler.
         
         Raises:
             Exception: Propagates any error raised during dynamic import or instantiation (errors are logged before re-raising).
+
         """
         try:
             return self._create_component("discord_voice_bot.voice.handler", "VoiceHandler", bot, config)
@@ -325,9 +336,11 @@ class BotFactory:
         Parameters:
             bot: The bot instance the HealthMonitor will monitor.
             config: The per-bot Config dataclass used to build the ConfigManager and TTS client.
+
         
         Returns:
             The instantiated HealthMonitor component.
+
         """
         # Lazy imports to avoid cycles
         from .config_manager import ConfigManagerImpl
@@ -391,6 +404,7 @@ class BotFactory:
         Raises:
             RuntimeError: If the bot does not expose a valid `Config` dataclass instance.
             Exception: Propagates any exception raised while creating or starting the services.
+
         """
         logger.info("Initializing external services...")
 
@@ -483,12 +497,13 @@ class BotFactory:
         - Clears the internal component registry.
         - If the bot has a `tts_engine` attribute with a `close` coroutine, awaits it to close the engine.
         
-        Parameters:
+        Parameters
             bot: The bot instance to shut down. May be used to locate the attached TTS engine as
                  `bot.tts_engine`; otherwise only the factory's component registry is acted on.
         
-        Returns:
+        Returns
             None
+
         """
         logger.info("Starting bot shutdown...")
 

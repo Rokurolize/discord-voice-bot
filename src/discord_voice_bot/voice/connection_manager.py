@@ -41,15 +41,16 @@ class VoiceConnectionManager:
         StageChannels attempts to request speaking. On transient failures the
         voice client is cleaned up.
         
-        Parameters:
+        Parameters
             channel_id (int): Discord ID of the target voice or stage channel.
         
-        Returns:
+        Returns
             bool: True when connected to (or moved to) the target channel and the
             connection is verified; False on failure.
         
-        Raises:
+        Raises
             asyncio.CancelledError: Propagated to allow callers to handle cancellations/timeouts.
+
         """
         try:
             # Check reconnection cooldown
@@ -213,11 +214,12 @@ class VoiceConnectionManager:
         """
         Set the timestamp of the last connection attempt.
         
-        Parameters:
+        Parameters
             value (float): A float-like value representing seconds from the asyncio loop's monotonic clock; will be coerced to float.
         
-        Raises:
+        Raises
             TypeError: If `value` cannot be converted to float.
+
         """
         try:
             self._last_connection_attempt = float(value)
@@ -244,8 +246,9 @@ class VoiceConnectionManager:
         Raises a TypeError if the value cannot be converted to int, and a ValueError if the resulting
         integer is negative.
         
-        Parameters:
+        Parameters
             value (int): Non-negative number of seconds to wait between reconnection attempts.
+
         """
         try:
             ivalue = int(value)

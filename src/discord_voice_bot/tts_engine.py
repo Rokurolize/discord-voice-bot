@@ -187,23 +187,25 @@ class TTSEngine:
             if not audio_data:
                 return None
 
-            # DEBUG: Save raw TTS output for analysis
-            try:
-                from .audio_debugger import audio_debugger
-
-                metadata = {
-                    "speaker_id": speaker_id or self.speaker_id,
-                    "engine": engine_name or self.engine_name,
-                    "original_length": len(text),
-                }
-                saved_path = audio_debugger.save_audio_stage(audio_data, "tts_raw", text, metadata)
-                logger.debug(f"🔍 Saved raw TTS audio for debugging: {saved_path}")
-            except Exception as e:
-                logger.warning(f"Failed to save debug audio: {e}")
+            # DEBUG: Save raw TTS output for analysis (only when enabled)
+            if getattr(self.config, "debug", False):
+                try:
+                    from .audio_debugger import audio_debugger
+                    metadata = {
+                        "speaker_id": speaker_id or self.speaker_id,
+                        "engine": engine_name or self.engine_name,
+                        "original_length": len(text),
+                    }
+                    saved_path = audio_debugger.save_audio_stage(audio_data, "tts_raw", text, metadata)
+                    logger.debug(f"🔍 Saved raw TTS audio for debugging: {saved_path}")
+                except Exception as e:
+                    logger.debug(f"Skipping debug audio save: {e}")
 
             logger.info(f"Successfully synthesized audio for text: '{text[:50]}...'")
             return audio_data
 
+        except asyncio.CancelledError:
+            raise
         except Exception as e:
             logger.error(f"Failed to synthesize audio: {type(e).__name__} - {e!s}")
             return None
@@ -232,41 +234,7 @@ class TTSEngine:
                 or if the resolved engine configuration lacks a 'url'.
 
         """
-        # Determine engine and speaker (normalize name for case-insensitive lookup)
-        raw_engine = engine_name if engine_name is not None else self.config.tts_engine
-        target_engine = str(raw_engine).strip().lower()
-        engines = self.config.engines
-        engine_config = engines.get(target_engine)
-        if engine_config is None:
-            engine_config = engines.get("voicevox")
-        if engine_config is None:
-            raise TTSEngineError(f"Unknown TTS engine '{target_engine}' and no 'voicevox' fallback configured")
-
-        # Use provided speaker ID or configured speaker name for the target engine
-        if speaker_id is not None:
-            try:
-                current_speaker_id = int(speaker_id)
-            except (TypeError, ValueError):
-                try:
-                    current_speaker_id = int(engine_config.get("default_speaker", 3))
-                except (TypeError, ValueError):
-                    current_speaker_id = 3
-        else:
-            # Map Config.tts_speaker to the target engine's speakers; fallback to default
-            speakers = engine_config.get("speakers", {})
-            desired_name = str(getattr(self.config, "tts_speaker", "")).strip().lower()
-            _raw = speakers.get(desired_name, engine_config.get("default_speaker"))
-            try:
-                current_speaker_id = int(_raw)
-            except (TypeError, ValueError):
-                try:
-                    current_speaker_id = int(engine_config.get("default_speaker", 3))
-                except (TypeError, ValueError):
-                    current_speaker_id = 3
-        target_api_url = engine_config.get("url")
-        if not target_api_url:
-            raise TTSEngineError(f"Engine '{target_engine}' is missing 'url' in config")
-
+        engine_config, current_speaker_id, target_api_url = self._resolve_engine_and_speaker(speaker_id, engine_name)
         result = await self._tts_client.generate_audio_query(text, current_speaker_id, target_api_url)
         return result  # type: ignore[return-value]
 
@@ -293,41 +261,39 @@ class TTSEngine:
             TTSEngineError: If no suitable engine configuration is found or if the selected engine is missing a 'url'.
 
         """
-        # Determine engine and speaker (normalize name for case-insensitive lookup)
+        engine_config, current_speaker_id, target_api_url = self._resolve_engine_and_speaker(speaker_id, engine_name)
+        return await self._tts_client.synthesize_from_query(audio_query, current_speaker_id, target_api_url)  # type: ignore[arg-type]
+
+    def _resolve_engine_and_speaker(
+        self, speaker_id: int | None, engine_name: str | None
+    ) -> tuple[dict[str, Any], int, str]:
         raw_engine = engine_name if engine_name is not None else self.config.tts_engine
         target_engine = str(raw_engine).strip().lower()
         engines = self.config.engines
-        engine_config = engines.get(target_engine)
+        engine_config = engines.get(target_engine) or engines.get("voicevox")
         if engine_config is None:
-            engine_config = engines.get("voicevox")
-        if engine_config is None:
-            raise TTSEngineError(f"Unknown TTS engine '{target_engine}' and no 'voicevox' fallback configured")
-
-        # Use provided speaker ID or configured speaker name for the target engine
+            raise TTSEngineError(
+                f"Unknown TTS engine '{target_engine}' and no 'voicevox' fallback configured"
+            )
         if speaker_id is not None:
             try:
-                current_speaker_id = int(speaker_id)
+                resolved_speaker = int(speaker_id)
             except (TypeError, ValueError):
-                try:
-                    current_speaker_id = int(engine_config.get("default_speaker", 3))
-                except (TypeError, ValueError):
-                    current_speaker_id = 3
+                ds = engine_config.get("default_speaker", 3)
+                resolved_speaker = int(ds) if str(ds).isdigit() else 3
         else:
             speakers = engine_config.get("speakers", {})
-            desired_name = str(getattr(self.config, "tts_speaker", "")).strip().lower()
-            _raw = speakers.get(desired_name, engine_config.get("default_speaker"))
+            desired = str(getattr(self.config, "tts_speaker", "")).strip().lower()
+            raw = speakers.get(desired, engine_config.get("default_speaker"))
             try:
-                current_speaker_id = int(_raw)
+                resolved_speaker = int(raw)
             except (TypeError, ValueError):
-                try:
-                    current_speaker_id = int(engine_config.get("default_speaker", 3))
-                except (TypeError, ValueError):
-                    current_speaker_id = 3
-        target_api_url = engine_config.get("url")
-        if not target_api_url:
+                ds = engine_config.get("default_speaker", 3)
+                resolved_speaker = int(ds) if str(ds).isdigit() else 3
+        url = engine_config.get("url")
+        if not url:
             raise TTSEngineError(f"Engine '{target_engine}' is missing 'url' in config")
-
-        return await self._tts_client.synthesize_from_query(audio_query, current_speaker_id, target_api_url)  # type: ignore[arg-type]
+        return engine_config, resolved_speaker, url
 
     async def create_audio_source(self, text: str, speaker_id: int | None = None, engine_name: str | None = None) -> Any:
         """Create Discord audio source from text using temp file manager.
@@ -402,7 +368,8 @@ class TTSEngine:
 
         Looks up the engine configuration for self.config.tts_engine and returns its "speakers" mapping as a plain dict. If the selected engine or its "speakers" entry is missing, an empty dict is returned.
         """
-        engine_config = self.config.engines.get(self.config.tts_engine, {})
+        engine_key = str(self.config.tts_engine).strip().lower()
+        engine_config = self.config.engines.get(engine_key, {})
         return dict(engine_config.get("speakers", {}))
 
     async def health_check(self) -> bool:

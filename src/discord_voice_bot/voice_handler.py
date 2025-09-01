@@ -37,6 +37,7 @@ class VoiceHandler(NewVoiceHandler):
         - tts_client is optional for now but may become required in a future major release.
         - This class is deprecated; prefer discord_voice_bot.voice.VoiceHandler.
         - For backward compatibility this initializer also creates a plain-dict self.stats with keys "messages_processed", "connection_errors", and "tts_messages_played" all initialized to 0.
+
         """
         # Adapt to new implementation which expects a Config dataclass.
         from .config import Config

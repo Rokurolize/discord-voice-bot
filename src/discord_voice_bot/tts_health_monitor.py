@@ -37,6 +37,7 @@ class TTSHealthMonitor:
         
         Raises:
             RuntimeError: If the underlying Config has been garbage-collected.
+
         """
         cfg = self._config_ref()
         if cfg is None:
@@ -52,6 +53,7 @@ class TTSHealthMonitor:
         
         Returns:
             bool: True when both API and synthesis checks succeed, False otherwise.
+
         """
         try:
             # Check API availability

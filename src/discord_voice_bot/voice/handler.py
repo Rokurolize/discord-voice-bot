@@ -35,8 +35,10 @@ class NullVoiceClient:
         Return whether a voice client is connected.
         
         For the null stub client this always returns False.
+
         Returns:
             bool: False, indicating no active voice connection.
+
         """
         return False
 
@@ -48,6 +50,7 @@ class NullVoiceClient:
         
         Returns:
             bool: Always False.
+
         """
         return False
 
@@ -58,7 +61,7 @@ class NullVoiceClient:
         This method intentionally does nothing and exists to provide a compatible interface with real voice clients
         when no voice connection is present (e.g., testing or uninitialized state).
         """
-        return None
+        return
 
     async def disconnect(self) -> None:  # pragma: no cover - trivial
         """
@@ -66,7 +69,7 @@ class NullVoiceClient:
         
         Implements the async disconnect signature of a real voice client but performs no action and returns immediately.
         """
-        return None
+        return
 
 
 class VoiceHandlerInterface(Protocol):
@@ -147,7 +150,10 @@ class VoiceHandler(VoiceHandlerInterface):
         Initializes the connection, queue, rate-limiter, stats, and task managers; constructs a HealthMonitor (injecting a TTS client if none is provided); and sets legacy-compatible properties (is_playing, target_channel, connection_state, synthesis_queue, audio_queue, current_group_id, stats, rate_limiter, circuit_breaker, tasks) so existing callers/tests continue to work. Also prepares internal worker slots (_synthesizer_worker, _player_worker) for later lifecycle management.
         
         Parameters:
-            tts_client (optional): An injected TTS client instance used by the HealthMonitor (primarily for testing or custom TTS implementations). If omitted, a default TTSClient is created from the provided config.
+            bot_client: Discord client used for gateway interactions.
+            config: Effective configuration for voice behavior.
+            tts_client: Optional TTS client instance used by the HealthMonitor (primarily for testing or custom TTS implementations). If omitted, a default TTSClient is created from the provided config.
+
         """
         super().__init__()
         self.bot = bot_client
@@ -222,10 +228,8 @@ class VoiceHandler(VoiceHandlerInterface):
         This coroutine checks for the Opus library (tries to load it if missing) as a diagnostic step — failures are logged and do not prevent startup. After the Opus check completes, it creates and starts the synthesizer worker and, if requested, the player worker.
         
         Parameters:
-            start_player (bool): If True (default), start the player worker in addition to the synthesizer worker.
-        
-        Returns:
-            None
+            start_player: If True (default), start the player worker in addition to the synthesizer worker.
+
         """
         # Diagnostics: ensure opus is loaded; if not, voice playback will fail
         try:
@@ -306,6 +310,7 @@ class VoiceHandler(VoiceHandlerInterface):
         
         Returns:
             Any: The active voice client instance from the connection manager, or a NullVoiceClient() stub if no client is present.
+
         """
         vc = self.connection_manager.voice_client
         return vc if vc is not None else NullVoiceClient()
@@ -329,10 +334,11 @@ class VoiceHandler(VoiceHandlerInterface):
         Attempts to establish a voice connection for the given Discord channel ID and returns whether the connection succeeded.
         
         Parameters:
-            channel_id (int): Discord channel (snowflake) ID to connect to.
+            channel_id: Discord channel (snowflake) ID to connect to.
         
         Returns:
             bool: True if the connection was established, False otherwise.
+
         """
         return await self.connection_manager.connect_to_channel(channel_id)
 
@@ -349,7 +355,8 @@ class VoiceHandler(VoiceHandlerInterface):
         Handle a Discord VOICE_STATE_UPDATE gateway event by delegating it to the VoiceConnectionManager.
         
         Parameters:
-            payload (dict[str, Any]): Raw VOICE_STATE_UPDATE gateway event payload as received from Discord.
+            payload: Raw VOICE_STATE_UPDATE gateway event payload as received from Discord.
+
         """
         await self.connection_manager.handle_voice_state_update(payload)
 
@@ -357,13 +364,14 @@ class VoiceHandler(VoiceHandlerInterface):
         """
         Make a rate-limited API request using the configured rate limiter and circuit breaker.
         
-        Parameters:
+        Parameters
             api_call (Callable): The callable to invoke under rate limiting/circuit-breaking. May be a coroutine function or regular callable.
             *args: Positional arguments forwarded to `api_call`.
             **kwargs: Keyword arguments forwarded to `api_call`.
         
-        Returns:
+        Returns
             Any: The result returned by `api_call`.
+
         """
         return await self.rate_limiter_manager.make_rate_limited_request(api_call, *args, **kwargs)
 
@@ -375,11 +383,12 @@ class VoiceHandler(VoiceHandlerInterface):
         and will be enqueued for processing. The queue manager performs deduplication so identical or
         already-scheduled tasks will not be added multiple times.
         
-        Parameters:
+        Parameters
             message_data (dict[str, Any]): Payload describing the message to synthesize (text, voice, group id, etc.).
         
-        Returns:
+        Returns
             None
+
         """
         await self.queue_manager.add_to_queue(message_data)
 
@@ -390,11 +399,12 @@ class VoiceHandler(VoiceHandlerInterface):
         If a group_id is provided, updates the handler's current_group_id (and the QueueManager's current_group_id) before skipping.
         Skips items from both the audio playback queue and the synthesis queue for the active group, stops the voice client if it's playing, and increments the internal "messages skipped" counter.
         
-        Parameters:
+        Parameters
             group_id (str | None): Optional group identifier to target for skipping; if omitted, the handler's current_group_id is used.
         
-        Returns:
+        Returns
             int: Total number of chunks removed/skipped across audio and synthesis queues. Returns 0 if there is no current group to skip.
+
         """
         # Allow caller to specify target group id for compatibility
         if group_id is not None:
@@ -428,6 +438,7 @@ class VoiceHandler(VoiceHandlerInterface):
         
         Returns:
             int: Total number of items removed from the queues.
+
         """
         total = await self.queue_manager.clear_all()
 
@@ -458,6 +469,7 @@ class VoiceHandler(VoiceHandlerInterface):
                 - connection_state (str): low-level connection state string from the connection manager.
                 - is_playing (bool): same as `playing` (backwards-compatible).
                 - max_queue_size (int): configured maximum queue size (fixed value: 50).
+
         """
         connection_info = self.connection_manager.get_connection_info()
         queue_sizes = self.queue_manager.get_queue_sizes()

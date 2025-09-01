@@ -40,6 +40,7 @@ def get_user_settings():
     
     Returns:
         The result of load_user_settings() — the application's loaded user settings (type depends on loader).
+
     """
     return load_user_settings()
 
@@ -59,7 +60,10 @@ class SynthesizerWorker:
         - loads per-user settings via the testable shim get_user_settings().
         
         Parameters:
+            voice_handler: The voice handler facade providing queues and stats.
             config: Configuration used by the worker (influences TTS engine selection and runtime behavior).
+
+
         """
         super().__init__()
         self.voice_handler = voice_handler

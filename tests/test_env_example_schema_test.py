@@ -3,6 +3,7 @@
 import re
 from pathlib import Path
 from urllib.parse import urlparse
+
 import pytest
 
 ENV_EXAMPLE_PATH = Path(__file__).with_name("test_env_example.py")

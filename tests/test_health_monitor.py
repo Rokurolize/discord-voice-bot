@@ -25,7 +25,6 @@ class MockTTSClient:
         
         In this mock implementation the method is asynchronous but performs no operation — provided so tests can await session startup without side effects.
         """
-        pass
 
     async def close_session(self) -> None:
         """
@@ -34,7 +33,6 @@ class MockTTSClient:
         This is a no-op placeholder used by tests to match the real client's async close behavior;
         awaiting this coroutine is safe and has no side effects.
         """
-        pass
 
     async def check_api_availability(self) -> tuple[bool, str]:
         """

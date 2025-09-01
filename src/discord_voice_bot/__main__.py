@@ -30,7 +30,11 @@ class BotManager:
         - config: configuration for the bot; if `config` is None, it is loaded from the environment via `Config.from_env()`.
         
         Parameters:
-            config: Optional Config instance to use. When omitted, the configuration is loaded from environment variables.
+            config: Optional; the `Config` instance to use. When omitted,
+                configuration is loaded from environment variables via
+                `Config.from_env()`.
+
+
         """
         super().__init__()
         self.bot_task: asyncio.Task[None] | None = None

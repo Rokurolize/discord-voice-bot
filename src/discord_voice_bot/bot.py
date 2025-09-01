@@ -128,6 +128,7 @@ class DiscordVoiceTTSBot(BaseEventBot):
         
         Returns:
             The concrete Config dataclass, the config manager object, or None.
+
         """
         cm = getattr(self, "config_manager", None)
         if cm is None:
@@ -150,10 +151,9 @@ class DiscordVoiceTTSBot(BaseEventBot):
         the provided message to that handler.
         
         Parameters:
-            message (discord.Message): The message object received from Discord (typed as Any at runtime).
-        
-        Returns:
-            None
+            message: The message object received from Discord (typed as Any at runtime).
+
+
         """
         await self._delegate_event_async("event_handler", "handle_message", message)
 
@@ -192,6 +192,7 @@ async def run_bot(config: Config | None = None) -> None:
     Notes:
     - CancelledError is propagated unchanged.
     - Other exceptions are printed and re-raised.
+
     """
     factory = BotFactory()
     bot: Any | None = None

@@ -41,10 +41,11 @@ class ConfigManagerImpl:
         - Deep-copies non-mapping/sequence leaf values to avoid exposing internal mutable objects.
         
         Parameters:
-            m (Mapping[str, Any]): Mapping to normalize.
+            m: Mapping to normalize.
         
         Returns:
             dict[str, Any]: A new plain dict with string keys and normalized, deep-copied contents.
+
         """
         def _norm(x: Any) -> Any:
             if isinstance(x, Mapping):
@@ -70,6 +71,7 @@ class ConfigManagerImpl:
         Parameters:
             config: Optional Config dataclass to use instead of loading from environment.
             test_mode: Optional boolean that, when set, overrides the configured test mode.
+
         """
         super().__init__()
         self._config: Config | None = config
@@ -84,10 +86,11 @@ class ConfigManagerImpl:
         
         Parameters:
             name: The engine name being validated.
-            ec:  Mapping containing the engine configuration.
+            ec: Mapping containing the engine configuration.
         
         Raises:
             ValueError: If a custom engine is missing a required "url" or "default_speaker".
+
         """
         if name in ("voicevox", "aivis"):
             return
@@ -112,6 +115,7 @@ class ConfigManagerImpl:
         
         Returns:
             Config: The active configuration dataclass.
+
         """
         return self._get_config()
 
@@ -136,6 +140,7 @@ class ConfigManagerImpl:
         
         Raises:
             ValueError: If the configured `tts_engine` is not recognized, or if a custom (non-built-in) engine provides an invalid or missing `url`, or if no default is available.
+
         """
         cfg = self._get_config()
         # Consistency: require declared engine unless using known defaults
@@ -171,6 +176,7 @@ class ConfigManagerImpl:
         
         Raises:
             ValueError: If the tts_engine is unknown, if the configured `default_speaker` cannot be converted to an integer, or if the resulting ID is not a positive integer.
+
         """
         cfg = self._get_config()
         ec = cfg.engines.get(cfg.tts_engine)
@@ -202,6 +208,7 @@ class ConfigManagerImpl:
         
         Returns:
             int: Audio sample rate (samples per second).
+
         """
         return self._get_config().audio_sample_rate
 
@@ -211,6 +218,7 @@ class ConfigManagerImpl:
         
         Returns:
             int: Audio channel count from the active configuration.
+
         """
         return self._get_config().audio_channels
 
@@ -220,6 +228,7 @@ class ConfigManagerImpl:
         
         Returns:
             str: Log level from the active Config.
+
         """
         return self._get_config().log_level
 
@@ -292,6 +301,7 @@ class ConfigManagerImpl:
         
         Returns:
             str: The configured Discord bot token.
+
         """
         return self._get_config().discord_token
 
@@ -301,6 +311,7 @@ class ConfigManagerImpl:
         
         Returns:
             int: The target guild ID from the loaded configuration.
+
         """
         return self._get_config().target_guild_id
 
@@ -317,6 +328,7 @@ class ConfigManagerImpl:
         
         Raises:
             ValueError: If the resolved channel ID is not a positive integer.
+
         """
         # In test mode, use TEST_TARGET_VOICE_CHANNEL_ID if set; otherwise default (env-first for test determinism)
         if self.is_test_mode():
@@ -332,6 +344,7 @@ class ConfigManagerImpl:
         
         Returns:
             str: The command prefix from the active configuration.
+
         """
         return self._get_config().command_prefix
 
@@ -351,6 +364,7 @@ class ConfigManagerImpl:
         
         Raises:
             ValueError: If the configured TTS engine is unknown or a custom engine is missing required fields.
+
         """
         cfg = self._get_config()
         ec = cfg.engines.get(cfg.tts_engine)
@@ -388,6 +402,7 @@ class ConfigManagerImpl:
         
         Returns:
             int: Maximum allowed message length from the underlying Config.
+
         """
         return self._get_config().max_message_length
 
@@ -406,6 +421,7 @@ class ConfigManagerImpl:
         
         Returns:
             int: Reconnect delay (seconds) as specified in the active Config.
+
         """
         return self._get_config().reconnect_delay
 
@@ -427,6 +443,7 @@ class ConfigManagerImpl:
         
         Returns:
             int: Rate limit period in seconds.
+
         """
         if self.is_test_mode():
             return self._get_env_int(TEST_RATE_LIMIT_PERIOD_ENV, 60, min_value=1)
@@ -440,13 +457,14 @@ class ConfigManagerImpl:
         and returns the parsed value if it is >= min_value. If the environment variable is unset,
         non-numeric after normalization, or below min_value, returns the provided default.
         
-        Parameters:
+        Parameters
             name (str): Environment variable name to read.
             default (int): Value to return if the environment variable is missing, invalid, or below min_value.
             min_value (int, optional): Minimum allowed value (inclusive). Defaults to 0.
         
-        Returns:
+        Returns
             int: The parsed environment integer or the default.
+
         """
         import os
 
@@ -468,6 +486,7 @@ class ConfigManagerImpl:
         
         Returns:
             str | None: Path to the log file, or None when logging to stderr/stdout.
+
         """
         return self._get_config().log_file
 

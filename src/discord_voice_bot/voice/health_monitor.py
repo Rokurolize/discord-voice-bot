@@ -46,6 +46,7 @@ class HealthMonitor:
                 - channel_accessible (bool): Whether the voice client is associated with an accessible channel.
                 - can_synthesize (bool): Whether the TTS API was reported healthy by the TTS client.
                 - audio_playback_ready (bool): True when the voice client is connected and not currently playing audio.
+
         """
         logger.debug("🔍 Performing voice connection health check...")
 

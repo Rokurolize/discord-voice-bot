@@ -20,6 +20,7 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
     
     Raises:
         asyncio.CancelledError: Propagated to allow upstream cancellation/timeouts to take effect.
+
     """
     logger.debug("Handling /voices command from user id={} name={}", interaction.user.id, interaction.user.display_name)
     tts_engine = None

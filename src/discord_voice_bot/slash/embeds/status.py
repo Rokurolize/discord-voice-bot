@@ -11,7 +11,7 @@ async def create_status_embed(status: dict[str, Any], config: Config) -> discord
     """
     Create a Discord embed summarizing the bot's current status.
     
-    Parameters:
+    Parameters
         status (dict[str, Any]): Status payload. Expected keys:
             - "voice_status" (dict, optional): May contain "connected" (bool),
               "channel_name" (str), "is_playing" (bool), and "queue_size" (int).
@@ -21,10 +21,11 @@ async def create_status_embed(status: dict[str, Any], config: Config) -> discord
         config (Config): Configuration object exposing `tts_engine` and `tts_speaker`
             attributes used to display TTS engine and speaker.
     
-    Returns:
+    Returns
         discord.Embed: An embed with fields for connection, TTS, queue, and bot info.
         - Embed color is green when voice is connected, otherwise red.
         - First three status fields are added inline.
+
     """
     embed = discord.Embed(
         title="🤖 Discord Voice TTS Bot Status",

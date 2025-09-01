@@ -53,6 +53,7 @@ class AudioProcessor:
         
         Raises:
             RuntimeError: If the referenced Config has been garbage-collected.
+
         """
         cfg = self._config_ref()
         if cfg is None:
@@ -66,10 +67,12 @@ class AudioProcessor:
         Modifies the provided audio_query dict: sets "outputSamplingRate" from the current config, clamps "volumeScale" to [0.0, 1.0] then scales it by 0.8 to reduce clipping, and clamps "speedScale" to [0.8, 1.2]. Intentionally does not modify "pitchScale" (left as-is to preserve natural voice). If audio_query is falsy the function returns without changes.
         
         Parameters:
-            audio_query: Mutable mapping of audio parameters (modified in place).
-        
+            audio_query: The mutable mapping of audio parameters to optimize
+                (modified in place).
+
         Raises:
             RuntimeError: If the processor's Config has been garbage-collected and cannot be accessed.
+
         """
         if not audio_query:
             return

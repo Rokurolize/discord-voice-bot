@@ -38,6 +38,7 @@ class TTSClient:
         
         Raises:
             RuntimeError: If the weak reference no longer points to a live Config.
+
         """
         cfg = self._config_ref()
         if cfg is None:
@@ -88,12 +89,13 @@ class TTSClient:
             """
             Convert a value to an int, returning a provided default if conversion fails.
             
-            Parameters:
+            Parameters
                 v (Any): Value to convert to int.
                 d (int): Default integer to return if `v` cannot be converted.
             
-            Returns:
+            Returns
                 int: The converted integer, or `d` when a TypeError or ValueError occurs.
+
             """
             try:
                 return int(v)
@@ -115,6 +117,7 @@ class TTSClient:
         
         Returns:
             str: The TTS engine name converted to uppercase.
+
         """
         return self.config.tts_engine.upper()
 
@@ -234,17 +237,18 @@ class TTSClient:
         """
         Create an audio_query payload for synthesis by POSTing the given text and speaker to the engine's /audio_query endpoint.
         
-        Parameters:
+        Parameters
             text: Input text to convert into an audio_query.
             speaker_id: Speaker identifier to request from the TTS engine.
             api_url: Base URL of the TTS engine API (used as {api_url}/audio_query).
         
-        Returns:
+        Returns
             dict: Parsed JSON audio_query on success.
             None: If the request fails (non-200 response) or an exception occurs.
         
-        Raises:
+        Raises
             asyncio.CancelledError: Propagated if the coroutine is cancelled.
+
         """
         try:
             params = {"text": text, "speaker": speaker_id}
@@ -301,6 +305,7 @@ class TTSClient:
         Returns:
             bytes: Raw synthesized audio on success.
             None: If input text is empty, if engine selection fails, if the audio query or synthesis fails, or if an unexpected error occurs (exceptions are caught and result in None).
+
         """
         # Check for empty text early
         if not text or not text.strip():
@@ -336,12 +341,13 @@ class TTSClient:
                 Attempts to cast `v` to int using the built-in `int()`. If `v` is not convertible
                 (a TypeError or ValueError is raised), returns the provided default `d`.
                 
-                Parameters:
+                Parameters
                     v: The value to convert to int.
                     d: The integer to return if conversion of `v` fails.
                 
-                Returns:
+                Returns
                     int: The converted integer or the default `d` when conversion is not possible.
+
                 """
                 try:
                     return int(v)
