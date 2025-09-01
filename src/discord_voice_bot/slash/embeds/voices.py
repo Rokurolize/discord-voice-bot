@@ -55,7 +55,7 @@ async def create_voices_embed(user_id: str | int, config: Config, tts_engine: TT
             variants = sorted(speaker_groups[base_name], key=lambda x: x[0])
             field_lines: list[str] = []
             for name, speaker_id in variants:
-                marker = "🔹" if current_speaker_id is not None and speaker_id == current_speaker_id else "▫️"
+                marker = "🔹" if speaker_id == current_speaker_id else "▫️"
                 field_lines.append(f"{marker} `{name}` ({speaker_id})")
 
             embed.add_field(name=base_name.title(), value="\n".join(field_lines), inline=True)
