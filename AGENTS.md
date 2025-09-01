@@ -44,8 +44,8 @@
 - Values recognized as true (case-insensitive): `true`, `1`, `yes`, `on`. Any other value (or an unset/empty `TEST_MODE`) is treated as false.
 
 ### Test-only overrides
-- `TEST_TARGET_VOICE_CHANNEL_ID` (default: `123456789`) — overrides the voice channel while in test mode (set via environment variables or `.env`). Accepts underscores/spaces/commas in digits (e.g., `1_234_567_890` or `1,234,567,890`).
-- `TEST_RATE_LIMIT_MESSAGES` (default: `5`) and `TEST_RATE_LIMIT_PERIOD` (default: `60`) — override rate limits in test mode (set via environment variables or `.env`). Accept digits with underscores/spaces/commas.
+- `TEST_TARGET_VOICE_CHANNEL_ID` (default: `123456789`) — overrides the voice channel while in test mode (set via environment variables or `.env`). Must be a positive integer; accepts underscores/spaces/commas in digits (e.g., `1_234_567_890` or `1,234,567,890`).
+- `TEST_RATE_LIMIT_MESSAGES` (default: `5`) and `TEST_RATE_LIMIT_PERIOD` (default: `60`) — override rate limits in test mode (set via environment variables or `.env`). Must be positive integers; accept digits with underscores/spaces/commas.
 
 Examples:
 

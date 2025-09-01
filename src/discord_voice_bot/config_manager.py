@@ -97,19 +97,20 @@ class ConfigManagerImpl:
     def get_speaker_id(self) -> int:
         """Get default speaker ID for current engine."""
         cfg = self._get_config()
-        if cfg.tts_engine not in cfg.engines:
+        ec = cfg.engines.get(cfg.tts_engine)
+        # Allow built-in engines without explicit mapping (fallback to baked-in defaults)
+        if ec is None:
+            default_sid = DEFAULT_SPEAKER_IDS.get(cfg.tts_engine)
+            if default_sid is not None:
+                return default_sid
             raise ValueError(f"unknown tts_engine: {cfg.tts_engine!r}")
         # Custom engine sanity (no baked-in defaults)
         if cfg.tts_engine not in ("aivis", "voicevox"):
-            ec = cfg.engines[cfg.tts_engine]
             if not ec.get("url"):
                 raise ValueError("custom engine requires 'url' in engines[engine]")
             if "default_speaker" not in ec:
                 raise ValueError("custom engine requires 'default_speaker' in engines[engine]")
-        ec = cfg.engines[cfg.tts_engine]
         default_sid = DEFAULT_SPEAKER_IDS.get(cfg.tts_engine)
-        if default_sid is None and "default_speaker" not in ec:
-            raise ValueError(f"default speaker not configured for engine: {cfg.tts_engine!r}")
         raw_sid = ec.get("default_speaker", default_sid)
         try:
             sid = int(raw_sid)
@@ -143,7 +144,8 @@ class ConfigManagerImpl:
         if not cfg.test_mode and getattr(cfg, "target_voice_channel_id", 0) <= 0:
             raise ValueError("target_voice_channel_id must be a positive integer in non-test mode")
         if cfg.tts_engine not in cfg.engines:
-            raise ValueError(f"unknown tts_engine: {cfg.tts_engine!r}")
+            if cfg.tts_engine not in ("aivis", "voicevox"):
+                raise ValueError(f"unknown tts_engine: {cfg.tts_engine!r}")
         # Custom engine sanity (no baked-in defaults)
         if cfg.tts_engine not in ("aivis", "voicevox"):
             ec = cfg.engines[cfg.tts_engine]
@@ -200,16 +202,20 @@ class ConfigManagerImpl:
     def get_engine_config(self) -> dict[str, Any]:
         """Get current TTS engine configuration."""
         cfg = self._get_config()
-        if cfg.tts_engine not in cfg.engines:
+        ec = cfg.engines.get(cfg.tts_engine)
+        if ec is None:
+            if cfg.tts_engine == "aivis":
+                return {"url": DEFAULT_AIVIS_URL, "default_speaker": DEFAULT_SPEAKER_IDS["aivis"]}
+            if cfg.tts_engine == "voicevox":
+                return {"url": DEFAULT_VOICEVOX_URL, "default_speaker": DEFAULT_SPEAKER_IDS["voicevox"]}
             raise ValueError(f"unknown tts_engine: {cfg.tts_engine!r}")
         # Custom engine sanity (no baked-in defaults)
         if cfg.tts_engine not in ("aivis", "voicevox"):
-            ec = cfg.engines[cfg.tts_engine]
             if not ec.get("url"):
                 raise ValueError("custom engine requires 'url' in engines[engine]")
             if "default_speaker" not in ec:
                 raise ValueError("custom engine requires 'default_speaker' in engines[engine]")
-        return self._normalize_to_plain_dict(cast(Mapping[str, Any], cfg.engines[cfg.tts_engine]))
+        return self._normalize_to_plain_dict(cast(Mapping[str, Any], ec))
 
     def get_engines(self) -> dict[str, dict[str, Any]]:
         """Get all engine configurations."""
