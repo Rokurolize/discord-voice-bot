@@ -73,12 +73,16 @@ def _write_script(path: Path) -> Path:
     return path
 
 def _make_text_file(path: Path, lines: int, crlf: bool = False) -> Path:
-    sep = "\\r\\n" if crlf else "\\n"
+    # When lines == 0, create an empty file
     if lines == 0:
         path.write_bytes(b"")
         return path
+
+    # Build content using actual newline characters and control them via open(..., newline="")
+    sep = "\r\n" if crlf else "\n"
     content = sep.join(str(i) for i in range(1, lines + 1)) + sep
-    path.write_text(content, encoding="utf-8", newline="" if crlf else None)
+    with path.open(mode="w", encoding="utf-8", newline="") as f:
+        f.write(content)
     return path
 
 def _run(script: Path, args: Iterable[Path]) -> tuple[int, str, str]:
