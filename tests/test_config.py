@@ -120,7 +120,6 @@ class TestConfig:
             config = Config.from_env()
             assert getattr(config, field_name) is expected
 
-
     def test_tts_speaker_label_updates_default_speaker(self) -> None:
         with patch.dict(
             os.environ,
