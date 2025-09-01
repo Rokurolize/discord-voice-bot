@@ -8,6 +8,9 @@ imports and providing convenience helpers.
 from collections.abc import Mapping
 from copy import deepcopy
 from typing import Any, cast
+from urllib.parse import urlparse
+
+from loguru import logger
 
 from .config import DEFAULT_AIVIS_URL, DEFAULT_VOICEVOX_URL, Config
 
@@ -17,6 +20,13 @@ TEST_RATE_LIMIT_PERIOD_ENV = "TEST_RATE_LIMIT_PERIOD"
 TEST_TARGET_VOICE_CHANNEL_ID_ENV = "TEST_TARGET_VOICE_CHANNEL_ID"
 TEST_TARGET_VOICE_CHANNEL_ID_DEFAULT = 123456789
 DEFAULT_SPEAKER_IDS: dict[str, int] = {"voicevox": 3, "aivis": 1512153250}
+VOICEVOX_SPEAKERS_DEFAULT: dict[str, int] = {"normal": 3, "sexy": 5, "tsun": 7, "amai": 1}
+AIVIS_SPEAKERS_DEFAULT: dict[str, int] = {
+    "anneli_normal": 888753760,
+    "mai": 1431611904,
+    "chuunibyou": 604166016,
+    "zunda_normal": 1512153250,
+}
 
 
 class ConfigManagerImpl:
@@ -32,7 +42,7 @@ class ConfigManagerImpl:
                 return [_norm(i) for i in ll]
             if isinstance(x, tuple):
                 tt = cast(tuple[Any, ...], x)
-                return tuple(_norm(i) for i in tt)
+                return [_norm(i) for i in tt]
             return deepcopy(x)
 
         mm = cast(Mapping[Any, Any], m)
@@ -49,6 +59,15 @@ class ConfigManagerImpl:
         super().__init__()
         self._config: Config | None = config
         self._test_mode_override = test_mode
+
+    def _validate_custom_engine(self, name: str, ec: Mapping[str, Any]) -> None:
+        """Validate required fields for a custom engine mapping."""
+        if name in ("voicevox", "aivis"):
+            return
+        if not ec.get("url"):
+            raise ValueError("custom engine requires 'url' in engines[engine]")
+        if "default_speaker" not in ec:
+            raise ValueError("custom engine requires 'default_speaker' in engines[engine]")
 
     def _get_config(self) -> Config:
         """Get configuration instance, creating it if necessary."""
@@ -77,14 +96,9 @@ class ConfigManagerImpl:
             url = str(ec["url"]).strip()  # minimal validation for common mistakes
             if not url:
                 raise ValueError(f"invalid url for engine {cfg.tts_engine!r}: {ec['url']!r} (empty)")
-            try:
-                from urllib.parse import urlparse
-
-                pu = urlparse(url)
-                if pu.scheme in ("http", "https") and pu.netloc:
-                    return url
-            except Exception:
-                pass
+            pu = urlparse(url)
+            if pu.scheme in ("http", "https") and pu.netloc:
+                return url
             raise ValueError(f"invalid url for engine {cfg.tts_engine!r}: {url!r}")
         # Known-engine defaults
         if cfg.tts_engine == "aivis":
@@ -105,11 +119,7 @@ class ConfigManagerImpl:
                 return default_sid
             raise ValueError(f"unknown tts_engine: {cfg.tts_engine!r}")
         # Custom engine sanity (no baked-in defaults)
-        if cfg.tts_engine not in ("aivis", "voicevox"):
-            if not ec.get("url"):
-                raise ValueError("custom engine requires 'url' in engines[engine]")
-            if "default_speaker" not in ec:
-                raise ValueError("custom engine requires 'default_speaker' in engines[engine]")
+        self._validate_custom_engine(cfg.tts_engine, ec)
         default_sid = DEFAULT_SPEAKER_IDS.get(cfg.tts_engine)
         raw_sid = ec.get("default_speaker", default_sid)
         try:
@@ -143,16 +153,11 @@ class ConfigManagerImpl:
             raise ValueError("discord_token is empty")
         if not cfg.test_mode and getattr(cfg, "target_voice_channel_id", 0) <= 0:
             raise ValueError("target_voice_channel_id must be a positive integer in non-test mode")
-        if cfg.tts_engine not in cfg.engines:
-            if cfg.tts_engine not in ("aivis", "voicevox"):
-                raise ValueError(f"unknown tts_engine: {cfg.tts_engine!r}")
+        if cfg.tts_engine not in cfg.engines and cfg.tts_engine not in ("aivis", "voicevox"):
+            raise ValueError(f"unknown tts_engine: {cfg.tts_engine!r}")
         # Custom engine sanity (no baked-in defaults)
-        if cfg.tts_engine not in ("aivis", "voicevox"):
-            ec = cfg.engines[cfg.tts_engine]
-            if not ec.get("url"):
-                raise ValueError("custom engine requires 'url' in engines[engine]")
-            if "default_speaker" not in ec:
-                raise ValueError("custom engine requires 'default_speaker' in engines[engine]")
+        if cfg.tts_engine in cfg.engines:
+            self._validate_custom_engine(cfg.tts_engine, cfg.engines[cfg.tts_engine])
         if not cfg.test_mode and getattr(cfg, "target_guild_id", 0) <= 0:
             raise ValueError("target_guild_id must be a positive integer in non-test mode")
         if not cfg.test_mode and getattr(cfg, "audio_sample_rate", 0) <= 0:
@@ -175,6 +180,15 @@ class ConfigManagerImpl:
             raise ValueError("message_queue_size must be >= 0 in non-test mode")
         if not cfg.test_mode and getattr(cfg, "max_message_length", 0) <= 0:
             raise ValueError("max_message_length must be > 0 in non-test mode")
+        # Validate URL shape early (lightweight parse). For built-ins with invalid explicit URL, warn and fall back.
+        try:
+            _ = self.get_api_url()
+        except ValueError as e:
+            cfg = self._get_config()
+            if cfg.tts_engine in ("aivis", "voicevox") and cfg.tts_engine in cfg.engines and cfg.engines[cfg.tts_engine].get("url"):
+                logger.warning(f"Invalid URL configured for built-in engine {cfg.tts_engine!r}: {e}. Falling back to default.")
+            else:
+                raise
 
     # Additional convenience methods for specific config access
     def get_discord_token(self) -> str:
@@ -205,16 +219,20 @@ class ConfigManagerImpl:
         ec = cfg.engines.get(cfg.tts_engine)
         if ec is None:
             if cfg.tts_engine == "aivis":
-                return {"url": DEFAULT_AIVIS_URL, "default_speaker": DEFAULT_SPEAKER_IDS["aivis"]}
+                return {
+                    "url": DEFAULT_AIVIS_URL,
+                    "default_speaker": DEFAULT_SPEAKER_IDS["aivis"],
+                    "speakers": AIVIS_SPEAKERS_DEFAULT.copy(),
+                }
             if cfg.tts_engine == "voicevox":
-                return {"url": DEFAULT_VOICEVOX_URL, "default_speaker": DEFAULT_SPEAKER_IDS["voicevox"]}
+                return {
+                    "url": DEFAULT_VOICEVOX_URL,
+                    "default_speaker": DEFAULT_SPEAKER_IDS["voicevox"],
+                    "speakers": VOICEVOX_SPEAKERS_DEFAULT.copy(),
+                }
             raise ValueError(f"unknown tts_engine: {cfg.tts_engine!r}")
         # Custom engine sanity (no baked-in defaults)
-        if cfg.tts_engine not in ("aivis", "voicevox"):
-            if not ec.get("url"):
-                raise ValueError("custom engine requires 'url' in engines[engine]")
-            if "default_speaker" not in ec:
-                raise ValueError("custom engine requires 'default_speaker' in engines[engine]")
+        self._validate_custom_engine(cfg.tts_engine, ec)
         return self._normalize_to_plain_dict(cast(Mapping[str, Any], ec))
 
     def get_engines(self) -> dict[str, dict[str, Any]]:

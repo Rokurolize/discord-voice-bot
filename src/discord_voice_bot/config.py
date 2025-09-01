@@ -12,7 +12,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any, TypedDict, cast
 
-from dotenv import load_dotenv
+from dotenv import dotenv_values
 
 # Shared defaults (SSOT) for engine URLs
 DEFAULT_VOICEVOX_URL = "http://localhost:50021"
@@ -90,21 +90,21 @@ class Config:
     @classmethod
     def from_env(cls) -> "Config":
         """Load configuration from environment variables."""
-        # 1. Load secrets file first (production)
+        # Precedence: process env > .env > secrets > defaults
+        # Load secrets and .env as dicts, then seed missing keys into process env
         secrets_path = os.environ.get("SECRETS_FILE", "~/.config/discord-voice-bot/secrets.env")
         secrets_file = Path(secrets_path).expanduser()
-        if secrets_file.exists():
-            _ = load_dotenv(secrets_file)
+        secrets_raw = dotenv_values(secrets_file) if secrets_file.exists() else {}
+        secrets: dict[str, str] = {k: v for k, v in secrets_raw.items() if v is not None}
 
-        # 2. Load local .env file (development/testing) - this overrides secrets
         local_env = Path(".env")
-        if local_env.exists():
-            # Respect existing process environment for secrets like tokens,
-            # but allow .env to override defaults from secrets.env.
-            prev_token = os.environ.get("DISCORD_BOT_TOKEN")
-            _ = load_dotenv(local_env, override=True)
-            if prev_token is not None:
-                os.environ["DISCORD_BOT_TOKEN"] = prev_token
+        local_raw = dotenv_values(local_env) if local_env.exists() else {}
+        local: dict[str, str] = {k: v for k, v in local_raw.items() if v is not None}
+
+        merged = secrets.copy()
+        merged.update(local)  # .env overrides secrets
+        for k, v in merged.items():
+            _ = os.environ.setdefault(k, v)
 
         # Build typed engine configurations
         voicevox_cfg: EngineConfig = {

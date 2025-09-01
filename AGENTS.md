@@ -40,18 +40,21 @@
 - Never commit secrets; `.env` is gitignored. Ensure Discord "Message Content Intent" is enabled for the bot.
 
 - Test mode is enabled by setting the `TEST_MODE` environment variable (e.g., `TEST_MODE=true`) or by instantiating with `ConfigManagerImpl(test_mode=True)`.
-- Precedence: process environment variables override entries in `.env`; `.env` overrides built-in defaults.
+- Precedence: `.env` overrides process environment variables; process env overrides built-in defaults.
 - Values recognized as true (case-insensitive): `true`, `1`, `yes`, `on`. Any other value (or an unset/empty `TEST_MODE`) is treated as false.
 
 ### Test-only overrides
 - `TEST_TARGET_VOICE_CHANNEL_ID` (default: `123456789`) — overrides the voice channel while in test mode (set via environment variables or `.env`). Must be a positive integer; accepts underscores/spaces/commas in digits (e.g., `1_234_567_890` or `1,234,567,890`).
 - `TEST_RATE_LIMIT_MESSAGES` (default: `5`) and `TEST_RATE_LIMIT_PERIOD` (default: `60`) — override rate limits in test mode (set via environment variables or `.env`). Must be positive integers; accept digits with underscores/spaces/commas.
+  - Note: If using spaces or commas, quote the value in `.env`/shell, e.g. `TEST_TARGET_VOICE_CHANNEL_ID="1 234 567 890"`.
 
 Examples:
 
 ```dotenv
 # .env (test mode)
 TEST_MODE=true
+# If you include spaces/commas in numbers, quote them, e.g.:
+# TEST_TARGET_VOICE_CHANNEL_ID="1 234 567 890"
 TEST_TARGET_VOICE_CHANNEL_ID=987654321
 TEST_RATE_LIMIT_MESSAGES=7
 TEST_RATE_LIMIT_PERIOD=30
