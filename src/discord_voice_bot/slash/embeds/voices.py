@@ -13,11 +13,11 @@ async def create_voices_embed(user_id: str | int, config: Config, tts_engine: TT
 
     This coroutine fetches available speakers from the provided TTS engine, groups them by base name (the segment before the first underscore, e.g., "zunda" from "zunda_normal"), and adds one embed field per group with each variant listed. The user's current speaker is resolved by looking up their speaker ID via user_settings for the configured engine; the current variant is highlighted by marker and, when available, shown in the embed footer. If an error occurs while building the embed, a red error embed is returned indicating voice information could not be retrieved.
 
-    Parameters:
-        user_id (str | int): Discord user identifier used to resolve the user's current speaker.
-        config (Config): Resolved configuration, including the active TTS engine name.
-        tts_engine (TTSEngine): Engine used to retrieve available speakers.
-        user_settings (UserSettings): Store for per-user voice selections.
+    Args:
+        user_id: Discord user identifier used to resolve the user's current speaker (stringified internally).
+        config: Resolved configuration, including the active TTS engine name.
+        tts_engine: Engine used to retrieve available speakers.
+        user_settings: Store for per-user voice selections.
 
     Returns:
         discord.Embed: Populated embed of voices, or an error embed on failure.
