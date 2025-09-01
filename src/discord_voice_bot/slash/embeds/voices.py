@@ -50,14 +50,15 @@ async def create_voices_embed(user_id: str | int, config: Config, tts_engine: TT
                 speaker_groups[base_name] = []
             speaker_groups[base_name].append((name, speaker_id))
 
-        # Add fields for each speaker group
-        for base_name, variants in speaker_groups.items():
+        # Add fields for each speaker group in deterministic order
+        for base_name in sorted(speaker_groups):
+            variants = sorted(speaker_groups[base_name], key=lambda x: x[0])
             field_lines: list[str] = []
             for name, speaker_id in variants:
                 marker = "🔹" if current_speaker_id is not None and speaker_id == current_speaker_id else "▫️"
                 field_lines.append(f"{marker} `{name}` ({speaker_id})")
 
-            _ = embed.add_field(name=base_name.title(), value="\n".join(field_lines), inline=True)
+            embed.add_field(name=base_name.title(), value="\n".join(field_lines), inline=True)
 
         # Add current setting info
         if current_speaker_name:
