@@ -39,8 +39,8 @@ class TTSEngine:
         used to manage start/stop concurrency and preserves a session attribute for
         backward-compatible testing access.
 
-        Parameters
-            config (Config): Configuration object that controls engine behavior and
+        Args:
+            config: Configuration object that controls engine behavior and
                 provides values for constructing the client and manager components.
 
         """
@@ -217,11 +217,11 @@ class TTSEngine:
         the engine's speakers with sensible fallbacks), validates the engine URL, and delegates to the TTS client
         to generate and return the AudioQuery.
 
-        Parameters
-            text (str): Input text to turn into an audio query.
-            speaker_id (int | None): Optional explicit speaker id; if provided it will be coerced to int. If coercion fails
+        Args:
+            text: Input text to turn into an audio query.
+            speaker_id: Optional explicit speaker id; if provided it will be coerced to int. If coercion fails
                 a sensible default from the engine config is used.
-            engine_name (str | None): Optional engine key to select a configured engine. If not found, the function
+            engine_name: Optional engine key to select a configured engine. If not found, the function
                 falls back to the config entry "voicevox" when available.
 
         Returns
@@ -279,11 +279,11 @@ class TTSEngine:
         the configured speaker name to the engine's speaker table with sensible fallbacks), validates the engine URL, and delegates
         synthesis to the TTS client.
 
-        Parameters
-            audio_query (AudioQuery): Precomputed audio query object describing phoneme/timing information to synthesize.
-            speaker_id (int | None): Optional speaker identifier. If provided it will be coerced to int; invalid values fall back to
+        Args:
+            audio_query: Precomputed audio query object describing phoneme/timing information to synthesize.
+            speaker_id: Optional speaker identifier. If provided it will be coerced to int; invalid values fall back to
                 the engine's default speaker or 3. If omitted, the engine's `speakers` mapping and the Config.tts_speaker name are used.
-            engine_name (str | None): Optional engine key to select a specific engine configuration from Config.engines. If omitted
+            engine_name: Optional engine key to select a specific engine configuration from Config.engines. If omitted
                 the engine from Config.tts_engine is used; if that is unavailable, a 'voicevox' entry is used as a fallback.
 
         Returns
