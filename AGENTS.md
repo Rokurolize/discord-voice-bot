@@ -40,7 +40,7 @@
 - Never commit secrets; `.env` is gitignored. Ensure Discord "Message Content Intent" is enabled for the bot.
 
 - Test mode is enabled by setting the `TEST_MODE` environment variable (e.g., `TEST_MODE=true`) or by instantiating with `ConfigManagerImpl(test_mode=True)`.
-- Precedence: `.env` overrides process environment variables; process env overrides built-in defaults.
+- Precedence: process environment variables override `.env`; `.env` overrides secrets; all override built-in defaults.
 - Values recognized as true (case-insensitive): `true`, `1`, `yes`, `on`. Any other value (or an unset/empty `TEST_MODE`) is treated as false.
 
 ### Test-only overrides

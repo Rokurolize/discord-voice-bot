@@ -12,7 +12,13 @@ from urllib.parse import urlparse
 
 from loguru import logger
 
-from .config import DEFAULT_AIVIS_URL, DEFAULT_VOICEVOX_URL, Config
+from .config import (
+    AIVIS_SPEAKERS_DEFAULT,
+    DEFAULT_AIVIS_URL,
+    DEFAULT_VOICEVOX_URL,
+    VOICEVOX_SPEAKERS_DEFAULT,
+    Config,
+)
 
 # Test-only environment variable names (centralized for discoverability)
 TEST_RATE_LIMIT_MESSAGES_ENV = "TEST_RATE_LIMIT_MESSAGES"
@@ -20,13 +26,6 @@ TEST_RATE_LIMIT_PERIOD_ENV = "TEST_RATE_LIMIT_PERIOD"
 TEST_TARGET_VOICE_CHANNEL_ID_ENV = "TEST_TARGET_VOICE_CHANNEL_ID"
 TEST_TARGET_VOICE_CHANNEL_ID_DEFAULT = 123456789
 DEFAULT_SPEAKER_IDS: dict[str, int] = {"voicevox": 3, "aivis": 1512153250}
-VOICEVOX_SPEAKERS_DEFAULT: dict[str, int] = {"normal": 3, "sexy": 5, "tsun": 7, "amai": 1}
-AIVIS_SPEAKERS_DEFAULT: dict[str, int] = {
-    "anneli_normal": 888753760,
-    "mai": 1431611904,
-    "chuunibyou": 604166016,
-    "zunda_normal": 1512153250,
-}
 
 
 class ConfigManagerImpl:
@@ -93,13 +92,14 @@ class ConfigManagerImpl:
         # Prefer explicit URL when provided in engine config
         ec = cfg.engines.get(cfg.tts_engine)
         if ec is not None and "url" in ec:
-            url = str(ec["url"]).strip()  # minimal validation for common mistakes
-            if not url:
-                raise ValueError(f"invalid url for engine {cfg.tts_engine!r}: {ec['url']!r} (empty)")
+            url = str(ec["url"]).strip()
             pu = urlparse(url)
-            if pu.scheme in ("http", "https") and pu.netloc:
+            if url and pu.scheme in ("http", "https") and pu.netloc:
                 return url
-            raise ValueError(f"invalid url for engine {cfg.tts_engine!r}: {url!r}")
+            if cfg.tts_engine in ("aivis", "voicevox"):
+                logger.warning(f"Invalid URL for built-in engine {cfg.tts_engine!r}: {ec['url']!r}. Falling back to default.")
+            else:
+                raise ValueError(f"invalid url for engine {cfg.tts_engine!r}: {ec['url']!r}")
         # Known-engine defaults
         if cfg.tts_engine == "aivis":
             return DEFAULT_AIVIS_URL

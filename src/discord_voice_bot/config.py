@@ -18,6 +18,15 @@ from dotenv import dotenv_values
 DEFAULT_VOICEVOX_URL = "http://localhost:50021"
 DEFAULT_AIVIS_URL = "http://127.0.0.1:10101"
 
+# Shared speaker maps (SSOT)
+VOICEVOX_SPEAKERS_DEFAULT: dict[str, int] = {"normal": 3, "sexy": 5, "tsun": 7, "amai": 1}
+AIVIS_SPEAKERS_DEFAULT: dict[str, int] = {
+    "anneli_normal": 888753760,
+    "mai": 1431611904,
+    "chuunibyou": 604166016,
+    "zunda_normal": 1512153250,
+}
+
 
 def _env_to_int(key: str, default: int) -> int:
     """Safely convert an environment variable to an integer.
@@ -110,26 +119,12 @@ class Config:
         voicevox_cfg: EngineConfig = {
             "url": os.environ.get("VOICEVOX_URL", DEFAULT_VOICEVOX_URL),
             "default_speaker": 3,
-            "speakers": MappingProxyType(
-                {
-                    "normal": 3,
-                    "sexy": 5,
-                    "tsun": 7,
-                    "amai": 1,
-                }
-            ),
+            "speakers": MappingProxyType(VOICEVOX_SPEAKERS_DEFAULT),
         }
         aivis_cfg: EngineConfig = {
             "url": os.environ.get("AIVIS_URL", DEFAULT_AIVIS_URL),
             "default_speaker": 1512153250,
-            "speakers": MappingProxyType(
-                {
-                    "anneli_normal": 888753760,
-                    "mai": 1431611904,
-                    "chuunibyou": 604166016,
-                    "zunda_normal": 1512153250,
-                }
-            ),
+            "speakers": MappingProxyType(AIVIS_SPEAKERS_DEFAULT),
         }
 
         # -- Apply TTS_SPEAKER label -> numeric ID and reflect into default_speaker --
