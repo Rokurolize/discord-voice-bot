@@ -19,15 +19,15 @@ class VoiceHandlerProtocol(Protocol):
     audio_queue: Any
     stats: Any
 
-    async def add_to_queue(self, message_data: dict[str, Any]) -> None: """
-Enqueue a synthesis request for asynchronous processing.
+    async def add_to_queue(self, message_data: dict[str, Any]) -> None:
+        """Enqueue a synthesis request for asynchronous processing.
 
-message_data should be a dict describing the synthesis job (commonly includes keys like
-`text`, `group_id`, `chunk_index`, and optionally `user_id` and other metadata). This
-method places the job into the voice handler's synthesis queue so a SynthesizerWorker
-can consume it and produce audio. The call is asynchronous and does not return a value.
-"""
-...
+        message_data should be a dict describing the synthesis job (commonly includes keys like
+        `text`, `group_id`, `chunk_index`, and optionally `user_id` and other metadata). This
+        method places the job into the voice handler's synthesis queue so a SynthesizerWorker
+        can consume it and produce audio. The call is asynchronous and does not return a value.
+        """
+        raise NotImplementedError
 
 
 # Provide a shim that tests can patch
