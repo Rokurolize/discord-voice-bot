@@ -58,13 +58,13 @@ async def create_voices_embed(user_id: str | int, config: Config, tts_engine: TT
                 marker = "🔹" if speaker_id == current_speaker_id else "▫️"
                 field_lines.append(f"{marker} `{name}` ({speaker_id})")
 
-            embed.add_field(name=base_name.title(), value="\n".join(field_lines), inline=True)
+            _ = embed.add_field(name=base_name.title(), value="\n".join(field_lines), inline=True)
 
         # Add current setting info
         if current_speaker_name:
-            embed.set_footer(text=f"Your current voice: {current_speaker_name}")
+            _ = embed.set_footer(text=f"Your current voice: {current_speaker_name}")
         else:
-            embed.set_footer(text="You're using the default voice")
+            _ = embed.set_footer(text="You're using the default voice")
 
         return embed
 
