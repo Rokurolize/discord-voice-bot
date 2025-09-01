@@ -228,8 +228,9 @@ class TTSEngine:
             TTSEngineError: If no suitable engine is found (neither the requested engine nor a 'voicevox' fallback)
                 or if the resolved engine configuration lacks a 'url'.
         """
-        # Determine engine and speaker
-        target_engine = engine_name or self.config.tts_engine
+        # Determine engine and speaker (normalize name for case-insensitive lookup)
+        raw_engine = engine_name or self.config.tts_engine
+        target_engine = str(raw_engine).strip().lower() if raw_engine is not None else ""
         engines = self.config.engines
         engine_config = engines.get(target_engine)
         if engine_config is None:
@@ -287,8 +288,9 @@ class TTSEngine:
         Raises:
             TTSEngineError: If no suitable engine configuration is found or if the selected engine is missing a 'url'.
         """
-        # Determine engine and speaker
-        target_engine = engine_name or self.config.tts_engine
+        # Determine engine and speaker (normalize name for case-insensitive lookup)
+        raw_engine = engine_name or self.config.tts_engine
+        target_engine = str(raw_engine).strip().lower() if raw_engine is not None else ""
         engines = self.config.engines
         engine_config = engines.get(target_engine)
         if engine_config is None:
