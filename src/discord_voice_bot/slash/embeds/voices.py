@@ -51,14 +51,47 @@ async def create_voices_embed(user_id: str | int, config: Config, tts_engine: TT
             speaker_groups[base_name].append((name, speaker_id))
 
         # Add fields for each speaker group in deterministic order
+        # Discord limits: max 25 fields total, 1024 chars per field value
+        MAX_FIELDS = 25
+        MAX_FIELD_CHARS = 1024
+        fields_added = 0
+
         for base_name in sorted(speaker_groups):
+            if fields_added >= MAX_FIELDS:
+                break
+
             variants = sorted(speaker_groups[base_name], key=lambda x: x[0])
             field_lines: list[str] = []
             for name, speaker_id in variants:
                 marker = "🔹" if speaker_id == current_speaker_id else "▫️"
-                field_lines.append(f"{marker} `{name}` ({speaker_id})")
+                line = f"{marker} `{name}` ({speaker_id})"
+                # Ensure we don't exceed per-field character limits; flush if needed
+                prospective = ("\n".join(field_lines + [line])) if field_lines else line
+                if len(prospective) > MAX_FIELD_CHARS:
+                    if field_lines:
+                        _ = embed.add_field(name=base_name.title(), value="\n".join(field_lines), inline=True)
+                        fields_added += 1
+                        if fields_added >= MAX_FIELDS:
+                            break
+                        field_lines = []
+                        # If a single line is too long (unlikely), truncate safely
+                        if len(line) > MAX_FIELD_CHARS:
+                            line = line[: MAX_FIELD_CHARS - 1] + "…"
+                field_lines.append(line)
 
-            _ = embed.add_field(name=base_name.title(), value="\n".join(field_lines), inline=True)
+            if fields_added < MAX_FIELDS and field_lines:
+                _ = embed.add_field(name=base_name.title(), value="\n".join(field_lines), inline=True)
+                fields_added += 1
+
+        # If we had to cap fields, add a summary note
+        total_groups = len(speaker_groups)
+        if fields_added >= MAX_FIELDS and total_groups > fields_added:
+            remaining = total_groups - fields_added
+            summary = f"…and {remaining} more group(s) not shown to fit Discord limits."
+            if embed.description:
+                embed.description += f"\n{summary}"
+            else:
+                embed.description = summary
 
         # Add current setting info
         if current_speaker_name:
