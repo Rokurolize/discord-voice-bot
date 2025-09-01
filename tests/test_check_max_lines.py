@@ -187,7 +187,8 @@ def test_no_trailing_newline_underreports_per_wc_behavior(tmp_path: Path):
     p = tmp_path / "no_final_newline.txt"
     # Write 501 lines without trailing newline
     content = "\n".join(str(i) for i in range(1, 501 + 1))  # no terminal newline
-    p.write_text(content, encoding="utf-8", newline="")
+    with p.open(mode="w", encoding="utf-8", newline="") as f:
+        f.write(content)
     code, out, err = _run(script, [p])
     assert code == 0
     assert out.strip() == ""
