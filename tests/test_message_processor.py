@@ -24,7 +24,19 @@ def processor() -> MessageProcessor:
 
 @pytest.fixture
 def mock_message() -> MagicMock:
-    """Create a mock Discord message."""
+    """
+    Create a MagicMock that represents a typical Discord Message for tests.
+    
+    The returned mock has commonly used attributes pre-populated:
+    - author: mock user with id 123456789, name "TestUser", display_name "TestUser", and bot False
+    - content: "Test message"
+    - channel: mock channel with id 123456789 (matches test processor fixture target)
+    - guild: a mock value to indicate a server message
+    - id: 987654321
+    - type.name: "default"
+    
+    Use this mock in unit tests to simulate a normal, non-bot message coming from the target channel.
+    """
     msg = MagicMock()
     msg.author = MagicMock()
     msg.author.id = 123456789

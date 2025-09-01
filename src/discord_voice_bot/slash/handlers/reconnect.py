@@ -9,7 +9,20 @@ from ...bot import DiscordVoiceTTSBot
 
 
 async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> None:
-    """Handle reconnect slash command."""
+    """
+    Handle the /reconnect slash command: attempt a guided reconnect of the bot's voice client to the configured target voice channel and report status to the user.
+    
+    Performs guards (must be used in a guild, voice handler must be initialized, and a target voice channel must be configured), defers the interaction response (ephemeral), then attempts to connect to the configured channel with a 10 second timeout. On success edits the original response with a success embed that includes channel info and queue stats. On timeout or failure it edits the original response with an error embed and actionable troubleshooting/next-steps information. Best-effort cleanup of any partial voice client is attempted after a timeout.
+    
+    Side effects:
+    - Sends/edits ephemeral interaction responses (original response / follow-ups).
+    - Calls bot.voice_handler.connect_to_channel, bot.voice_handler.cleanup_voice_client, and bot.voice_handler.get_status.
+    - Logs events and errors.
+    
+    Errors:
+    - asyncio.CancelledError is propagated.
+    - Other exceptions are caught, logged, and result in an ephemeral error message to the invoking user.
+    """
     logger.debug(
         "Handling /reconnect command (request_id={}) from user id={} name={} guild_id={}",
         interaction.id,

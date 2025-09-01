@@ -18,7 +18,16 @@ class TestVoiceHandlerInitialization:
         assert voice_handler_old.stats.get("connection_errors", 0) == 0
 
     def test_new_voice_handler_initialization(self, voice_handler_new) -> None:
-        """Test that new VoiceHandler initializes with required components."""
+        """
+        Verify that a newly constructed "new" VoiceHandler has all required manager components and queues.
+        
+        This test asserts the provided `voice_handler_new` is not None and exposes the following attributes:
+        - Manager components: `connection_manager`, `queue_manager`, `rate_limiter_manager`, `stats_tracker`, `task_manager`, `health_monitor`
+        - Queue attributes: `synthesis_queue`, `audio_queue`
+        
+        Parameters:
+            voice_handler_new: The new-variant VoiceHandler instance under test. It must be an initialized object whose public attributes include the managers and queues listed above.
+        """
         assert voice_handler_new is not None
 
         # Check that manager components are properly initialized

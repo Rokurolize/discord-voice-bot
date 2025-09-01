@@ -19,12 +19,28 @@ class VoiceHandlerProtocol(Protocol):
     audio_queue: Any
     stats: Any
 
-    async def add_to_queue(self, message_data: dict[str, Any]) -> None: ...
+    async def add_to_queue(self, message_data: dict[str, Any]) -> None: """
+Enqueue a synthesis request for asynchronous processing.
+
+message_data should be a dict describing the synthesis job (commonly includes keys like
+`text`, `group_id`, `chunk_index`, and optionally `user_id` and other metadata). This
+method places the job into the voice handler's synthesis queue so a SynthesizerWorker
+can consume it and produce audio. The call is asynchronous and does not return a value.
+"""
+...
 
 
 # Provide a shim that tests can patch
 def get_user_settings():
-    """Shim for tests to patch user settings loader easily."""
+    """
+    Return application user settings by delegating to load_user_settings().
+    
+    This thin shim exists so tests can patch or replace the settings loader
+    without importing or modifying the concrete loader directly.
+    
+    Returns:
+        The result of load_user_settings() — the application's loaded user settings (type depends on loader).
+    """
     return load_user_settings()
 
 
@@ -32,6 +48,19 @@ class SynthesizerWorker:
     """Worker for processing TTS synthesis requests."""
 
     def __init__(self, voice_handler: VoiceHandlerProtocol, config: Config):
+        """
+        Create a SynthesizerWorker and initialize runtime state.
+        
+        Initializes worker state used by the background synthesis loop:
+        - stores the provided config and voice handler,
+        - sets buffer accounting (max_buffer_size default 50 MB, buffer_size start 0),
+        - enables the run loop (_running True) and idle logging counters,
+        - leaves the TTS engine uninitialized (None) — it will be created asynchronously in run(),
+        - loads per-user settings via the testable shim get_user_settings().
+        
+        Parameters:
+            config: Configuration used by the worker (influences TTS engine selection and runtime behavior).
+        """
         super().__init__()
         self.voice_handler = voice_handler
         self.config = config
@@ -47,7 +76,11 @@ class SynthesizerWorker:
         self._user_settings = get_user_settings()
 
     async def run(self) -> None:
-        """Run the synthesis worker loop."""
+        """
+        Run the synthesizer main loop.
+        
+        Continuously consumes synthesis requests from the voice handler's synthesis_queue, uses the configured TTS engine to produce WAV audio, validates size and format, writes audio to a temporary file, updates an internal buffer size, and enqueues prepared audio items onto the voice handler's audio_queue for playback/processing. The loop enforces timeouts on queue operations and TTS synthesis, respects a maximum buffer size to avoid memory pressure, records errors to the shared stats, and stops the worker when cancelled or when a configurable threshold of consecutive synthesis errors is exceeded.
+        """
         consecutive_errors = 0
         max_consecutive_errors = 5
 

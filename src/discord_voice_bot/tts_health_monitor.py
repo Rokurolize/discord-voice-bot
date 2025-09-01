@@ -13,24 +13,45 @@ class TTSHealthMonitor:
     """Monitors the health of TTS engine components."""
 
     def __init__(self, config: Config, tts_client: TTSClient) -> None:
-        """Initialize TTS health monitor with configuration and TTS client."""
+        """
+        Initialize the TTS health monitor.
+        
+        Stores a weak reference to the provided Config (so the monitor does not extend its lifetime)
+        and keeps a reference to the TTS client used for health checks.
+        """
         super().__init__()
         self._config_ref = ref(config)
         self._tts_client = tts_client
 
     @property
     def config(self) -> Config:
+        """
+        Return the currently bound Config instance.
+        
+        Resolves the internally stored weak reference to the Config and returns it.
+        Raises a RuntimeError if the Config has been garbage-collected, indicating
+        the monitor is no longer bound to a valid configuration.
+        
+        Returns:
+            Config: The live configuration object.
+        
+        Raises:
+            RuntimeError: If the underlying Config has been garbage-collected.
+        """
         cfg = self._config_ref()
         if cfg is None:
             raise RuntimeError("Config has been garbage-collected; TTSHealthMonitor is unbound")
         return cfg
 
     async def perform_health_check(self) -> bool:
-        """Perform comprehensive health check on TTS engine.
-
+        """
+        Run a two-step health check for the TTS engine.
+        
+        Performs an API availability check followed by a brief synthesis test. If either step fails
+        or an unexpected exception occurs, the method returns False; returns True only if both checks pass.
+        
         Returns:
-            True if TTS engine is healthy, False otherwise
-
+            bool: True when both API and synthesis checks succeed, False otherwise.
         """
         try:
             # Check API availability
@@ -142,11 +163,13 @@ class TTSHealthMonitor:
             return health_status
 
     async def diagnose_issues(self) -> list[str]:
-        """Diagnose and return a list of potential issues with TTS engine.
-
-        Returns:
-            List of diagnostic messages and suggestions
-
+        """
+        Return a list of diagnostic messages describing potential TTS engine issues.
+        
+        Performs a sequence of checks: API availability, a test synthesis, and validation of configured engines.
+        Each discovered problem is appended as a human-readable message (including suggested actions). Any unexpected
+        exception during diagnosis is caught and added to the returned list as an error entry — the function always
+        returns a list of diagnostic strings.
         """
         issues: list[str] = []
 

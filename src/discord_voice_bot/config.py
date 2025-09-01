@@ -55,9 +55,16 @@ def _env_to_nonneg_int(key: str, default: int) -> int:
 
 
 def _env_to_bool(key: str, default: bool) -> bool:
-    """Return environment variable as boolean (true/1/yes/on).
-
-    Trims whitespace and accepts common truthy values.
+    """
+    Return the boolean value of an environment variable.
+    
+    If the environment variable named by `key` is not set, returns `default`. When present,
+    the value is trimmed and compared case-insensitively to common truthy tokens: `"true"`, `"1"`, `"yes"`, and `"on"`. Any other value yields False.
+    Parameters:
+        key (str): Name of the environment variable to read.
+        default (bool): Value to return when the environment variable is not set.
+    Returns:
+        bool: Parsed boolean value or `default` if the variable is missing.
     """
     val = os.environ.get(key)
     if val is None:
@@ -98,7 +105,19 @@ class Config:
 
     @classmethod
     def from_env(cls) -> "Config":
-        """Load configuration from environment variables."""
+        """
+        Create a Config instance by loading settings from the environment, secrets file, and a local .env with the following precedence: process environment > .env > secrets > built-in defaults.
+        
+        Detailed behavior:
+        - Seeds missing environment variables from a secrets file (path from SECRETS_FILE or default) and a local .env; local .env values override secrets.
+        - Constructs typed, immutable engine configurations for "voicevox" and "aivis" (each an EngineConfig) and exposes them in a read-only mapping on the resulting Config.
+        - If TTS_SPEAKER is set and matches a known speaker label for the selected TTS_ENGINE (TTS_ENGINE, case-insensitive), the matching numeric speaker ID is applied as that engine's default_speaker.
+        - Normalizes several numeric and boolean settings using helper converters; provides sensible defaults when values are missing or invalid.
+        - Detects test mode either from TEST_MODE or from the presence of PYTEST_CURRENT_TEST in the process environment.
+        
+        Returns:
+            Config: An immutable configuration populated from environment, secrets, .env, and defaults.
+        """
         # Precedence: process env > .env > secrets > defaults
         # Load secrets and .env as dicts, then seed missing keys into process env
         secrets_path = os.environ.get("SECRETS_FILE", "~/.config/discord-voice-bot/secrets.env")
@@ -173,9 +192,13 @@ class Config:
 
     # Backward-compat helper for tests that expect this on Config
     def get_intents(self) -> Any:
-        """Return Discord intents suitable for this bot.
-
-        Enables message content, guilds, members, and voice state intents.
+        """
+        Return a discord.Intents object configured for this bot.
+        
+        Enables message_content, guilds, members, and voice_states intents required by the bot.
+        
+        Returns:
+            discord.Intents: Intents instance with the required flags enabled.
         """
         import discord
 
