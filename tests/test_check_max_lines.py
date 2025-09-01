@@ -37,7 +37,15 @@ for file in "$@"; do
 
   # 例外ファイルの場合はチェックをスキップ
   filename=$(basename "$file")
-  if [[ " ${EXCEPTIONS[*]} " =~ " ${filename} " ]]; then
+  # Check exceptions by exact match to avoid regex/glob pitfalls
+  skip=false
+  for ex in "${EXCEPTIONS[@]}"; do
+    if [[ "$filename" == "$ex" ]]; then
+      skip=true
+      break
+    fi
+  done
+  if [[ "$skip" == true ]]; then
     echo "⏭️ ${file}: 例外ファイルのためチェックをスキップします。"
     continue
   fi
