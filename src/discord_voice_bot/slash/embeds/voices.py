@@ -31,11 +31,9 @@ async def create_voices_embed(user_id: str | int, config: Config, tts_engine: TT
         current_speaker_id = user_settings.get_user_speaker(user_id_str, current_engine=config.tts_engine)
         current_speaker_name = None
         if current_speaker_id is not None:
-            # Map ID back to a display name if available
-            for name, sid in speakers.items():
-                if sid == current_speaker_id:
-                    current_speaker_name = name
-                    break
+            # O(1) reverse lookup for current speaker name
+            name_by_id = {sid: name for name, sid in speakers.items()}
+            current_speaker_name = name_by_id.get(current_speaker_id)
 
         embed = discord.Embed(
             title=f"🎭 Available Voices ({config.tts_engine.upper()})",
