@@ -1,38 +1,47 @@
 # Suggested Commands for Discord Voice Bot Development
 
-## Running the Bot
-- `uv run discord-voice-bot`: Run the Discord voice bot
-- `python -m discord_voice_bot`: Alternative way to run the bot
+## Run Bot
+- `uv run discord-voice-bot`
+- `python -m discord_voice_bot`
+
+## Quality Checks
+- `uv run poe check`                # lint + type-check + tests
+- `uv run poe type-check`           # strict Pyright
 
 ## Testing
-- `uv run poe test` or `uv run pytest -q`: Run all tests
-- `uv run pytest -k voice_handler -q`: Run targeted tests for voice handler
+- `uv run poe test`                 # all tests
+- `uv run pytest -q`                # quiet mode
+- `uv run pytest -k voice_handler -q`  # targeted run
 
-## Linting and Formatting
-- `uv run poe lint`: Run Ruff linting (non-destructive)
-- `uv run poe format`: Sort imports and format code with Ruff
-- `uv run poe fix`: Autofix, sort imports, and format code
+## Lint, Format, Fix
+- `uv run poe lint`                 # Ruff lint (non-destructive)
+- `uv run poe format`               # import sort + formatting
+- `uv run poe fix`                  # autofix, sort, format
 
-## Type Checking
-- `uv run poe type-check`: Run strict type checking with Pyright
+## Pre-commit
+- `pre-commit install`              # ensure hooks are active
+- `pre-commit run --all-files`      # run hooks locally
 
-## Full Check
-- `uv run poe check`: Run linting, type-checking, and tests
-
-## Pre-commit Setup
-- `pre-commit install`: Install pre-commit hooks
-
-## Utility Commands (Linux)
-- `ls -la`: List files with details
-- `cd <directory>`: Change directory
-- `grep -r 'pattern' .`: Search for patterns in files
-- `find . -name '*.py'`: Find Python files
-- `git status`: Check git status
-- `git add .`: Stage all changes
-- `git commit -m 'message'`: Commit changes
-- `git push`: Push to remote
-- `git pull`: Pull from remote
+## Repo Tooling
+- `bash scripts/check-max-lines.sh` # enforce 500-line limit
 
 ## Configuration
-- Copy `.env.example` to `.env` and configure settings
-- Set `DISCORD_BOT_TOKEN`, `TARGET_VOICE_CHANNEL_ID`, etc.
+- `cp .env.example .env`            # create local config
+- Edit `.env`: `DISCORD_BOT_TOKEN`, `TARGET_VOICE_CHANNEL_ID`, `TTS_ENGINE`, `VOICEVOX_URL`/`AIVIS_URL`
+
+## Test Mode Examples
+- One-off shell (no file change):
+  - `export TEST_MODE=true TEST_TARGET_VOICE_CHANNEL_ID=987654321 TEST_RATE_LIMIT_MESSAGES=7 TEST_RATE_LIMIT_PERIOD=30`
+  - `uv run poe check`
+- .env snippet (quote spaces/commas in numbers):
+  ```dotenv
+  TEST_MODE=true
+  TEST_TARGET_VOICE_CHANNEL_ID=987654321
+  TEST_RATE_LIMIT_MESSAGES=7
+  TEST_RATE_LIMIT_PERIOD=30
+  ```
+
+## Git Essentials
+- `git status` / `git diff -U0`
+- `git add -A && git commit -m "<subject>"`
+- `git push` (prefer a single push after all review items)

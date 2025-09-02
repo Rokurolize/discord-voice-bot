@@ -1,137 +1,59 @@
 # Task Completion Workflow for Discord Voice Bot
 
-## Before Committing Code Changes
+## Single-Action Summary
+- After each fix: `uv run poe check` → commit locally → resolve the specific review thread in the PR UI.
+- After all items are addressed: push once to your PR branch to trigger CI a single time.
 
-### 1. Format and Lint Code
-```bash
-timeout 30 uv run poe fix
-```
-- This runs Ruff autofix, sorts imports, and formats code
-- Fixes common issues automatically
+## Before Committing Code
+1) Format and lint
+- `uv run poe fix`  # autofix, sort, format
 
-### 2. Run Full Quality Checks
-```bash
-timeout 60 uv run poe check
-```
-- Runs linting (Ruff), type checking (Pyright), and tests (pytest)
-- Must pass completely before proceeding
-- If it fails, fix the issues and re-run
+2) Full local verification (must be green)
+- `uv run poe check`  # lint + type-check + tests
 
-### 3. Install/Update Pre-commit Hooks
-```bash
-timeout 15 pre-commit install
-```
-- Ensures hooks are active (only needed once or when hooks change)
+3) Pre-commit hooks
+- `pre-commit install` (once per clone or when hooks change)
+- `pre-commit run --all-files`  # optional local validation
 
-### 4. Run Pre-commit Checks
-```bash
-timeout 30 pre-commit run --all-files
-```
-- Validates all files against pre-commit hooks
-- Blocks files over 500 lines
-- Enforces Ruff formatting and other quality checks
+## Resolving Review Threads
+- Verify the changes exist locally:
+  - `git status`
+  - `git diff -U0` (or use PR “Files changed”)
+- Run verification: `uv run poe check` must exit 0
+- Only then resolve the review thread; otherwise continue iterating
 
-## Git Workflow
+## Git & PR Flow
+- Stage + commit
+  - `git add -A && git commit -m "<imperative, concise subject>"`
+- Push strategy
+  - Prefer a single push after all review items (keeps CI/reviews consolidated)
+  - For fork-based PRs, confirm remotes and push explicitly:
+    ```bash
+    git remote -v
+    git branch -vv
+    git push -u origin HEAD:$(git branch --show-current)
+    ```
+- Pre-push hooks/CI must be green; don’t bypass. If they fail, fix locally and re-run `uv run poe check`.
 
-### 5. Stage Changes
-```bash
-timeout 15 git add .
-```
+## Pre-review Checklist
+- [ ] `uv run poe check` passes locally
+- [ ] New/changed code is fully typed
+- [ ] Tests added/updated for behavior changes
+- [ ] Docs/examples updated if needed
+- [ ] Pre-commit hooks pass (500-line limit enforced)
 
-### 6. Commit with Proper Message
-```bash
-timeout 15 git commit -m "Fix type-check errors in voice handler"
-```
-- Use imperative mood ("Fix", "Add", "Update", not "Fixed" or "Added")
-- Keep subject line concise but descriptive
-- Reference issue numbers if applicable
+## Run & Test
+- Run bot: `uv run discord-voice-bot` (or `python -m discord_voice_bot`)
+- Tests: `uv run poe test` or `uv run pytest -q`
+- Targeted tests: `uv run pytest -k voice_handler -q`
 
-### 7. Push Changes
-```bash
-timeout 15 git push
-```
+## Configuration
+- Copy `.env.example` → `.env`; set `DISCORD_BOT_TOKEN`, `TARGET_VOICE_CHANNEL_ID`, TTS settings (`TTS_ENGINE`, `VOICEVOX_URL`/`AIVIS_URL`)
+- Enable Discord “Message Content Intent” for the bot
+- Test mode:
+  - `export TEST_MODE=true TEST_TARGET_VOICE_CHANNEL_ID=987654321 TEST_RATE_LIMIT_MESSAGES=7 TEST_RATE_LIMIT_PERIOD=30`
 
-## Pull Request Process
-
-### 8. Create PR
-- Include clear description of changes
-- Reference any related issues
-- Attach test results and logs if user-facing
-
-### 9. Pre-Review Checklist
-- [ ] `uv run poe check` passes
-- [ ] All new code has type hints
-- [ ] Tests added/updated for changed behavior
-- [ ] Documentation updated if needed
-- [ ] Pre-commit hooks pass
-
-### 10. Address Review Feedback
-- Fix any issues found during review
-- Re-run `uv run poe check` after changes
-- Update tests if behavior changed
-
-## Running and Testing
-
-### Development Server
-```bash
-timeout 30 uv run discord-voice-bot
-```
-
-### Test Commands
-```bash
-timeout 30 uv run poe test          # All tests
-timeout 30 uv run pytest -k voice_handler -q  # Targeted tests
-```
-
-## Configuration Setup
-
-### Initial Setup
-```bash
-cp .env.example .env
-# Edit .env with your settings:
-# - DISCORD_BOT_TOKEN
-# - TARGET_VOICE_CHANNEL_ID
-# - TTS_ENGINE, VOICEVOX_URL/AIVIS_URL
-```
-
-### Bot Permissions
-- Ensure "Message Content Intent" is enabled in Discord Developer Portal
-
-## File Organization
-
-### Don't Commit
-- `.env` (contains secrets)
-- `/external-docs/` directory
-- `__pycache__/` directories
-- `.ruff_cache/` and other cache directories
-
-### Always Commit
-- Source code changes
-- Test additions/modifications
-- Documentation updates
-- Configuration examples (`.env.example`)
-
-## Emergency Fixes
-
-If you need to bypass pre-commit (not recommended):
-```bash
-# NEVER DO THIS unless absolutely necessary
-git commit --no-verify -m "Emergency fix: [reason]"
-```
-
-## Common Issues and Solutions
-
-### Type Check Errors
-- Run `uv run poe type-check` to see specific errors
-- Add missing type hints
-- Check import statements
-
-### Test Failures
-- Run `uv run poe test` to see failing tests
-- Check test logic and assertions
-- Update tests for changed behavior
-
-### Linting Errors
-- Run `uv run poe lint` to see issues
-- Use `uv run poe fix` to auto-fix where possible
-- Manually fix remaining issues
+## Common Issues
+- Type-check errors: `uv run poe type-check`; add missing annotations, fix imports
+- Lint issues: `uv run poe lint`; then `uv run poe fix` for autofixes
+- Test failures: `uv run poe test`; update tests if behavior changed
