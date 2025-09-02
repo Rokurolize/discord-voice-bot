@@ -58,7 +58,7 @@ class VoiceHandlerInterface(Protocol):
     @current_group_id.setter
     def current_group_id(self, value: str | None) -> None: ...
 
-    is_playing: bool | None
+    is_playing: bool
     stats: Any
     connection_state: str
     synthesizer: "SynthesizerWorker | None"
@@ -125,9 +125,7 @@ class VoiceHandler(VoiceHandlerInterface):
         self.health_monitor = HealthMonitor(self.connection_manager, cfg_mgr, tts_client)
 
         # Maintain backward compatibility properties
-        # Expose a simple boolean attribute is_playing for legacy code/tests.
         self._is_playing_flag = False
-        self.is_playing = False  # attribute access should be bool
         # Public alias for external updates
         self.is_playing_flag = self._is_playing_flag
 
