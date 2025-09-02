@@ -55,6 +55,7 @@ async def create_voices_embed(user_id: str | int, config: Config, tts_engine: TT
         MAX_FIELDS = 25
         MAX_FIELD_CHARS = 1024
         fields_added = 0
+        groups_shown = 0
 
         for base_name in sorted(speaker_groups):
             if fields_added >= MAX_FIELDS:
@@ -62,6 +63,7 @@ async def create_voices_embed(user_id: str | int, config: Config, tts_engine: TT
 
             variants = sorted(speaker_groups[base_name], key=lambda x: x[0])
             field_lines: list[str] = []
+            group_field_added = False
             for name, speaker_id in variants:
                 marker = "🔹" if speaker_id == current_speaker_id else "▫️"
                 line = f"{marker} `{name}` ({speaker_id})"
@@ -71,6 +73,9 @@ async def create_voices_embed(user_id: str | int, config: Config, tts_engine: TT
                     if field_lines:
                         _ = embed.add_field(name=base_name.title(), value="\n".join(field_lines), inline=True)
                         fields_added += 1
+                        if not group_field_added:
+                            groups_shown += 1
+                            group_field_added = True
                         if fields_added >= MAX_FIELDS:
                             break
                         field_lines = []
@@ -82,11 +87,14 @@ async def create_voices_embed(user_id: str | int, config: Config, tts_engine: TT
             if fields_added < MAX_FIELDS and field_lines:
                 _ = embed.add_field(name=base_name.title(), value="\n".join(field_lines), inline=True)
                 fields_added += 1
+                if not group_field_added:
+                    groups_shown += 1
+                    group_field_added = True
 
-        # If we had to cap fields, add a summary note
+        # If we had to cap fields, add a summary note (count groups, not fields)
         total_groups = len(speaker_groups)
-        if fields_added >= MAX_FIELDS and total_groups > fields_added:
-            remaining = total_groups - fields_added
+        if fields_added >= MAX_FIELDS and total_groups > groups_shown:
+            remaining = max(0, total_groups - groups_shown)
             summary = f"…and {remaining} more group(s) not shown to fit Discord limits."
             if embed.description:
                 embed.description += f"\n{summary}"

@@ -25,6 +25,8 @@ _A2V_AUTO: dict[int, int] = {v: k for k, v in _V2A_BASE.items()}
 
 # Explicit reverse overrides and fallbacks not representable by inversion
 _A2V_EX: dict[int, int] = {
+    # Canonical reverse for Zundamon Normal; avoid auto-inversion collision picking 75/76
+    1512153250: 3,
     1512153248: 3,  # zunda_reading -> Normal (no direct match)
     # Other AIVIS speakers map to VOICEVOX Zundamon Normal as fallback
     888753760: 3,  # anneli_normal -> Zundamon Normal

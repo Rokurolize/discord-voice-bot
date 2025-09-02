@@ -133,13 +133,22 @@ class DiscordVoiceTTSBot(BaseEventBot):
         cm = getattr(self, "config_manager", None)
         if cm is None:
             return None
-        # Prefer public accessor; fall back to private for compatibility
-        get_cfg = getattr(cm, "config", None) or getattr(cm, "_get_config", None)
-        try:
-            if callable(get_cfg):
-                return get_cfg()
-        except Exception:
-            pass
+        # Prefer a concrete Config; support both attribute and callable accessors
+        attr = getattr(cm, "config", None)
+        if attr is not None:
+            if callable(attr):
+                try:
+                    return attr()
+                except Exception:
+                    pass
+            else:
+                return attr
+        getter = getattr(cm, "_get_config", None)
+        if callable(getter):
+            try:
+                return getter()
+            except Exception:
+                pass
         return cm
 
     @override

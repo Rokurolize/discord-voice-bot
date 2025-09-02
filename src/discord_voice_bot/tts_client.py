@@ -13,16 +13,30 @@ from .config import DEFAULT_AIVIS_URL, DEFAULT_VOICEVOX_URL, Config
 class TTSClient:
     """Manages TTS API communication and requests."""
 
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config: Config, *, keep_config_alive: bool = False) -> None:
         """
         Create a TTSClient tied to the provided configuration.
 
         Stores a weak reference to the given Config (so the Config may be garbage-collected),
         initializes the internal aiohttp ClientSession placeholder to None, and creates an
         asyncio.Lock to guard lazy session creation and teardown.
+
+        When ``keep_config_alive`` is True, the client also retains a private strong
+        reference to the provided Config so that the configuration cannot be garbage-
+        collected while this client instance is in use. This is optional and intended
+        for edge-cases where no other component holds a strong reference for the
+        client's lifetime.
+
+        Args:
+            config: The configuration dataclass for this client.
+            keep_config_alive: When True, keep a strong reference to ``config`` to
+                prevent unexpected garbage collection during the client's lifetime.
+
         """
         super().__init__()
         self._config_ref = ref(config)
+        # Optional strong reference to ensure config lifetime when needed
+        self._config_keepalive: Config | None = config if keep_config_alive else None
         self._session: aiohttp.ClientSession | None = None
         self._session_lock = asyncio.Lock()
 
@@ -77,8 +91,11 @@ class TTSClient:
         All conversions are performed safely: non-integer or missing values are handled and a valid int is always returned.
         """
         val = str(self.config.tts_speaker).strip()
-        if val.isdigit():
+        try:
+            # Accepts negatives and whitespace
             return int(val)
+        except (TypeError, ValueError):
+            pass
         engines = self.config.engines
         engine = self.config.tts_engine
         engine_cfg: dict[str, Any] = dict(engines.get(engine, {}))  # MappingProxyType is dict-like
@@ -129,6 +146,14 @@ class TTSClient:
         """Get HTTP session for testing purposes."""
         return self._session
 
+    # Async context manager sugar for convenient usage
+    async def __aenter__(self) -> "TTSClient":
+        await self.start_session()
+        return self
+
+    async def __aexit__(self, exc_type: type[BaseException] | None, exc: BaseException | None, tb: Any) -> None:
+        await self.close_session()
+
     async def start_session(self) -> None:
         """
         Lazily create and store the aiohttp ClientSession used for TTS API calls.
@@ -140,7 +165,9 @@ class TTSClient:
         async with self._session_lock:
             if not self._session:
                 logger.debug("🔗 Creating new aiohttp ClientSession for TTS client")
-                timeout = aiohttp.ClientTimeout(total=10, connect=2)
+                total = getattr(self.config, "http_timeout_total", 10)
+                connect = getattr(self.config, "http_timeout_connect", 2)
+                timeout = aiohttp.ClientTimeout(total=total, connect=connect)
                 # Optional: tune connector for better pooling/latency under load.
                 # connector = aiohttp.TCPConnector(limit=100, ttl_dns_cache=10)
                 self._session = aiohttp.ClientSession(timeout=timeout)  # , connector=connector)
@@ -194,7 +221,7 @@ class TTSClient:
 
         try:
             assert self._session is not None  # Type guard for mypy
-            async with self._session.get(f"{self.api_url}/version") as response:
+            async with self._session.get(f"{self.api_url.rstrip('/')}/version") as response:
                 if response.status == 200:
                     logger.debug(f"{self.engine_name} TTS API is available")
                     return True, ""
@@ -211,6 +238,14 @@ class TTSClient:
         except aiohttp.ClientConnectorError:
             error_msg = "connection refused - server not running"
             logger.error(f"{self.engine_name} TTS API: {error_msg}")
+            return False, error_msg
+        except aiohttp.InvalidURL as e:
+            error_msg = "invalid url - misconfigured api_url"
+            logger.error(f"{self.engine_name} TTS API: {error_msg} - {e!s}")
+            return False, error_msg
+        except aiohttp.ClientError as e:
+            error_msg = f"client error: {type(e).__name__}"
+            logger.error(f"{self.engine_name} TTS API: {error_msg} - {e!s}")
             return False, error_msg
 
         # Why we catch the built-in TimeoutError (Python ≥ 3.11, our project uses 3.12):
@@ -256,7 +291,7 @@ class TTSClient:
             if self._session is None:
                 await self.start_session()
             params = {"text": text, "speaker": speaker_id}
-            url = f"{api_url}/audio_query"
+            url = f"{api_url.rstrip('/')}/audio_query"
 
             assert self._session is not None  # Type guard for mypy
             async with self._session.post(url, params=params) as response:
@@ -269,6 +304,12 @@ class TTSClient:
         except asyncio.CancelledError:
             # Propagate cooperative cancellation
             raise
+        except aiohttp.InvalidURL as e:
+            logger.error(f"Invalid audio_query URL: {e!s}")
+            return None
+        except aiohttp.ClientError as e:
+            logger.error(f"Client error during audio_query: {type(e).__name__} - {e!s}")
+            return None
         except Exception as e:
             logger.error(f"Failed to generate audio query: {e!s}")
             return None
@@ -285,7 +326,7 @@ class TTSClient:
             if self._session is None:
                 await self.start_session()
             params = {"speaker": speaker_id}
-            url = f"{api_url}/synthesis"
+            url = f"{api_url.rstrip('/')}/synthesis"
 
             assert self._session is not None  # Type guard for mypy
             async with self._session.post(url, params=params, json=audio_query) as response:
@@ -298,6 +339,12 @@ class TTSClient:
         except asyncio.CancelledError:
             # Propagate cooperative cancellation
             raise
+        except aiohttp.InvalidURL as e:
+            logger.error(f"Invalid synthesis URL: {e!s}")
+            return None
+        except aiohttp.ClientError as e:
+            logger.error(f"Client error during synthesis: {type(e).__name__} - {e!s}")
+            return None
         except Exception as e:
             logger.error(f"Failed to synthesize from query: {e!s}")
             return None
@@ -327,7 +374,7 @@ class TTSClient:
         engine_config = engines.get(target_engine)
         if not engine_config:
             fallback = "voicevox" if "voicevox" in engines else (next(iter(engines.keys()), None))
-            logger.error(f"Unknown TTS engine requested; target={target_engine} fallback={fallback}")
+            logger.warning(f"Unknown TTS engine requested; target={target_engine} fallback={fallback}")
             if not fallback:
                 logger.error("No TTS engines configured; aborting synthesis")
                 return None
