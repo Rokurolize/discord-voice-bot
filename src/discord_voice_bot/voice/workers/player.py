@@ -20,10 +20,10 @@ class VoiceHandlerProtocol(Protocol):
     @current_group_id.setter
     def current_group_id(self, value: str | None) -> None: ...
 
-    is_playing_flag: bool
-
     @property
-    def is_playing(self) -> bool: ...
+    def is_playing_flag(self) -> bool: ...
+    @is_playing_flag.setter
+    def is_playing_flag(self, value: bool) -> None: ...
 
     stats_tracker: Any
     if TYPE_CHECKING:

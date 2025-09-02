@@ -409,6 +409,20 @@ class VoiceHandler(VoiceHandlerInterface):
         self.queue_manager.current_group_id = value
 
     @property
+    def is_playing_flag(self) -> bool:
+        """Live alias for the internal playing flag for external components."""
+        return self._is_playing_flag
+
+    @is_playing_flag.setter
+    def is_playing_flag(self, value: bool) -> None:
+        self._is_playing_flag = bool(value)
+
+    # Back-compat surface expected by some callers/protocols
+    @property
+    def is_playing(self) -> bool:  # type: ignore[override]
+        return self._is_playing_flag
+
+    @property
     def stats(self) -> dict[str, Any]:
         """
         Return a legacy-compatible stats dictionary.
