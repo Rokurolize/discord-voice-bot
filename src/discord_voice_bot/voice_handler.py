@@ -64,6 +64,13 @@ class VoiceHandler(NewVoiceHandler):
             "connection_errors": 0,
             "tts_messages_played": 0,
         }
+        # Provide method alias expected by legacy tests (callable)
+        self.is_playing_method = lambda: bool(getattr(self, "_is_playing_flag", False))
+
+    # Provide attribute form for legacy tests
+    @property
+    def is_playing(self) -> bool:  # type: ignore[override]
+        return bool(getattr(self, "_is_playing_flag", False))
 
     # All methods are inherited from NewVoiceHandler
     # This class exists only for backward compatibility

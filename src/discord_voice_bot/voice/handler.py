@@ -125,7 +125,9 @@ class VoiceHandler(VoiceHandlerInterface):
         self.health_monitor = HealthMonitor(self.connection_manager, cfg_mgr, tts_client)
 
         # Maintain backward compatibility properties
-        self.is_playing = False
+        self._is_playing_flag = False
+        # Public alias for external updates
+        self.is_playing_flag = self._is_playing_flag
 
         # Delegate properties to managers for backward compatibility
         # Access voice_client through dynamic property to avoid stale copies
@@ -375,7 +377,7 @@ class VoiceHandler(VoiceHandlerInterface):
             "voice_connected": connection_info["connected"],
             "voice_channel_name": connection_info["channel_name"],
             "voice_channel_id": connection_info["channel_id"],
-            "playing": self.is_playing,
+            "playing": self._is_playing_flag,
             "synthesis_queue_size": queue_sizes["synthesis_queue_size"],
             "audio_queue_size": queue_sizes["audio_queue_size"],
             "total_queue_size": queue_sizes["total_queue_size"],
@@ -384,7 +386,7 @@ class VoiceHandler(VoiceHandlerInterface):
             "messages_skipped": stats["messages_skipped"],
             "errors": stats["errors"],
             "connection_state": connection_info["connection_state"],
-            "is_playing": self.is_playing,
+            "is_playing": self._is_playing_flag,
             "max_queue_size": getattr(self.queue_manager.synthesis_queue, "maxsize", 50),
         }
 
@@ -405,6 +407,20 @@ class VoiceHandler(VoiceHandlerInterface):
     @current_group_id.setter
     def current_group_id(self, value: str | None) -> None:
         self.queue_manager.current_group_id = value
+
+    @property
+    def is_playing_flag(self) -> bool:
+        """Live alias for the internal playing flag for external components."""
+        return self._is_playing_flag
+
+    @is_playing_flag.setter
+    def is_playing_flag(self, value: bool) -> None:
+        self._is_playing_flag = bool(value)
+
+    # Back-compat surface expected by some callers/protocols
+    @property
+    def is_playing(self) -> bool:  # type: ignore[override]
+        return self._is_playing_flag
 
     @property
     def stats(self) -> dict[str, Any]:
