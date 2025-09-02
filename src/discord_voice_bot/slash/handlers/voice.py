@@ -69,7 +69,8 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, spea
             return
 
         # Handle reset
-        if speaker.lower() == "reset":
+        sp = speaker.strip()
+        if sp.lower() == "reset":
             if user_settings.remove_user_speaker(user_id):
                 _ = await interaction.response.send_message("✅ Voice preference reset to default", ephemeral=True)
             else:
@@ -78,18 +79,27 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, spea
 
         # Get available speakers from static mapping (no engine startup needed)
         config = bot.config
+        if config is None or not hasattr(config, "engines") or not hasattr(config, "tts_engine"):
+            _ = await interaction.response.send_message("❌ Configuration unavailable; try again later.", ephemeral=True)
+            return
         engine_key = (config.tts_engine or "voicevox").lower()
         engine_cfg = cast(EngineConfig, config.engines.get(engine_key, {}))
         speakers_map: Mapping[str, int] = engine_cfg.get("speakers", {})
         speakers: dict[str, int] = dict(speakers_map)
+        if not speakers:
+            _ = await interaction.response.send_message(
+                f"❌ No speakers configured for engine '{engine_key}'. Use `/voices` to inspect configuration.",
+                ephemeral=True,
+            )
+            return
 
         # Find matching speaker (case-insensitive)
-        speaker_lower = speaker.lower()
+        speaker_lower = sp.lower()
         matched_speaker: str | None = None
         matched_id: int | None = None
 
         for name, speaker_id in speakers.items():
-            if name.lower() == speaker_lower or str(speaker_id) == speaker:
+            if name.lower() == speaker_lower or str(speaker_id) == sp:
                 matched_speaker = name
                 matched_id = speaker_id
                 break

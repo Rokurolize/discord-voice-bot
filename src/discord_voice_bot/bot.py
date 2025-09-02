@@ -133,8 +133,8 @@ class DiscordVoiceTTSBot(BaseEventBot):
         cm = getattr(self, "config_manager", None)
         if cm is None:
             return None
-        # ConfigManagerImpl exposes a private _get_config method; use it when present
-        get_cfg = getattr(cm, "_get_config", None)
+        # Prefer public accessor; fall back to private for compatibility
+        get_cfg = getattr(cm, "config", None) or getattr(cm, "_get_config", None)
         try:
             if callable(get_cfg):
                 return get_cfg()
@@ -177,7 +177,10 @@ class DiscordVoiceTTSBot(BaseEventBot):
         If an `event_handler` with a `handle_error` coroutine is present on the bot, this forwards
         the `event` name plus any positional and keyword arguments to that handler and awaits it.
         """
+        had_handler = hasattr(self, "event_handler") and self.event_handler and hasattr(self.event_handler, "handle_error")
         await self._delegate_event_async("event_handler", "handle_error", event, *args, **kwargs)
+        if not had_handler:
+            print(f"[on_error] Unhandled error event: {event}", flush=True)
 
 
 async def run_bot(config: Config | None = None) -> None:
@@ -199,7 +202,8 @@ async def run_bot(config: Config | None = None) -> None:
     try:
         cfg = config or Config.from_env()
         bot = await factory.create_bot(cfg)
-        await factory.initialize_services(bot)
+        if not cfg.test_mode:
+            await factory.initialize_services(bot)
         assert bot is not None
         await bot.start_with_config()
     except asyncio.CancelledError:

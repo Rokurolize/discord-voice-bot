@@ -1,5 +1,6 @@
 """Health monitoring for TTS engine."""
 
+import time
 from typing import Any
 from weakref import ref
 
@@ -41,7 +42,9 @@ class TTSHealthMonitor:
         """
         cfg = self._config_ref()
         if cfg is None:
-            raise RuntimeError("Config has been garbage-collected; TTSHealthMonitor is unbound")
+            raise RuntimeError(
+                f"Config has been garbage-collected; {type(self).__name__}(id={id(self)}) is unbound"
+            )
         return cfg
 
     async def perform_health_check(self) -> bool:
@@ -107,8 +110,10 @@ class TTSHealthMonitor:
                 return False
 
             # Basic validation of the audio data
-            if len(test_audio) < 100:  # Very small minimum size
-                logger.warning(f"TTS health check failed: synthesized audio too small ({len(test_audio)} bytes)")
+            if len(test_audio) < MIN_TEST_AUDIO_BYTES:
+                logger.warning(
+                    f"TTS health check failed: synthesized audio too small ({len(test_audio)} bytes)"
+                )
                 return False
 
             return True
@@ -142,7 +147,7 @@ class TTSHealthMonitor:
 
             # Test synthesis
             test_audio = await self._tts_client.synthesize_audio("test")
-            synthesis_working = test_audio is not None and len(test_audio) > 100
+            synthesis_working = test_audio is not None and len(test_audio) >= MIN_TEST_AUDIO_BYTES
             health_status["synthesis_working"] = synthesis_working
 
             if not synthesis_working:
@@ -150,7 +155,7 @@ class TTSHealthMonitor:
 
             # Overall health
             health_status["healthy"] = api_available and synthesis_working
-            health_status["last_check"] = __import__("time").time()
+            health_status["last_check"] = time.time()
 
             if health_status["healthy"]:
                 logger.debug("TTS health status: ✅ Healthy")
@@ -221,3 +226,6 @@ class TTSHealthMonitor:
             issues.append(f"🔴 Diagnostic error: {e}")
 
         return issues
+
+# Health-check thresholds
+MIN_TEST_AUDIO_BYTES = 256

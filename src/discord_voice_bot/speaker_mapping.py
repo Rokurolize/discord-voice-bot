@@ -6,6 +6,8 @@ from typing import Any, Literal
 # Narrow engine names used across the module
 Engine = Literal["aivis", "voicevox"]
 
+_AIVIS_ID_MIN = 100_000
+
 _V2A_BASE: dict[int, int] = {
     # Zundamon variants
     3: 1512153250,  # Normal -> zunda_normal
@@ -64,7 +66,7 @@ def detect_engine(speaker_id: int) -> Engine:
         Engine: "aivis" or "voicevox".
 
     """
-    return "aivis" if speaker_id >= 100000 else "voicevox"
+    return "aivis" if speaker_id >= _AIVIS_ID_MIN else "voicevox"
 
 
 def get_compatible_speaker(
@@ -103,7 +105,11 @@ def get_compatible_speaker(
             return mapping[speaker_id]
 
     # Return default speaker for target engine (prefer explicit config default if provided)
-    specified_default = (engine_configs or {}).get(to_engine, {}).get("default_speaker")
+    raw_default = (engine_configs or {}).get(to_engine, {}).get("default_speaker")
+    try:
+        specified_default = int(raw_default) if raw_default is not None else None
+    except (TypeError, ValueError):
+        specified_default = None
     return specified_default if specified_default is not None else DEFAULT_SPEAKERS.get(to_engine)
 
 

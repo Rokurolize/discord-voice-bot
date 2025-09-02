@@ -23,7 +23,6 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
 
     """
     logger.debug("Handling /voices command from user id={} name={}", interaction.user.id, interaction.user.display_name)
-    tts_engine = None
     try:
         # Prefer long-lived engine attached to bot to avoid repeated startups
         from ...tts_engine import get_tts_engine
@@ -51,5 +50,5 @@ async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot) -> N
         else:
             _ = await interaction.response.send_message("❌ Error retrieving voices", ephemeral=True)
     finally:
-        # Shared engine is cache-managed; do not close here
-        pass
+        # Engine is cache-managed; nothing to clean up here.
+        ...

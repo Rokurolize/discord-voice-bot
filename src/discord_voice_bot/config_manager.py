@@ -52,7 +52,7 @@ class ConfigManagerImpl:
                 return [_norm(i) for i in ll]
             if isinstance(x, tuple):
                 tt = cast(tuple[Any, ...], x)
-                return [_norm(i) for i in tt]
+                return tuple(_norm(i) for i in tt)
             return deepcopy(x)
 
         mm = cast(Mapping[Any, Any], m)
@@ -260,15 +260,8 @@ class ConfigManagerImpl:
             raise ValueError("message_queue_size must be >= 0 in non-test mode")
         if not cfg.test_mode and getattr(cfg, "max_message_length", 0) <= 0:
             raise ValueError("max_message_length must be > 0 in non-test mode")
-        # Validate URL shape early (lightweight parse). For built-ins with invalid explicit URL, warn and fall back.
-        try:
-            _ = self.get_api_url()
-        except ValueError as e:
-            cfg = self._get_config()
-            if cfg.tts_engine in ("aivis", "voicevox") and cfg.tts_engine in cfg.engines and cfg.engines[cfg.tts_engine].get("url"):
-                logger.warning(f"Invalid URL configured for built-in engine {cfg.tts_engine!r}: {e}. Falling back to default.")
-            else:
-                raise
+        # Validate URL shape early; get_api_url() already falls back for built-ins and raises for invalid customs.
+        _ = self.get_api_url()
 
     # Additional convenience methods for specific config access
     def get_discord_token(self) -> str:

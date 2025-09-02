@@ -24,7 +24,7 @@ async def create_voices_embed(user_id: str | int, config: Config, tts_engine: TT
 
     """
     try:
-        speakers = await tts_engine.get_available_speakers()
+        speakers = tts_engine.get_available_speakers()
 
         # Get user's current setting (prefer ID to avoid name mismatches)
         user_id_str = str(user_id)

@@ -360,7 +360,7 @@ class TTSEngine:
         """Clean up temporary files from audio source using temp file manager."""
         self._temp_file_manager.cleanup_audio_source(audio_source)
 
-    async def get_available_speakers(self) -> dict[str, int]:
+    def get_available_speakers(self) -> dict[str, int]:
         """
         Return the available speaker name→ID mapping for the engine selected in the current config.
 

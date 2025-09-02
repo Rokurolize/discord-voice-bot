@@ -14,9 +14,12 @@ class VoiceHandlerProtocol(Protocol):
 
     audio_queue: Any
     voice_client: Any
-    current_group_id: str | None
+    @property
+    def current_group_id(self) -> str | None: ...
+    @current_group_id.setter
+    def current_group_id(self, value: str | None) -> None: ...
     is_playing: bool
-    stats: Any
+    stats_tracker: Any
     if TYPE_CHECKING:
         from .synthesizer import SynthesizerWorker
     synthesizer: "SynthesizerWorker | None"
@@ -101,7 +104,7 @@ class PlayerWorker:
                     except Exception:
                         logger.exception("Playback error")
                         cleanup_file(audio_path)
-                        self.voice_handler.stats.increment_errors()
+                        self.voice_handler.stats_tracker.increment_errors()
                         consecutive_errors += 1
                         # Reset state since completion callback won't run
                         self.voice_handler.is_playing = False
@@ -145,10 +148,10 @@ class PlayerWorker:
 
         if error:
             logger.opt(exception=error).error("Playback error")
-            self.voice_handler.stats.increment_errors()
+            self.voice_handler.stats_tracker.increment_errors()
         else:
             # Count only successful completions
-            self.voice_handler.stats.increment_messages_played()
+            self.voice_handler.stats_tracker.increment_messages_played()
 
         # Clean up temp audio file after playback completes
         if audio_path:

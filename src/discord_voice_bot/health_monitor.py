@@ -118,11 +118,10 @@ class HealthMonitor:
 
         # Check API unavailable duration
         condition = self._termination_conditions["api_unavailable_duration"]
-        if condition["window"] is None:
-            # Count consecutive failures
-            condition["count"] += 1
-            if condition["count"] >= condition["max"]:
-                self._trigger_termination(f"TTS API unavailable for {condition['count']} consecutive checks")
+        # Count consecutive failures and mark the start of the outage window
+        if condition["count"] == 0:
+            condition["last_reset"] = now
+        condition["count"] += 1
 
         logger.error(f"🚨 TTS API failure recorded (Count: {condition['count']})")
 
@@ -218,7 +217,8 @@ class HealthMonitor:
         self.status.issues = issues
         self.status.recommendations = recommendations
         self.status.last_check = time.time()
-        self.status.recent_failures = []
+        # Keep a bounded history (last 50) for diagnostics
+        self.status.recent_failures = self.status.recent_failures[-50:]
 
         if not self.status.healthy:
             logger.warning(f"⚠️ Health check detected {len(issues)} issues:")
@@ -296,8 +296,8 @@ class HealthMonitor:
                 if trigger_termination:
                     logger.error(f"🚨 Critical permissions missing in target guild {guild.name}")
                     self._trigger_termination(f"Missing critical permissions: {', '.join(missing_perms)}")
-            else:
-                logger.debug(f"✅ All permissions present in {guild.name}")
+        else:
+            logger.debug(f"✅ All permissions present in {guild.name}")
 
         return missing_perms
 
@@ -435,10 +435,17 @@ class HealthMonitor:
 
         finally:
             logger.error("💀 Server shutdown complete")
-            # Exit with error code
+            # Exit with error code (skip in test mode)
             import sys
-
-            sys.exit(1)
+            try:
+                is_test = getattr(self._config_manager, "is_test_mode", None)
+                if callable(is_test) and is_test():
+                    logger.error("🧪 Test mode detected; skipping sys.exit(1)")
+                else:
+                    sys.exit(1)
+            except Exception:
+                # Fall through to exit if we cannot determine test mode
+                sys.exit(1)
 
     def get_health_status(self) -> dict[str, Any]:
         """Get current health status information."""

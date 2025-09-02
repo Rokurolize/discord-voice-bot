@@ -302,14 +302,14 @@ import pytest_asyncio
 
 
 @pytest_asyncio.fixture
-async def mock_tts_client(mock_config_manager: FakeConfigManager) -> TTSClient:
+async def mock_tts_client(mock_config: Config) -> TTSClient:
     """
     Create and yield a TTSClient for tests, ensuring graceful teardown.
 
     Yields:
         TTSClient: A TTSClient constructed with the provided config manager. On teardown, attempts to call either `aclose` or `close` on the client and awaits the result if it is awaitable.
     """
-    client = TTSClient(mock_config_manager)
+    client = TTSClient(mock_config)
     try:
         yield client
     finally:

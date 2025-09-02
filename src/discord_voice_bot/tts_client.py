@@ -50,15 +50,20 @@ class TTSClient:
         """
         Return the base API URL for the configured TTS engine.
 
-        If the configured engine name is not present in the configured engines, this returns DEFAULT_VOICEVOX_URL and emits a warning. If the engine exists but does not define a "url", this also falls back to DEFAULT_VOICEVOX_URL.
+        Falls back to an engine-specific default when the engine is unknown or missing a URL
+        (AIVIS → DEFAULT_AIVIS_URL; otherwise DEFAULT_VOICEVOX_URL).
         """
+        engine_name = str(self.config.tts_engine).lower()
         if self.config.tts_engine not in self.config.engines:
             known = ", ".join(sorted(self.config.engines.keys()))
-            logger.warning(f"Configured TTS engine '{self.config.tts_engine}' not found. Known engines=[{known}]. Falling back to default URL.")
-            return DEFAULT_VOICEVOX_URL
+            logger.warning(
+                f"Configured TTS engine '{self.config.tts_engine}' not found. Known engines=[{known}]. Falling back to default URL."
+            )
+            return DEFAULT_AIVIS_URL if engine_name == "aivis" else DEFAULT_VOICEVOX_URL
 
         engine_config = self.config.engines.get(self.config.tts_engine, {})
-        return engine_config.get("url", DEFAULT_VOICEVOX_URL)
+        default_url = DEFAULT_AIVIS_URL if engine_name == "aivis" else DEFAULT_VOICEVOX_URL
+        return engine_config.get("url", default_url)
 
     @property
     def speaker_id(self) -> int:
@@ -250,6 +255,8 @@ class TTSClient:
 
         """
         try:
+            if self._session is None:
+                await self.start_session()
             params = {"text": text, "speaker": speaker_id}
             url = f"{api_url}/audio_query"
 
@@ -277,6 +284,8 @@ class TTSClient:
         Cooperative cancellation via asyncio.CancelledError is propagated.
         """
         try:
+            if self._session is None:
+                await self.start_session()
             params = {"speaker": speaker_id}
             url = f"{api_url}/synthesis"
 

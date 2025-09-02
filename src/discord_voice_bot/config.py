@@ -142,12 +142,12 @@ class Config:
         voicevox_cfg: EngineConfig = {
             "url": os.environ.get("VOICEVOX_URL", DEFAULT_VOICEVOX_URL),
             "default_speaker": 3,
-            "speakers": MappingProxyType(VOICEVOX_SPEAKERS_DEFAULT),
+            "speakers": MappingProxyType(dict(VOICEVOX_SPEAKERS_DEFAULT)),
         }
         aivis_cfg: EngineConfig = {
             "url": os.environ.get("AIVIS_URL", DEFAULT_AIVIS_URL),
             "default_speaker": 1512153250,
-            "speakers": MappingProxyType(AIVIS_SPEAKERS_DEFAULT),
+            "speakers": MappingProxyType(dict(AIVIS_SPEAKERS_DEFAULT)),
         }
 
         # -- Apply TTS_SPEAKER label -> numeric ID and reflect into default_speaker --

@@ -1,5 +1,6 @@
 """Health monitoring for voice handler."""
 
+import asyncio
 from typing import Any
 
 from loguru import logger
@@ -107,6 +108,9 @@ class HealthMonitor:
             else:
                 health_status["issues"].append(f"TTS API health check failed: {error_detail}")
                 health_status["recommendations"].append("Check TTS API availability and configuration")
+        except asyncio.CancelledError:
+            # Preserve cooperative cancellation for callers (e.g., timeouts/shutdown)
+            raise
         except Exception as e:
             health_status["issues"].append(f"TTS API check failed: {e}")
             logger.debug(f"⚠️ TTS engine check error: {e}")

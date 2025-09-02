@@ -17,7 +17,7 @@ class VoiceHandlerProtocol(Protocol):
 
     synthesis_queue: Any
     audio_queue: Any
-    stats: Any
+    stats_tracker: Any
 
     async def add_to_queue(self, message_data: dict[str, Any]) -> None:
         """Enqueue a synthesis request for asynchronous processing.
@@ -115,7 +115,7 @@ class SynthesizerWorker:
                 # Check buffer size before processing
                 if self.buffer_size >= self.max_buffer_size:
                     logger.warning("Audio buffer size limit reached, dropping synthesis request")
-                    self.voice_handler.stats.increment_errors()
+                    self.voice_handler.stats_tracker.increment_errors()
                     continue
 
                 # Get user settings
@@ -135,7 +135,7 @@ class SynthesizerWorker:
                     )
                 except TimeoutError:
                     logger.error(f"TTS synthesis timeout for: {item['text'][:50]}...")
-                    self.voice_handler.stats.increment_errors()
+                    self.voice_handler.stats_tracker.increment_errors()
                     consecutive_errors += 1
                     continue
 
@@ -143,7 +143,7 @@ class SynthesizerWorker:
                     # Validate audio format
                     if not validate_wav_format(audio_data):
                         logger.error(f"Invalid audio format for: {item['text'][:50]}...")
-                        self.voice_handler.stats.increment_errors()
+                        self.voice_handler.stats_tracker.increment_errors()
                         consecutive_errors += 1
                         continue
 
@@ -151,7 +151,7 @@ class SynthesizerWorker:
                     audio_size = get_audio_size(audio_data)
                     if audio_size > 10 * 1024 * 1024:  # 10MB per audio file
                         logger.warning(f"Audio file too large ({audio_size} bytes), skipping")
-                        self.voice_handler.stats.increment_errors()
+                        self.voice_handler.stats_tracker.increment_errors()
                         consecutive_errors += 1
                         continue
 
@@ -171,7 +171,7 @@ class SynthesizerWorker:
                     except TimeoutError:
                         logger.warning(f"Audio queue full, dropping synthesized audio for: {item['text'][:50]}...")
                         cleanup_file(audio_path)
-                        self.voice_handler.stats.increment_errors()
+                        self.voice_handler.stats_tracker.increment_errors()
                         self.decrement_buffer_size(audio_size)
                         continue
 
@@ -180,7 +180,7 @@ class SynthesizerWorker:
 
                 else:
                     logger.error(f"Failed to synthesize: {item['text'][:50]}...")
-                    self.voice_handler.stats.increment_errors()
+                    self.voice_handler.stats_tracker.increment_errors()
                     consecutive_errors += 1
 
                 # Check for too many consecutive errors
@@ -194,7 +194,7 @@ class SynthesizerWorker:
                 break
             except Exception:
                 logger.exception("Synthesis error")
-                self.voice_handler.stats.increment_errors()
+                self.voice_handler.stats_tracker.increment_errors()
                 consecutive_errors += 1
 
                 if consecutive_errors >= max_consecutive_errors:

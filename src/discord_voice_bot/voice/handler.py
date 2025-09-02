@@ -81,7 +81,10 @@ class VoiceHandlerInterface(Protocol):
     # voice client property contract
     voice_client: Any
     target_channel: Any
-    current_group_id: str | None
+    @property
+    def current_group_id(self) -> str | None: ...
+    @current_group_id.setter
+    def current_group_id(self, value: str | None) -> None: ...
     is_playing: bool
     stats: Any
     connection_state: str
@@ -159,7 +162,8 @@ class VoiceHandler(VoiceHandlerInterface):
         # Initialize manager components
         from ..config_manager import ConfigManagerImpl
 
-        self.connection_manager = VoiceConnectionManager(bot_client, ConfigManagerImpl(config))
+        cfg_mgr = ConfigManagerImpl(config)
+        self.connection_manager = VoiceConnectionManager(bot_client, cfg_mgr)
         self.queue_manager = QueueManager()
         self.rate_limiter_manager = RateLimiterManager()
         self.stats_tracker = StatsTracker()
@@ -168,18 +172,19 @@ class VoiceHandler(VoiceHandlerInterface):
             from ..tts_client import TTSClient as _TTSClient
 
             tts_client = _TTSClient(config)
-        self.health_monitor = HealthMonitor(self.connection_manager, ConfigManagerImpl(config), tts_client)
+        # retain for lifecycle/inspection
+        self._config_manager = cfg_mgr
+        self._tts_client = tts_client
+        self.health_monitor = HealthMonitor(self.connection_manager, cfg_mgr, tts_client)
 
         # Maintain backward compatibility properties
         self.is_playing = False
 
         # Delegate properties to managers for backward compatibility
         # Access voice_client through dynamic property to avoid stale copies
-        self.target_channel = self.connection_manager.target_channel
         self.connection_state = self.connection_manager.connection_state
         self.synthesis_queue = self.queue_manager.synthesis_queue
         self.audio_queue = self.queue_manager.audio_queue
-        self.current_group_id = self.queue_manager.current_group_id
         # Dict-like stats for backward compatibility in tests
         self.stats = {
             "messages_processed": 0,
@@ -433,8 +438,26 @@ class VoiceHandler(VoiceHandlerInterface):
             "errors": stats["errors"],
             "connection_state": connection_info["connection_state"],
             "is_playing": self.is_playing,
-            "max_queue_size": 50,
+            "max_queue_size": getattr(self.queue_manager.synthesis_queue, "maxsize", 50),
         }
+
+    @property
+    def target_channel(self) -> Any:
+        """Proxy target channel to the connection manager to avoid stale state copies."""
+        return self.connection_manager.target_channel
+
+    @target_channel.setter
+    def target_channel(self, v: Any) -> None:
+        self.connection_manager.target_channel = v
+
+    @property
+    def current_group_id(self) -> str | None:
+        """Proxy current_group_id to the queue manager to avoid stale state copies."""
+        return self.queue_manager.current_group_id
+
+    @current_group_id.setter
+    def current_group_id(self, value: str | None) -> None:
+        self.queue_manager.current_group_id = value
 
     @property
     def stats(self) -> dict[str, Any]:

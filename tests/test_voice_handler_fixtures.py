@@ -316,18 +316,18 @@ def mock_bot_client_real() -> MagicMock:
 
 # Async fixtures for VoiceHandler
 @pytest_asyncio.fixture
-async def mock_tts_client(mock_config_manager: FakeConfigManager) -> TTSClient:
+async def mock_tts_client(mock_config: Config) -> TTSClient:
     """
     Async pytest fixture that provides a TTSClient instance for tests and ensures it is closed on teardown.
 
     Yields:
-        TTSClient: A test TTS client constructed with the provided config manager.
+        TTSClient: A test TTS client constructed with the provided Config.
 
     Teardown:
         Attempts to close the client by calling `aclose()` if available, otherwise `close()`.
         If the close call returns an awaitable, it will be awaited to ensure graceful shutdown.
     """
-    client = TTSClient(mock_config_manager)
+    client = TTSClient(mock_config)
     try:
         yield client
     finally:

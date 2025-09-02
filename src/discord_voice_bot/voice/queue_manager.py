@@ -62,11 +62,23 @@ class QueueManager:
             _ = self._recent_messages.pop(0)
         self._recent_messages.append(message_hash)
 
-        # Check queue size limits against actual maxsize
+        # Check if we have any capacity for chunks
         maxsize = getattr(self.synthesis_queue, "maxsize", 100)
-        if self.synthesis_queue.qsize() >= maxsize:
-            logger.warning(f"🎤 QUEUE: Synthesis queue is full ({self.synthesis_queue.qsize()}/{maxsize}) - skipping message")
+        current_size = self.synthesis_queue.qsize()
+        available_capacity = maxsize - current_size
+
+        if available_capacity <= 0:
+            logger.warning(
+                f"🎤 QUEUE: Synthesis queue is full ({current_size}/{maxsize}) - skipping entire message"
+            )
             return
+
+        # Warn if we might not fit all chunks
+        chunk_count = len(message_data["chunks"])
+        if available_capacity < chunk_count:
+            logger.info(
+                f"🎤 QUEUE: Only {available_capacity} slots available for {chunk_count} chunks - some may be dropped"
+            )
 
         logger.debug(f"🎤 QUEUE: Adding {len(message_data['chunks'])} chunks to synthesis queue")
 
@@ -79,15 +91,19 @@ class QueueManager:
                     "username": message_data.get("username", "Unknown"),
                     "group_id": message_data.get("group_id", f"msg_{id(message_data)}"),
                     "chunk_index": i,
-                    "total_chunks": len(message_data["chunks"]),
+                    "total_chunks": chunk_count,
                     "message_hash": message_hash,
                 }
                 try:
                     self.synthesis_queue.put_nowait(item)
                 except asyncio.QueueFull:
-                    logger.warning(f"🎤 QUEUE: Synthesis queue became full while adding (at chunk {i + 1}/{len(message_data['chunks'])}); stopping adds")
+                    logger.warning(
+                        f"🎤 QUEUE: Synthesis queue became full after adding {i} chunks (failed at chunk {i + 1}/{chunk_count}); stopping"
+                    )
                     break
-                logger.debug(f"🎤 QUEUE: Added chunk {i + 1}/{len(message_data['chunks'])} to queue (size={self.synthesis_queue.qsize()}/{maxsize})")
+                logger.debug(
+                    f"🎤 QUEUE: Added chunk {i + 1}/{chunk_count} to queue (size={self.synthesis_queue.qsize()}/{maxsize})"
+                )
 
         logger.info(f"🎤 QUEUE: Successfully queued message with {len(message_data['chunks'])} chunks from {message_data.get('username', 'Unknown')}")
 
@@ -123,7 +139,16 @@ class QueueManager:
 
             # Put remaining items back without blocking while holding the lock
             for remaining_item in kept_items:
-                self.synthesis_queue.put_nowait(remaining_item)
+                try:
+                    self.synthesis_queue.put_nowait(remaining_item)
+                except asyncio.QueueFull:
+                    # This should never happen (we removed at least as many as we're putting back)
+                    # but log it just in case for debugging
+                    from loguru import logger as _logger
+                    _logger.error(
+                        f"🎤 QUEUE: Unexpected QueueFull while restoring items during clear_group - item lost: {remaining_item}"
+                    )
+                    break
 
         return original_size - self.synthesis_queue.qsize()
 

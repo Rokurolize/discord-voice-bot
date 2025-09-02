@@ -32,12 +32,13 @@ def _find_guidelines_md(repo_root: Path) -> Path:
 
 @pytest.fixture(scope="session")
 def guidelines_path() -> Path:
-    return _find_guidelines_md(Path.cwd())
+    # Resolve repo root relative to this file to avoid CWD sensitivity
+    return _find_guidelines_md(Path(__file__).resolve().parents[1])
 
 
 @pytest.fixture(scope="session")
 def guidelines_text(guidelines_path: Path) -> str:
-    return guidelines_path.read_text(encoding="utf-8")
+    return guidelines_path.read_text(encoding="utf-8", errors="ignore")
 
 
 def test_has_required_top_level_sections_in_order(guidelines_text: str):
