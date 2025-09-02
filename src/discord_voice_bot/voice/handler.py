@@ -31,44 +31,15 @@ class NullVoiceClient:
     channel = None
 
     def is_connected(self) -> bool:  # pragma: no cover - trivial
-        """
-        Return whether a voice client is connected.
-
-        For the null stub client this always returns False.
-
-        Returns:
-            bool: False, indicating no active voice connection.
-
-        """
         return False
 
     def is_playing(self) -> bool:  # pragma: no cover - trivial
-        """
-        Return whether audio is currently playing.
-
-        This stub implementation always reports False (no audio is playing).
-
-        Returns:
-            bool: Always False.
-
-        """
         return False
 
     def stop(self) -> None:  # pragma: no cover - trivial
-        """
-        No-op stop method for the null voice client.
-
-        This method intentionally does nothing and exists to provide a compatible interface with real voice clients
-        when no voice connection is present (e.g., testing or uninitialized state).
-        """
         return
 
     async def disconnect(self) -> None:  # pragma: no cover - trivial
-        """
-        No-op asynchronous disconnect for the null/stub voice client.
-
-        Implements the async disconnect signature of a real voice client but performs no action and returns immediately.
-        """
         return
 
 
@@ -81,66 +52,42 @@ class VoiceHandlerInterface(Protocol):
     # voice client property contract
     voice_client: Any
     target_channel: Any
+
     @property
     def current_group_id(self) -> str | None: ...
     @current_group_id.setter
     def current_group_id(self, value: str | None) -> None: ...
+
     is_playing: bool
     stats: Any
     connection_state: str
     synthesizer: "SynthesizerWorker | None"
 
-    async def start(self) -> None:
-        """Start the voice handler tasks."""
-        ...
+    async def start(self) -> None: ...
 
-    def is_connected(self) -> bool:
-        """Return True if connected to a voice channel."""
-        ...
+    def is_connected(self) -> bool: ...
 
-    async def connect_to_channel(self, channel_id: int) -> bool:
-        """Connect to a voice channel."""
-        ...
+    async def connect_to_channel(self, channel_id: int) -> bool: ...
 
-    async def handle_voice_server_update(self, payload: dict[str, Any]) -> None:
-        """Handle VOICE_SERVER_UPDATE event."""
-        ...
+    async def handle_voice_server_update(self, payload: dict[str, Any]) -> None: ...
 
-    async def handle_voice_state_update(self, payload: dict[str, Any]) -> None:
-        """Handle VOICE_STATE_UPDATE event."""
-        ...
+    async def handle_voice_state_update(self, payload: dict[str, Any]) -> None: ...
 
-    async def make_rate_limited_request(self, api_call: Any, *args: Any, **kwargs: Any) -> Any:
-        """Make a rate-limited API request."""
-        ...
+    async def make_rate_limited_request(self, api_call: Any, *args: Any, **kwargs: Any) -> Any: ...
 
-    async def add_to_queue(self, message_data: dict[str, Any]) -> None:
-        """Add message to synthesis queue."""
-        ...
+    async def add_to_queue(self, message_data: dict[str, Any]) -> None: ...
 
-    async def skip_current(self) -> int:
-        """Skip the current message group."""
-        ...
+    async def skip_current(self) -> int: ...
 
-    async def clear_all(self) -> int:
-        """Clear all queues."""
-        ...
+    async def clear_all(self) -> int: ...
 
-    def get_status(self) -> dict[str, Any]:
-        """Get current status information."""
-        ...
+    def get_status(self) -> dict[str, Any]: ...
 
-    async def health_check(self) -> dict[str, Any]:
-        """Perform voice connection health check."""
-        ...
+    async def health_check(self) -> dict[str, Any]: ...
 
-    async def cleanup(self) -> None:
-        """Clean up resources."""
-        ...
+    async def cleanup(self) -> None: ...
 
-    async def cleanup_voice_client(self) -> None:
-        """Clean up voice client state."""
-        ...
+    async def cleanup_voice_client(self) -> None: ...
 
 
 class VoiceHandler(VoiceHandlerInterface):

@@ -14,10 +14,12 @@ class VoiceHandlerProtocol(Protocol):
 
     audio_queue: Any
     voice_client: Any
+
     @property
     def current_group_id(self) -> str | None: ...
     @current_group_id.setter
     def current_group_id(self, value: str | None) -> None: ...
+
     is_playing: bool
     stats_tracker: Any
     if TYPE_CHECKING:

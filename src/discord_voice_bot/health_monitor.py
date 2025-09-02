@@ -437,6 +437,7 @@ class HealthMonitor:
             logger.error("💀 Server shutdown complete")
             # Exit with error code (skip in test mode)
             import sys
+
             try:
                 is_test = getattr(self._config_manager, "is_test_mode", None)
                 if callable(is_test) and is_test():

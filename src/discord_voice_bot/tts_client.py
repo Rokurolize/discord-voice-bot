@@ -56,9 +56,7 @@ class TTSClient:
         engine_name = str(self.config.tts_engine).lower()
         if self.config.tts_engine not in self.config.engines:
             known = ", ".join(sorted(self.config.engines.keys()))
-            logger.warning(
-                f"Configured TTS engine '{self.config.tts_engine}' not found. Known engines=[{known}]. Falling back to default URL."
-            )
+            logger.warning(f"Configured TTS engine '{self.config.tts_engine}' not found. Known engines=[{known}]. Falling back to default URL.")
             return DEFAULT_AIVIS_URL if engine_name == "aivis" else DEFAULT_VOICEVOX_URL
 
         engine_config = self.config.engines.get(self.config.tts_engine, {})

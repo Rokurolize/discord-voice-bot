@@ -42,9 +42,7 @@ class TTSHealthMonitor:
         """
         cfg = self._config_ref()
         if cfg is None:
-            raise RuntimeError(
-                f"Config has been garbage-collected; {type(self).__name__}(id={id(self)}) is unbound"
-            )
+            raise RuntimeError(f"Config has been garbage-collected; {type(self).__name__}(id={id(self)}) is unbound")
         return cfg
 
     async def perform_health_check(self) -> bool:
@@ -111,9 +109,7 @@ class TTSHealthMonitor:
 
             # Basic validation of the audio data
             if len(test_audio) < MIN_TEST_AUDIO_BYTES:
-                logger.warning(
-                    f"TTS health check failed: synthesized audio too small ({len(test_audio)} bytes)"
-                )
+                logger.warning(f"TTS health check failed: synthesized audio too small ({len(test_audio)} bytes)")
                 return False
 
             return True
@@ -226,6 +222,7 @@ class TTSHealthMonitor:
             issues.append(f"🔴 Diagnostic error: {e}")
 
         return issues
+
 
 # Health-check thresholds
 MIN_TEST_AUDIO_BYTES = 256
