@@ -104,7 +104,5 @@ async def create_voices_embed(user_id: str | int, config: Config, tts_engine: TT
     except Exception:
         from loguru import logger
 
-        logger.bind(engine=config.tts_engine, user_id=str(user_id)).exception(
-            "Error creating voices embed"
-        )
+        logger.bind(engine=config.tts_engine, user_id=str(user_id)).exception("Error creating voices embed")
         return discord.Embed(title="🎭 Available Voices", color=discord.Color.red(), description="❌ Error retrieving voice information")

@@ -27,10 +27,7 @@ def _find_guidelines_md(repo_root: Path) -> Path:
             for pat in patterns:
                 if re.search(pat, text, flags=re.MULTILINE):
                     return p
-    raise FileNotFoundError(
-        "Could not locate the 'Repository Guidelines' markdown. "
-        "Ensure the document contains a top-level '# Repository Guidelines' heading."
-    )
+    raise FileNotFoundError("Could not locate the 'Repository Guidelines' markdown. Ensure the document contains a top-level '# Repository Guidelines' heading.")
 
 
 @pytest.fixture(scope="session")
@@ -76,7 +73,7 @@ def test_testing_guidelines_call_out_pytest_and_asyncio(guidelines_text: str):
     # Look within the section up to the next '##'
     start = m.end()
     next_h2 = re.search(r"^##\s+", guidelines_text[start:], flags=re.MULTILINE)
-    section_text = guidelines_text[start:] if not next_h2 else guidelines_text[start:start + next_h2.start()]
+    section_text = guidelines_text[start:] if not next_h2 else guidelines_text[start : start + next_h2.start()]
 
     assert "pytest" in section_text.lower(), "Testing guidelines should mention pytest."
     assert "pytest-asyncio" in section_text.lower(), "Testing guidelines should mention pytest-asyncio."
@@ -89,9 +86,9 @@ def test_build_commands_include_uv_and_poe(guidelines_text: str):
     m = re.search(section_re, guidelines_text, flags=re.MULTILINE)
     assert m, "Missing build/test/dev commands section."
 
-    text = guidelines_text[m.end():]
+    text = guidelines_text[m.end() :]
     next_h2 = re.search(r"^##\s+", text, flags=re.MULTILINE)
-    section_text = text if not next_h2 else text[:next_h2.start()]
+    section_text = text if not next_h2 else text[: next_h2.start()]
 
     required_snippets = [
         r"`uv run discord-voice-bot`",
@@ -112,9 +109,9 @@ def test_coding_style_highlights_python_version_and_line_length(guidelines_text:
     section_re = r"^##\s*Coding Style & Naming Conventions\s*$"
     m = re.search(section_re, guidelines_text, flags=re.MULTILINE)
     assert m, "Missing coding style section."
-    text = guidelines_text[m.end():]
+    text = guidelines_text[m.end() :]
     next_h2 = re.search(r"^##\s+", text, flags=re.MULTILINE)
-    section_text = text if not next_h2 else text[:next_h2.start()]
+    section_text = text if not next_h2 else text[: next_h2.start()]
 
     assert re.search(r"Python\s+3\.12", section_text), "Expected Python 3.12 reference."
     assert re.search(r"line length\s*200", section_text), "Expected line length 200 reference."
@@ -126,9 +123,9 @@ def test_security_and_config_tips_include_test_mode_truthy_semantics(guidelines_
     section_re = r"^##\s*Security & Configuration Tips\s*$"
     m = re.search(section_re, guidelines_text, flags=re.MULTILINE)
     assert m, "Missing security & configuration tips section."
-    text = guidelines_text[m.end():]
+    text = guidelines_text[m.end() :]
     next_h2 = re.search(r"^##\s+|^###\s+", text, flags=re.MULTILINE)
-    section_text = text if not next_h2 else text[:next_h2.start()]
+    section_text = text if not next_h2 else text[: next_h2.start()]
 
     # Verify TEST_MODE description and truthy values list
     assert re.search(r"TEST_MODE", section_text), "Expected TEST_MODE mention."
@@ -146,10 +143,10 @@ def test_security_and_config_tips_include_test_mode_truthy_semantics(guidelines_
 def test_test_only_overrides_section_contains_expected_keys_and_examples(guidelines_text: str):
     m = re.search(r"^###\s*Test-only overrides\s*$", guidelines_text, flags=re.MULTILINE)
     assert m, "Missing 'Test-only overrides' subsection."
-    text = guidelines_text[m.end():]
+    text = guidelines_text[m.end() :]
     # Capture until next H2/H3
     next_hdr = re.search(r"^##\s+|^###\s+", text, flags=re.MULTILINE)
-    section_text = text if not next_hdr else text[:next_hdr.start()]
+    section_text = text if not next_hdr else text[: next_hdr.start()]
 
     # Keys
     for key in [
@@ -186,9 +183,9 @@ def test_test_only_overrides_section_contains_expected_keys_and_examples(guideli
 def test_resolving_review_threads_contains_git_and_ci_instructions(guidelines_text: str):
     m = re.search(r"^##\s*Resolving Review Threads\s*$", guidelines_text, flags=re.MULTILINE)
     assert m, "Missing 'Resolving Review Threads' section."
-    text = guidelines_text[m.end():]
+    text = guidelines_text[m.end() :]
     next_h2 = re.search(r"^##\s+", text, flags=re.MULTILINE)
-    section_text = text if not next_h2 else text[:next_h2.start()]
+    section_text = text if not next_h2 else text[: next_h2.start()]
 
     required_lines = [
         r"`git status`",
@@ -203,23 +200,25 @@ def test_resolving_review_threads_contains_git_and_ci_instructions(guidelines_te
 def test_single_action_summary_has_push_guidance(guidelines_text: str):
     m = re.search(r"^##\s*Single-Action Summary\s*$", guidelines_text, flags=re.MULTILINE)
     assert m, "Missing 'Single-Action Summary' section."
-    text = guidelines_text[m.end():]
+    text = guidelines_text[m.end() :]
     next_h2 = re.search(r"^##\s+", text, flags=re.MULTILINE)
-    section_text = text if not next_h2 else text[:next_h2.start()]
+    section_text = text if not next_h2 else text[: next_h2.start()]
 
     # Check for the sequence guidance and fork tip code block
     assert re.search(r"After each fix:\s*`uv run poe check`", section_text), "Expected 'After each fix' instruction."
+
+
 # Blocked command:     assert re.search(r"git push -u origin HEAD:\$\(git branch --show-current\)", section_text), "Expected explicit push guidance for forks."
 
 
 def test_maintenance_note_prefers_small_commits_and_rebase_guidance(guidelines_text: str):
     m = re.search(r"^##\s*Maintenance Note\s*$", guidelines_text, flags=re.MULTILINE)
     assert m, "Missing 'Maintenance Note' section."
-    text = guidelines_text[m.end():]
+    text = guidelines_text[m.end() :]
     # end of file, so we can use the tail
     section_text = text
 
     assert re.search(r"Prefer small,\s*focused commits", section_text, flags=re.IGNORECASE), "Expected small commits guidance."
     assert re.search(r"git rebase -i origin/main", section_text), "Expected interactive rebase suggestion."
-# Blocked command:     assert re.search(r"git push --force-with-lease", section_text), "Expected safe force push guidance."
+    # Blocked command:     assert re.search(r"git push --force-with-lease", section_text), "Expected safe force push guidance."
     assert re.search(r"Squash and merge", section_text), "Expected squash and merge mention."

@@ -15,7 +15,7 @@ class TTSHealthMonitor:
     def __init__(self, config: Config, tts_client: TTSClient) -> None:
         """
         Initialize the TTS health monitor.
-        
+
         Stores a weak reference to the provided Config (so the monitor does not extend its lifetime)
         and keeps a reference to the TTS client used for health checks.
         """
@@ -27,14 +27,14 @@ class TTSHealthMonitor:
     def config(self) -> Config:
         """
         Return the currently bound Config instance.
-        
+
         Resolves the internally stored weak reference to the Config and returns it.
         Raises a RuntimeError if the Config has been garbage-collected, indicating
         the monitor is no longer bound to a valid configuration.
-        
+
         Returns:
             Config: The live configuration object.
-        
+
         Raises:
             RuntimeError: If the underlying Config has been garbage-collected.
 
@@ -47,10 +47,10 @@ class TTSHealthMonitor:
     async def perform_health_check(self) -> bool:
         """
         Run a two-step health check for the TTS engine.
-        
+
         Performs an API availability check followed by a brief synthesis test. If either step fails
         or an unexpected exception occurs, the method returns False; returns True only if both checks pass.
-        
+
         Returns:
             bool: True when both API and synthesis checks succeed, False otherwise.
 
@@ -167,7 +167,7 @@ class TTSHealthMonitor:
     async def diagnose_issues(self) -> list[str]:
         """
         Return a list of diagnostic messages describing potential TTS engine issues.
-        
+
         Performs a sequence of checks: API availability, a test synthesis, and validation of configured engines.
         Each discovered problem is appended as a human-readable message (including suggested actions). Any unexpected
         exception during diagnosis is caught and added to the returned list as an error entry — the function always

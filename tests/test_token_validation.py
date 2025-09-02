@@ -192,13 +192,13 @@ async def test_bot_start_with_config_dry_run(mock_login, test_config_manager):
 async def test_actual_bot_startup_simulation(mock_login, prod_config_manager, config):
     """
     Simulate the bot's real startup flow using the provided test fixtures and assert that the Discord login call is attempted with the production token.
-    
+
     Performs the same high-level steps the application startup would:
     - Instantiates BotManager with the supplied test config and replaces its ConfigManager with prod_config_manager.
     - Runs logging setup and configuration validation.
     - Retrieves the Discord token from the overridden ConfigManager and attempts a login using a temporary discord.Client.
     - Asserts that the patched `login` (mock_login) was invoked once with the token.
-    
+
     Any exception during setup, validation, or the login attempt causes the test to fail.
     """
 

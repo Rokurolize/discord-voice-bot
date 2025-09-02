@@ -14,20 +14,22 @@ from ...config import EngineConfig
 async def handle(interaction: discord.Interaction, bot: DiscordVoiceTTSBot, speaker: str | None = None) -> None:
     """
     Handle the `/voice` slash command: view, set, reset user voice preference, and test the selected voice.
-    
+
     If called with no speaker argument, sends an ephemeral embed describing the current user voice setting and available subcommands.
     If called with "reset" (case-insensitive), removes the user's custom voice preference and responds with the outcome.
     If called with a speaker name or numeric ID, looks up the configured speakers for the active TTS engine, saves the matching preference, responds with success or failure, and — on success — enqueues a short test utterance for playback.
-    
-    Parameters
-        speaker (str | None): Optional speaker name or numeric ID to set; use "reset" to remove a custom setting. When omitted, the command displays the current setting.
-    
+
+    Args:
+        interaction: Command interaction context.
+        bot: The Discord bot instance handling the command.
+        speaker: Optional speaker name or numeric ID to set; use "reset" to remove a custom setting. When omitted, the command displays the current setting.
+
     Side effects:
         - Sends ephemeral responses (or follow-up if the initial response is already sent).
         - Updates persistent user settings via the project's user settings API.
         - May add a test message to the bot's voice queue (if a voice handler is available).
-    
-    Raises
+
+    Raises:
         asyncio.CancelledError: re-raised if the coroutine is cancelled.
 
     """

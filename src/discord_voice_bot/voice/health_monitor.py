@@ -14,7 +14,7 @@ class HealthMonitor:
     def __init__(self, connection_manager: Any, config_manager: ConfigManager, tts_client: TTSClient) -> None:
         """
         Initialize HealthMonitor and store references to required managers and clients.
-        
+
         Stores the provided managers/clients on the instance for use by health checks:
         - connection_manager: provider of the voice client and connection state
         - _config_manager: configuration manager
@@ -28,14 +28,14 @@ class HealthMonitor:
     async def perform_health_check(self) -> dict[str, Any]:
         """
         Perform a comprehensive health check of the voice subsystem and return a diagnostics report.
-        
+
         The check inspects:
         - Presence and connection state of the voice client, whether it is associated with a channel,
           and whether audio playback is currently free/ready.
         - Availability of the configured TTS API via the TTS client.
-        
+
         All runtime errors encountered during checks are recorded in the returned report under "issues" (the function does not propagate those exceptions).
-        
+
         Returns:
             dict[str, Any]: A health report with the following keys:
                 - healthy (bool): True if voice client is connected, channel is accessible, and TTS is available.

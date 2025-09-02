@@ -25,14 +25,14 @@ class VoiceHandler(NewVoiceHandler):
     def __init__(self, bot_client: "DiscordVoiceTTSBot", config_manager: Any = None, tts_client: Any | None = None) -> None:
         """
         Initialize the legacy VoiceHandler wrapper and adapt older configuration shapes for the new implementation.
-        
+
         This constructor normalizes config_manager into a Config dataclass (imported from .config) using the following precedence:
         - If config_manager is already a Config instance, it is used as-is.
         - If config_manager exposes a callable _get_config(), that function is invoked and its result is used; on any exception the fallback Config.from_env() is used.
         - Otherwise Config.from_env() is used.
-        
+
         The resolved Config and the optional tts_client are forwarded to the new implementation via super().__init__(bot_client, cfg, tts_client).
-        
+
         Note:
         - tts_client is optional for now but may become required in a future major release.
         - This class is deprecated; prefer discord_voice_bot.voice.VoiceHandler.

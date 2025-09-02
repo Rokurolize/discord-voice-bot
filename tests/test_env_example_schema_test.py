@@ -8,6 +8,7 @@ import pytest
 
 ENV_EXAMPLE_PATH = Path(__file__).with_name("test_env_example.py")
 
+
 def _parse_env_file(path: Path):
     """
     Lightweight .env parser:
@@ -42,19 +43,23 @@ def _parse_env_file(path: Path):
             env[key] = value
     return env, duplicates
 
+
 @pytest.fixture(scope="module")
 def parsed():
     assert ENV_EXAMPLE_PATH.exists(), f"Missing file: {ENV_EXAMPLE_PATH}"
     env, dups = _parse_env_file(ENV_EXAMPLE_PATH)
     return {"env": env, "dups": dups}
 
+
 def test_env_example_exists_and_is_readable():
     assert ENV_EXAMPLE_PATH.exists(), "The env example file must exist."
     content = ENV_EXAMPLE_PATH.read_text(encoding="utf-8")
     assert len(content) > 0, "The env example file should not be empty."
 
+
 def test_no_duplicate_keys(parsed):
     assert not parsed["dups"], f"Duplicate keys found: {parsed['dups']}"
+
 
 def test_required_keys_present(parsed):
     # Focused on keys present in the provided diff/content
@@ -82,11 +87,13 @@ def test_required_keys_present(parsed):
     missing = expected - keys
     assert not missing, f"Missing expected keys: {missing}"
 
+
 def test_keys_are_uppercase_snake_case(parsed):
     snake = re.compile(r"^[A-Z0-9_]+$")
     bad = list(parsed["env"].keys())
     bad = [k for k in bad if not snake.match(k)]
     assert not bad, f"Non-UPPER_SNAKE_CASE keys: {bad}"
+
 
 def _assert_int_non_negative(name: str, value: str):
     try:
@@ -95,16 +102,19 @@ def _assert_int_non_negative(name: str, value: str):
         raise AssertionError(f"{name} must be an integer, got {value!r}") from e
     assert iv >= 0, f"{name} must be non-negative, got {iv}"
 
+
 def _parse_bool(name: str, value: str) -> bool:
     lv = value.lower()
     assert lv in {"true", "false"}, f"{name} must be 'true' or 'false' (case-insensitive), got {value!r}"
     return lv == "true"
+
 
 def test_integer_fields_non_negative(parsed):
     env = parsed["env"]
     for key in ["MAX_MESSAGE_LENGTH", "MESSAGE_QUEUE_SIZE", "RECONNECT_DELAY", "RATE_LIMIT_MESSAGES", "RATE_LIMIT_PERIOD"]:
         assert key in env, f"Missing {key}"
         _assert_int_non_negative(key, env[key])
+
 
 def test_boolean_fields_and_defaults(parsed):
     env = parsed["env"]
@@ -116,6 +126,7 @@ def test_boolean_fields_and_defaults(parsed):
     # Ensure inline comment on ENABLE_SELF_MESSAGE_PROCESSING didn't pollute its value
     assert env["ENABLE_SELF_MESSAGE_PROCESSING"].lower() == "false"
 
+
 def test_urls_are_valid_and_expected_defaults(parsed):
     env = parsed["env"]
     for key in ["VOICEVOX_URL", "AIVIS_URL"]:
@@ -126,8 +137,9 @@ def test_urls_are_valid_and_expected_defaults(parsed):
     # Validate default ports per the provided template
     vv = urlparse(env["VOICEVOX_URL"])
     ai = urlparse(env["AIVIS_URL"])
-    assert (vv.port == 50021), f"VOICEVOX_URL should default to port 50021, got {vv.port}"
-    assert (ai.port == 10101), f"AIVIS_URL should default to port 10101, got {ai.port}"
+    assert vv.port == 50021, f"VOICEVOX_URL should default to port 50021, got {vv.port}"
+    assert ai.port == 10101, f"AIVIS_URL should default to port 10101, got {ai.port}"
+
 
 def test_command_prefix_default(parsed):
     env = parsed["env"]
@@ -136,17 +148,20 @@ def test_command_prefix_default(parsed):
     assert cp.startswith("!"), f"COMMAND_PREFIX should start with '!', got {cp!r}"
     assert len(cp) <= 10, "COMMAND_PREFIX should be concise"
 
+
 def test_log_level_valid_default(parsed):
     env = parsed["env"]
     allowed = {"DEBUG", "INFO", "WARNING", "ERROR"}
     assert env["LOG_LEVEL"] in allowed, f"LOG_LEVEL must be one of {sorted(allowed)}, got {env['LOG_LEVEL']!r}"
     assert env["LOG_LEVEL"] == "INFO", f"LOG_LEVEL should default to 'INFO' in example, got {env['LOG_LEVEL']!r}"
 
+
 def test_placeholders_and_sensible_defaults(parsed):
     env = parsed["env"]
     assert env["DISCORD_BOT_TOKEN"] == "your_bot_token_here", "DISCORD_BOT_TOKEN should be a placeholder value"
     assert env["TARGET_VOICE_CHANNEL_ID"] == "your_voice_channel_id_here", "TARGET_VOICE_CHANNEL_ID should be a placeholder value"
     assert env["TTS_ENGINE"] == "voicevox", "TTS_ENGINE should default to 'voicevox' per template"
+
 
 def test_test_override_fields_blank_or_valid(parsed):
     env = parsed["env"]

@@ -16,7 +16,7 @@ class TTSClient:
     def __init__(self, config: Config) -> None:
         """
         Create a TTSClient tied to the provided configuration.
-        
+
         Stores a weak reference to the given Config (so the Config may be garbage-collected),
         initializes the internal aiohttp ClientSession placeholder to None, and creates an
         asyncio.Lock to guard lazy session creation and teardown.
@@ -30,12 +30,12 @@ class TTSClient:
     def config(self) -> Config:
         """
         Return the live Config instance referenced by this TTSClient.
-        
+
         Retrieves the Config object previously stored as a weak reference. Raises a RuntimeError if the referenced Config has been garbage-collected, indicating the client is no longer bound to a live configuration.
-        
+
         Returns:
             Config: The active configuration object.
-        
+
         Raises:
             RuntimeError: If the weak reference no longer points to a live Config.
 
@@ -49,7 +49,7 @@ class TTSClient:
     def api_url(self) -> str:
         """
         Return the base API URL for the configured TTS engine.
-        
+
         If the configured engine name is not present in the configured engines, this returns DEFAULT_VOICEVOX_URL and emits a warning. If the engine exists but does not define a "url", this also falls back to DEFAULT_VOICEVOX_URL.
         """
         if self.config.tts_engine not in self.config.engines:
@@ -64,13 +64,13 @@ class TTSClient:
     def speaker_id(self) -> int:
         """
         Return the resolved speaker ID to use for synthesis.
-        
+
         If the configured `tts_speaker` is a numeric value (or numeric string), that value is returned.
         Otherwise the method resolves a speaker ID from the configured engine's speaker map:
         - prefers the engine's `default_speaker` if present and castable to int;
         - otherwise uses the first value from the engine's `speakers` mapping;
         - if none of the above are available or castable to int, falls back to 3.
-        
+
         All conversions are performed safely: non-integer or missing values are handled and a valid int is always returned.
         """
         val = str(self.config.tts_speaker).strip()
@@ -88,12 +88,12 @@ class TTSClient:
         def _to_int(v: Any, d: int) -> int:
             """
             Convert a value to an int, returning a provided default if conversion fails.
-            
-            Parameters
-                v (Any): Value to convert to int.
-                d (int): Default integer to return if `v` cannot be converted.
-            
-            Returns
+
+            Args:
+                v: Value to convert to int.
+                d: Default integer to return if `v` cannot be converted.
+
+            Returns:
                 int: The converted integer, or `d` when a TypeError or ValueError occurs.
 
             """
@@ -114,7 +114,7 @@ class TTSClient:
     def engine_name(self) -> str:
         """
         Return the configured TTS engine name in uppercase.
-        
+
         Returns:
             str: The TTS engine name converted to uppercase.
 
@@ -129,7 +129,7 @@ class TTSClient:
     async def start_session(self) -> None:
         """
         Lazily create and store the aiohttp ClientSession used for TTS API calls.
-        
+
         If a session already exists this is a no-op. The operation is serialized with
         the client's internal asyncio Lock so concurrent callers do not create multiple
         sessions. The created ClientSession uses a short timeout (total=10s, connect=2s).
@@ -146,7 +146,7 @@ class TTSClient:
     async def close_session(self) -> None:
         """
         Close and clear the internal aiohttp ClientSession.
-        
+
         This asynchronous, idempotent method acquires the internal session lock, closes the existing ClientSession if present (awaiting its close), and sets the internal session reference to None. Safe to call concurrently; if no session exists the method returns immediately.
         """
         async with self._session_lock:
@@ -160,7 +160,7 @@ class TTSClient:
     async def close(self) -> None:  # pragma: no cover - compatibility
         """
         Compatibility alias that closes the client's HTTP session.
-        
+
         Asynchronously delegates to close_session() to close and clear the internal aiohttp ClientSession. Safe to call when no session exists.
         """
         await self.close_session()
@@ -168,7 +168,7 @@ class TTSClient:
     async def aclose(self) -> None:  # pragma: no cover - compatibility
         """
         Compatibility async alias for close_session.
-        
+
         Provided for backward compatibility with older APIs; awaits close_session() to close and clear the internal HTTP session.
         """
         await self.close_session()
@@ -176,14 +176,14 @@ class TTSClient:
     async def check_api_availability(self) -> tuple[bool, str]:
         """
         Check whether the configured TTS API is reachable and return a short diagnostic.
-        
+
         Ensures an aiohttp session is available and performs GET {api_url}/version. On HTTP 200 returns (True, "").
         On failure returns (False, detail) where `detail` is a short diagnostic such as:
         - "HTTP <status>" for non-200 responses (a short response-body snippet is logged for diagnostics),
         - "connection refused - server not running",
         - "connection timeout - server may be starting up",
         - "unexpected error: <ExceptionName>" for other errors.
-        
+
         Preserves cooperative cancellation by re-raising asyncio.CancelledError.
         """
         if not self._session:
@@ -236,17 +236,16 @@ class TTSClient:
     async def generate_audio_query(self, text: str, speaker_id: int, api_url: str) -> dict[str, Any] | None:
         """
         Create an audio_query payload for synthesis by POSTing the given text and speaker to the engine's /audio_query endpoint.
-        
-        Parameters
+
+        Args:
             text: Input text to convert into an audio_query.
             speaker_id: Speaker identifier to request from the TTS engine.
             api_url: Base URL of the TTS engine API (used as {api_url}/audio_query).
-        
-        Returns
-            dict: Parsed JSON audio_query on success.
-            None: If the request fails (non-200 response) or an exception occurs.
-        
-        Raises
+
+        Returns:
+            dict[str, Any] | None: Parsed JSON audio_query on success, or None on failure.
+
+        Raises:
             asyncio.CancelledError: Propagated if the coroutine is cancelled.
 
         """
@@ -272,7 +271,7 @@ class TTSClient:
     async def synthesize_from_query(self, audio_query: dict[str, Any], speaker_id: int, api_url: str) -> bytes | None:
         """
         Synthesize audio bytes from an audio_query by calling the TTS engine's /synthesis endpoint.
-        
+
         Sends a POST to "{api_url}/synthesis" with the audio_query as JSON and the speaker as a query parameter.
         On a successful (HTTP 200) response returns the raw audio bytes; on any non-200 response or error returns None.
         Cooperative cancellation via asyncio.CancelledError is propagated.
@@ -299,9 +298,9 @@ class TTSClient:
     async def synthesize_audio(self, text: str, speaker_id: int | None = None, engine_name: str | None = None) -> bytes | None:
         """
         Synthesize spoken audio bytes from input text using the configured TTS engine.
-        
+
         Performs a high-level synthesis workflow: ensures an HTTP session is available, chooses the target engine (explicit override or configured engine, falling back to "voicevox" or the first configured engine if the requested one is missing), resolves a speaker ID (explicit override or the engine's `default_speaker`, then the first available speaker, then 3), selects the engine's API URL (falls back to DEFAULT_AIVIS_URL for "aivis" or DEFAULT_VOICEVOX_URL otherwise), requests an `audio_query` from the engine, and sends that query to produce raw audio bytes.
-        
+
         Returns:
             bytes: Raw synthesized audio on success.
             None: If input text is empty, if engine selection fails, if the audio query or synthesis fails, or if an unexpected error occurs (exceptions are caught and result in None).
@@ -337,15 +336,15 @@ class TTSClient:
             def _to_int(v: Any, d: int) -> int:
                 """
                 Convert a value to int, returning a default if conversion fails.
-                
+
                 Attempts to cast `v` to int using the built-in `int()`. If `v` is not convertible
                 (a TypeError or ValueError is raised), returns the provided default `d`.
-                
-                Parameters
+
+                Args:
                     v: The value to convert to int.
                     d: The integer to return if conversion of `v` fails.
-                
-                Returns
+
+                Returns:
                     int: The converted integer or the default `d` when conversion is not possible.
 
                 """

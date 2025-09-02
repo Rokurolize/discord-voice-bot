@@ -90,12 +90,12 @@ class TestCleanup:
     def test_cleanup_error_handling(self, voice_handler_old) -> None:
         """
         Assert that the handler's `cleanup` method exists, is callable, and is an async coroutine function.
-        
+
         This test verifies:
         - the handler exposes a `cleanup` attribute,
         - the attribute is callable,
         - the attribute is an asynchronous coroutine function (inspect.iscoroutinefunction).
-        
+
         Parameters:
             voice_handler_old: A voice-handler-like object under test whose `cleanup` method is validated.
         """

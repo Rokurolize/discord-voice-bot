@@ -10,13 +10,14 @@ from ...config import Config
 async def voice_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     """
     Return autocomplete choices for selecting a voice.
-    
+
     Reads the available speakers from the environment configuration (uses Config.from_env(), looks up the configured TTS engine key from `config.tts_engine` or `"voicevox"`, then reads `config.engines[engine_key]["speakers"]`) and returns up to 25 app_commands.Choice entries whose names contain the user's current input (case-insensitive).
-    
-    Parameters
-        current (str): The user's current input to match against speaker names.
-    
-    Returns
+
+    Args:
+        interaction: The command interaction context.
+        current: The user's current input to match against speaker names.
+
+    Returns:
         list[app_commands.Choice[str]]: Matching choices (max 25). On error, an empty list is returned.
 
     """

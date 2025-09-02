@@ -70,18 +70,15 @@ class BotFactory:
         logger.info("Bot factory initialized")
 
     async def create_bot(self, config: Config | None = None, bot_class: type[Any] | None = None, *, test_mode: bool | None = None) -> Any:
-        """
-        Create, configure, and return a fully-initialized bot instance.
-        
-        If no Config is provided, a configuration is built from the environment. If `test_mode` is provided it overrides the configuration's test_mode via a dataclass replacement. If `bot_class` is not provided the function lazily imports and uses discord_voice_bot.bot.DiscordVoiceTTSBot. The created bot is wired with components and validated before being returned; any exceptions raised during creation, setup, or validation are propagated to the caller.
-        
-        Parameters:
+        """Create, configure, and return a fully-initialized bot instance.
+
+        Args:
             config: Optional per-bot Config; when omitted the configuration is loaded from the environment.
-            bot_class: Optional bot class to instantiate; when omitted the default DiscordVoiceTTSBot is imported and used.
-            test_mode: Optional override for the Config.test_mode field (applied by creating a replaced Config).
+            bot_class: Optional bot class to instantiate; uses the default when omitted.
+            test_mode: Optional override for the Config.test_mode field.
 
         Returns:
-            The configured bot instance (type depends on `bot_class`).
+            The configured bot instance.
 
         """
         try:
@@ -119,27 +116,15 @@ class BotFactory:
     async def _setup_components(self, bot: Any, config: Config) -> None:
         """
         Set up and register all runtime components for the given bot instance.
-        
-        Creates a sequence of component instances (event_handler, command_handler, slash_handler,
-        message_validator, status_manager, voice_handler, health_monitor), registers each in the
-        factory's ComponentRegistry, and attaches them as attributes on the bot. Components that
-        require the per-bot Config receive the provided `config`. After creating new components,
-        any components already present on the bot are also registered.
-        
-        Parameters:
-            bot: The bot instance to attach components to; components will be set as attributes
-                 (e.g., bot.event_handler) and registered in the factory registry.
-            config: The per-bot Config dataclass used when constructing components that depend on
-                    configuration (event_handler, message_validator, voice_handler, health_monitor).
 
+        Creates and registers standard components, attaching them as attributes on the bot.
 
-        
-        Side effects:
-            - Mutates the factory registry and the bot by registering and setting component attributes.
-            - Logs progress, warnings when a creator returns None, and errors on failure.
-        
-        Errors:
-            - Any exception raised while creating or registering a component is logged and re-raised.
+        Args:
+            bot: The bot to attach components to.
+            config: Per-bot Config for components that depend on configuration.
+
+        Raises:
+            Exception: Logged and re-raised on failure.
 
         """
         logger.info("Setting up bot components...")
@@ -196,25 +181,16 @@ class BotFactory:
     async def _execute_with_logging(self, start_msg: str, operation: Callable[[], Any] | Awaitable[Any], success_msg: str) -> None:
         """
         Run a synchronous or asynchronous operation with standardized start/success logging.
-        
+
         This helper logs start_msg, executes the provided operation (which may be a callable that returns an awaitable, a coroutine, or a synchronous callable), logs success_msg on completion, and re-raises any exception after logging it.
-        
-        Parameters:
+
+        Args:
             start_msg: Message logged before executing the operation.
             operation: A callable (sync or returning an awaitable) or an awaitable/coroutine to execute.
             success_msg: Message logged if the operation completes successfully.
 
-        
         Raises:
             Exception: Any exception raised by the operation is logged and re-raised.
-
-        """
-        """Execute operation with standardized logging.
-
-        Args:
-            start_msg: Message to log at start
-            operation: Function or coroutine to execute
-            success_msg: Message to log on success
 
         """
         import inspect
@@ -234,13 +210,7 @@ class BotFactory:
             raise
 
     async def _create_event_handler(self, bot: Any, config: Config) -> "EventHandler":
-        """
-        Create and return an EventHandler wired with a ConfigManager wrapper.
-        
-        This lazily imports ConfigManagerImpl to avoid import cycles, wraps the provided
-        Config in a ConfigManagerImpl, and instantiates the EventHandler via the
-        factory's generic _create_component helper. Returns the created EventHandler instance.
-        """
+        """Create and return an EventHandler wired with a ConfigManager wrapper."""
         # Lazy import to avoid cycles
         from .config_manager import ConfigManagerImpl
 
@@ -248,23 +218,12 @@ class BotFactory:
         return self._create_component("discord_voice_bot.event_handler", "EventHandler", bot, config_manager)
 
     async def _create_command_handler(self, bot: Any) -> "CommandHandler":
-        """
-        Create and return a CommandHandler instance bound to the given bot.
-        
-        Returns:
-            CommandHandler: an initialized command handler attached to the bot.
-
-        """
+        """Create and return a CommandHandler instance bound to the bot."""
         return self._create_component("discord_voice_bot.command_handler", "CommandHandler", bot)
 
     async def _create_slash_command_handler(self, bot: Any) -> Any:
         """
-        Create and return a slash command registry for the given bot, or None if slash support is unavailable.
-        
-        Attempts to instantiate `SlashCommandRegistry` from `discord_voice_bot.slash.registry` with the provided bot. If the module or class cannot be imported (e.g., optional dependency missing), logs a warning and returns None.
-        
-        Returns:
-            An instance of `SlashCommandRegistry` when available, otherwise `None`.
+        Create and return a slash command registry (or None if unavailable).
 
         """
         try:
@@ -274,53 +233,15 @@ class BotFactory:
             return None
 
     async def _create_message_validator(self, bot: Any, config: Config) -> "MessageValidator":
-        """
-        Create a MessageValidator using the provided per-bot Config.
-        
-        This constructs and returns a MessageValidator instance with the given Config injected directly (the validator is not coupled to the bot instance).
-        
-        Parameters:
-            bot: The bot that will own the validator (unused by constructor but kept for symmetry).
-            config: Per-bot configuration dataclass used to configure the MessageValidator.
-
-        
-        Returns:
-            MessageValidator: A new MessageValidator configured with `config`.
-
-        """
+        """Create a MessageValidator using the provided per-bot Config."""
         return self._create_component("discord_voice_bot.message_validator", "MessageValidator", config)
 
     async def _create_status_manager(self, bot: Any) -> "StatusManager":
-        """
-        Create and return a StatusManager instance.
-        
-        Returns:
-            StatusManager: Newly constructed StatusManager component.
-
-        """
+        """Create and return a StatusManager instance."""
         return self._create_component("discord_voice_bot.status_manager", "StatusManager")
 
     async def _create_voice_handler(self, bot: Any, config: Config) -> Any:
-        """
-        Create and return the bot's VoiceHandler instance.
-        
-        This lazily constructs a VoiceHandler by dynamically importing and instantiating
-        discord_voice_bot.voice.handler.VoiceHandler with the provided bot and per-bot
-        configuration. The created handler is intended to be attached to the bot and
-        registered in the factory's component registry.
-        
-        Parameters:
-            bot: The bot instance that the VoiceHandler will control/attach to.
-            config: The per-bot configuration dataclass used to configure the handler.
-
-        
-        Returns:
-            Any: An instantiated VoiceHandler.
-        
-        Raises:
-            Exception: Propagates any error raised during dynamic import or instantiation (errors are logged before re-raising).
-
-        """
+        """Create and return the bot's VoiceHandler instance."""
         try:
             return self._create_component("discord_voice_bot.voice.handler", "VoiceHandler", bot, config)
         except Exception as e:
@@ -328,20 +249,7 @@ class BotFactory:
             raise
 
     async def _create_health_monitor(self, bot: Any, config: Config) -> Any:
-        """
-        Create and return a HealthMonitor for the given bot.
-        
-        Constructs a ConfigManagerImpl from the provided per-bot Config and a TTSClient using the same Config, then instantiates the HealthMonitor component (attached to the bot) via the factory helper.
-        
-        Parameters:
-            bot: The bot instance the HealthMonitor will monitor.
-            config: The per-bot Config dataclass used to build the ConfigManager and TTS client.
-
-        
-        Returns:
-            The instantiated HealthMonitor component.
-
-        """
+        """Create and return a HealthMonitor for the given bot."""
         # Lazy imports to avoid cycles
         from .config_manager import ConfigManagerImpl
         from .tts_client import TTSClient
@@ -396,11 +304,11 @@ class BotFactory:
     async def initialize_services(self, bot: Any) -> None:
         """
         Initialize external services required by the bot.
-        
+
         This attaches a started Text-to-Speech engine to `bot.tts_engine`, and starts optional components found on the bot:
         - voice_handler (awaits its `start()` coroutine)
         - health_monitor (awaits its `start()` coroutine)
-        
+
         Raises:
             RuntimeError: If the bot does not expose a valid `Config` dataclass instance.
             Exception: Propagates any exception raised while creating or starting the services.
@@ -488,7 +396,7 @@ class BotFactory:
     async def shutdown_bot(self, bot: Any) -> None:
         """
         Shut down the given bot and clean up all managed resources.
-        
+
         Performs an orderly, best-effort shutdown:
         - Invokes component-specific stop/cleanup/shutdown methods in a fixed reverse order:
           health_monitor, voice_handler, status_manager, message_validator, slash_handler,
@@ -496,13 +404,10 @@ class BotFactory:
         - Swallows and logs exceptions from individual components so shutdown proceeds.
         - Clears the internal component registry.
         - If the bot has a `tts_engine` attribute with a `close` coroutine, awaits it to close the engine.
-        
-        Parameters
+
+        Args:
             bot: The bot instance to shut down. May be used to locate the attached TTS engine as
-                 `bot.tts_engine`; otherwise only the factory's component registry is acted on.
-        
-        Returns
-            None
+                `bot.tts_engine`; otherwise only the factory's component registry is acted on.
 
         """
         logger.info("Starting bot shutdown...")
@@ -549,7 +454,7 @@ class BotFactory:
     def reset_factory(self) -> None:
         """
         Reset the factory to its initial state by clearing all registered components.
-        
+
         This removes every component from the internal ComponentRegistry. It does not stop or shut down any components — callers should perform graceful shutdown of components before calling this method if required.
         """
         self.registry.clear()

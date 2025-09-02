@@ -21,18 +21,17 @@ class BotManager:
     def __init__(self, config: Config | None = None) -> None:
         """
         Create a BotManager and initialize its runtime state.
-        
+
         Initializes internal control attributes used to run and shut down the bot:
         - bot_task: asyncio.Task for the running bot (or None)
         - shutdown_event: asyncio.Event used to signal shutdown
         - is_shutting_down: boolean flag indicating shutdown in progress
         - health_monitor: optional HealthMonitor instance (initially None)
         - config: configuration for the bot; if `config` is None, it is loaded from the environment via `Config.from_env()`.
-        
-        Parameters:
-            config: Optional; the `Config` instance to use. When omitted,
-                configuration is loaded from environment variables via
-                `Config.from_env()`.
+
+        Args:
+            config: Optional Config instance. When omitted, configuration is
+                loaded from environment variables via `Config.from_env()`.
 
 
         """
@@ -46,16 +45,16 @@ class BotManager:
     def setup_logging(self) -> None:
         """
         Configure structured logging for the application.
-        
+
         Sets up a console logger (colorized when the terminal supports it and NO_COLOR is not set) and, if LOG_FILE is explicitly provided in the environment, a rotating file logger. Reads LOG_LEVEL, LOG_FILE and NO_COLOR directly from environment variables to avoid creating a Config early. Removes any pre-existing logger handlers, then installs:
         - a console handler writing to stderr with timestamped, leveled, and source-formatted messages;
         - an optional file handler that creates parent directories as needed and uses rotation, 1-week retention, and gzip compression.
-        
+
         Side effects:
         - calls logger.remove() to clear existing handlers,
         - adds one or two handlers to the global logger,
         - may create directories for the configured log file.
-        
+
         Environment variables used:
         - LOG_LEVEL (default "INFO")
         - LOG_FILE (if set and different from the default "discord_bot_error.log", enables file logging)

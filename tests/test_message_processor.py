@@ -26,7 +26,7 @@ def processor() -> MessageProcessor:
 def mock_message() -> MagicMock:
     """
     Create a MagicMock that represents a typical Discord Message for tests.
-    
+
     The returned mock has commonly used attributes pre-populated:
     - author: mock user with id 123456789, name "TestUser", display_name "TestUser", and bot False
     - content: "Test message"
@@ -34,7 +34,7 @@ def mock_message() -> MagicMock:
     - guild: a mock value to indicate a server message
     - id: 987654321
     - type.name: "default"
-    
+
     Use this mock in unit tests to simulate a normal, non-bot message coming from the target channel.
     """
     msg = MagicMock()

@@ -33,20 +33,16 @@ class ConfigManagerImpl:
 
     def _normalize_to_plain_dict(self, m: Mapping[str, Any]) -> dict[str, Any]:
         """
-        Normalize a nested Mapping into a plain Python dict with string keys, recursively converting nested mappings, lists, and tuples.
-        
-        This function:
-        - Recursively converts any Mapping keys to strings and returns a dict[str, Any].
-        - Converts lists and tuples into lists, normalizing their elements recursively.
-        - Deep-copies non-mapping/sequence leaf values to avoid exposing internal mutable objects.
-        
-        Parameters:
+        Normalize a nested Mapping into a plain dict with string keys.
+
+        Args:
             m: Mapping to normalize.
-        
+
         Returns:
             dict[str, Any]: A new plain dict with string keys and normalized, deep-copied contents.
 
         """
+
         def _norm(x: Any) -> Any:
             if isinstance(x, Mapping):
                 mm = cast(Mapping[Any, Any], x)
@@ -65,10 +61,10 @@ class ConfigManagerImpl:
     def __init__(self, config: Config | None = None, *, test_mode: bool | None = None) -> None:
         """
         Initialize the configuration manager.
-        
+
         If `config` is provided it will be used directly; otherwise the manager lazily loads a Config from the environment on first access. If `test_mode` is not None it overrides the config's test mode value returned by is_test_mode().
-        
-        Parameters:
+
+        Args:
             config: Optional Config dataclass to use instead of loading from environment.
             test_mode: Optional boolean that, when set, overrides the configured test mode.
 
@@ -80,14 +76,14 @@ class ConfigManagerImpl:
     def _validate_custom_engine(self, name: str, ec: Mapping[str, Any]) -> None:
         """
         Validate that a non-built-in TTS engine configuration contains required fields.
-        
+
         If `name` is a built-in engine ("voicevox" or "aivis") no validation is performed.
         For other engine names, ensures `ec` contains a truthy "url" and the key "default_speaker".
-        
-        Parameters:
+
+        Args:
             name: The engine name being validated.
             ec: Mapping containing the engine configuration.
-        
+
         Raises:
             ValueError: If a custom engine is missing a required "url" or "default_speaker".
 
@@ -108,11 +104,11 @@ class ConfigManagerImpl:
     def config(self) -> Config:
         """
         Return the effective Config dataclass used by this manager.
-        
+
         This accessor exposes the underlying Config instance (lazily loaded from environment if the
         manager was constructed without an explicit Config). The returned Config is the canonical,
         immutable configuration object used by the manager — callers should treat it as read-only.
-        
+
         Returns:
             Config: The active configuration dataclass.
 
@@ -122,7 +118,7 @@ class ConfigManagerImpl:
     def get(self, key: str, default: Any = None) -> Any:
         """
         Return the value of a named attribute from the underlying Config.
-        
+
         Looks up attribute `key` on the adapter's Config and returns it; if the attribute
         does not exist, returns `default`.
         """
@@ -132,12 +128,10 @@ class ConfigManagerImpl:
     def get_api_url(self) -> str:
         """
         Return the resolved TTS API URL for the current engine.
-        
-        Prefers an explicit "url" value under the configured engine in `cfg.engines` when present and valid (must parse to an http/https URL with a network location). For the built-in engines "aivis" and "voicevox", if the configured engine mapping has no valid URL the function falls back to the module default URL for that engine (and logs a warning). If the configured engine is unknown, or a non-built-in engine provides an invalid or missing URL, a ValueError is raised.
-        
+
         Returns:
             str: Resolved TTS API URL.
-        
+
         Raises:
             ValueError: If the configured `tts_engine` is not recognized, or if a custom (non-built-in) engine provides an invalid or missing `url`, or if no default is available.
 
@@ -168,12 +162,12 @@ class ConfigManagerImpl:
     def get_speaker_id(self) -> int:
         """
         Return the default speaker ID for the currently configured TTS engine.
-        
+
         If the configured engine has no explicit entry in config.engines, a baked-in default from DEFAULT_SPEAKER_IDS is returned when available. For a configured engine mapping, the engine is validated (must provide required fields for custom engines), then the mapping's "default_speaker" value is used; if absent, the baked-in default is used when present. The value is coerced to int and must be a positive integer.
-        
+
         Returns:
             int: The default speaker ID.
-        
+
         Raises:
             ValueError: If the tts_engine is unknown, if the configured `default_speaker` cannot be converted to an integer, or if the resulting ID is not a positive integer.
 
@@ -203,39 +197,21 @@ class ConfigManagerImpl:
         return self._get_config().tts_engine
 
     def get_audio_sample_rate(self) -> int:
-        """
-        Return the configured audio sample rate in Hz.
-        
-        Returns:
-            int: Audio sample rate (samples per second).
-
-        """
+        """Return the configured audio sample rate in Hz."""
         return self._get_config().audio_sample_rate
 
     def get_audio_channels(self) -> int:
-        """
-        Return the configured number of audio channels.
-        
-        Returns:
-            int: Audio channel count from the active configuration.
-
-        """
+        """Return the configured number of audio channels."""
         return self._get_config().audio_channels
 
     def get_log_level(self) -> str:
-        """
-        Return the configured log level name used by the application (e.g., "INFO", "DEBUG").
-        
-        Returns:
-            str: Log level from the active Config.
-
-        """
+        """Return the configured log level name (e.g., "INFO")."""
         return self._get_config().log_level
 
     def validate(self) -> None:
         """
         Perform lightweight sanity checks of the loaded configuration.
-        
+
         Checks performed (raises ValueError on failure):
         - discord_token must be non-empty.
         - tts_engine must be either a known built-in ("aivis", "voicevox") or present in cfg.engines.
@@ -249,7 +225,7 @@ class ConfigManagerImpl:
           - reconnect_delay and message_queue_size must be >= 0.
           - max_message_length must be > 0.
         - Performs a lightweight API URL validation via get_api_url(); for built-in engines with an explicitly configured invalid URL, logs a warning and falls back to the built-in default; otherwise an invalid URL raises ValueError.
-        
+
         This method does not modify configuration; it only raises ValueError for the concrete invalid conditions listed above.
         """
         cfg = self._get_config()
@@ -298,7 +274,7 @@ class ConfigManagerImpl:
     def get_discord_token(self) -> str:
         """
         Return the Discord bot token from the loaded configuration.
-        
+
         Returns:
             str: The configured Discord bot token.
 
@@ -308,7 +284,7 @@ class ConfigManagerImpl:
     def get_target_guild_id(self) -> int:
         """
         Return the configured target Discord guild (server) ID.
-        
+
         Returns:
             int: The target guild ID from the loaded configuration.
 
@@ -318,14 +294,14 @@ class ConfigManagerImpl:
     def get_target_voice_channel_id(self) -> int:
         """
         Return the configured Discord target voice channel ID.
-        
+
         If test mode is active, reads TEST_TARGET_VOICE_CHANNEL_ID from the environment (falls back to the module default)
         and returns that value (must be >= 1). Otherwise returns the configured `target_voice_channel_id` from the
         loaded Config after converting to int.
-        
+
         Returns:
             int: A positive voice channel ID.
-        
+
         Raises:
             ValueError: If the resolved channel ID is not a positive integer.
 
@@ -341,7 +317,7 @@ class ConfigManagerImpl:
     def get_command_prefix(self) -> str:
         """
         Return the configured command prefix used to invoke bot commands.
-        
+
         Returns:
             str: The command prefix from the active configuration.
 
@@ -351,17 +327,17 @@ class ConfigManagerImpl:
     def get_engine_config(self) -> dict[str, Any]:
         """
         Return a plain dict describing the configuration for the currently selected TTS engine.
-        
+
         If the configured engine has an explicit entry in the `engines` mapping, that mapping is validated for required fields (custom engines must provide a `url` and `default_speaker`) and returned as a normalized plain dict (nested mappings/lists converted to standard Python dicts/lists/tuples).
-        
+
         If the configured engine has no explicit mapping and is one of the built-in engines (`"aivis"` or `"voicevox"`), a dictionary with sensible defaults is returned:
         - "url": the built-in default URL for the engine,
         - "default_speaker": the engine's baked-in default speaker id,
         - "speakers": a copy of the engine's default speakers mapping.
-        
+
         Returns:
             dict[str, Any]: Normalized engine configuration.
-        
+
         Raises:
             ValueError: If the configured TTS engine is unknown or a custom engine is missing required fields.
 
@@ -389,7 +365,7 @@ class ConfigManagerImpl:
     def get_engines(self) -> dict[str, dict[str, Any]]:
         """
         Return a mapping of engine name -> engine configuration as plain Python dicts.
-        
+
         Each value is a normalized dict representation of the engine's configuration (nested Mapping, list, and tuple structures are converted to plain dicts/lists/tuples and deep-copied), suitable for external use and safe to mutate.
         """
         # Return plain dicts; convert nested mappings to dicts to avoid leaking MappingProxyType
@@ -399,7 +375,7 @@ class ConfigManagerImpl:
     def get_max_message_length(self) -> int:
         """
         Return the configured maximum message length.
-        
+
         Returns:
             int: Maximum allowed message length from the underlying Config.
 
@@ -409,7 +385,7 @@ class ConfigManagerImpl:
     def get_message_queue_size(self) -> int:
         """
         Return the configured maximum message queue size.
-        
+
         This reads the value from the underlying Config and represents the maximum number
         of pending messages allowed in the bot's message queue.
         """
@@ -418,7 +394,7 @@ class ConfigManagerImpl:
     def get_reconnect_delay(self) -> int:
         """
         Return the configured reconnect delay in seconds.
-        
+
         Returns:
             int: Reconnect delay (seconds) as specified in the active Config.
 
@@ -428,7 +404,7 @@ class ConfigManagerImpl:
     def get_rate_limit_messages(self) -> int:
         """
         Return the configured number of allowed messages in the rate window.
-        
+
         In test mode, this value is read from the TEST_RATE_LIMIT_MESSAGES_ENV environment variable (defaults to 5 and must be at least 1). Otherwise returns the Config.rate_limit_messages value.
         """
         if self.is_test_mode():
@@ -438,9 +414,9 @@ class ConfigManagerImpl:
     def get_rate_limit_period(self) -> int:
         """
         Return the configured rate limit period in seconds.
-        
+
         In normal operation this returns the value from the loaded Config. When test mode is active, the value is read from the environment variable TEST_RATE_LIMIT_PERIOD_ENV (parsed as an integer, minimum 1) with a default of 60 seconds.
-        
+
         Returns:
             int: Rate limit period in seconds.
 
@@ -452,17 +428,17 @@ class ConfigManagerImpl:
     def _get_env_int(self, name: str, default: int, *, min_value: int = 0) -> int:
         """
         Read an integer from an environment variable with normalization and bounds-checking.
-        
+
         Strips underscores, spaces, and commas from the environment value, attempts to parse it as an int,
         and returns the parsed value if it is >= min_value. If the environment variable is unset,
         non-numeric after normalization, or below min_value, returns the provided default.
-        
-        Parameters
-            name (str): Environment variable name to read.
-            default (int): Value to return if the environment variable is missing, invalid, or below min_value.
-            min_value (int, optional): Minimum allowed value (inclusive). Defaults to 0.
-        
-        Returns
+
+        Args:
+            name: Environment variable name to read.
+            default: Value to return if the environment variable is missing, invalid, or below min_value.
+            min_value: Minimum allowed value (inclusive). Defaults to 0.
+
+        Returns:
             int: The parsed environment integer or the default.
 
         """
@@ -483,7 +459,7 @@ class ConfigManagerImpl:
     def get_log_file(self) -> str | None:
         """
         Return the configured log file path, or None if no file is configured.
-        
+
         Returns:
             str | None: Path to the log file, or None when logging to stderr/stdout.
 

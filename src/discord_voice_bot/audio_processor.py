@@ -35,7 +35,7 @@ class AudioProcessor:
     def __init__(self, config: Config) -> None:
         """
         Initialize the AudioProcessor and store a weak reference to the provided Config.
-        
+
         The configuration is retained via a weak reference so the processor does not prolong the Config's lifetime. If the Config is garbage-collected, accessing it through the `config` property will raise a RuntimeError.
         """
         super().__init__()
@@ -45,12 +45,12 @@ class AudioProcessor:
     def config(self) -> Config:
         """
         Return the bound Config instance.
-        
+
         Retrieves the Config object previously stored via a weak reference. If the Config has been garbage-collected, raises a RuntimeError indicating the AudioProcessor is unbound.
-        
+
         Returns:
             Config: The live configuration instance.
-        
+
         Raises:
             RuntimeError: If the referenced Config has been garbage-collected.
 
@@ -63,10 +63,10 @@ class AudioProcessor:
     def optimize_audio_parameters(self, audio_query: AudioQuery) -> None:
         """
         Optimize audio parameters in-place for Discord voice quality.
-        
+
         Modifies the provided audio_query dict: sets "outputSamplingRate" from the current config, clamps "volumeScale" to [0.0, 1.0] then scales it by 0.8 to reduce clipping, and clamps "speedScale" to [0.8, 1.2]. Intentionally does not modify "pitchScale" (left as-is to preserve natural voice). If audio_query is falsy the function returns without changes.
-        
-        Parameters:
+
+        Args:
             audio_query: The mutable mapping of audio parameters to optimize
                 (modified in place).
 

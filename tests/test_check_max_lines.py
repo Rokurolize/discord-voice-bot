@@ -63,12 +63,14 @@ done
 exit "$FAILED"
 """
 
+
 def _write_script(path: Path) -> Path:
     path.write_text(SCRIPT_CONTENT, encoding="utf-8")
     # Make executable
     mode = path.stat().st_mode
     path.chmod(mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
     return path
+
 
 def _make_text_file(path: Path, lines: int, crlf: bool = False) -> Path:
     # When lines == 0, create an empty file
@@ -83,6 +85,7 @@ def _make_text_file(path: Path, lines: int, crlf: bool = False) -> Path:
         f.write(content)
     return path
 
+
 def _run(script: Path, args: Iterable[Path]) -> tuple[int, str, str]:
     proc = subprocess.run(
         [str(script), *[str(a) for a in args]],
@@ -93,6 +96,7 @@ def _run(script: Path, args: Iterable[Path]) -> tuple[int, str, str]:
     )
     return proc.returncode, proc.stdout, proc.stderr
 
+
 def test_under_limit_exits_zero_and_emits_no_error(tmp_path: Path):
     script = _write_script(tmp_path / "check_max_lines.sh")
     f = _make_text_file(tmp_path / "small.txt", lines=10)
@@ -100,6 +104,7 @@ def test_under_limit_exits_zero_and_emits_no_error(tmp_path: Path):
     assert code == 0
     assert "❌" not in out
     assert err == ""
+
 
 def test_over_limit_exits_one_and_reports_file(tmp_path: Path):
     script = _write_script(tmp_path / "check_max_lines.sh")
@@ -113,6 +118,7 @@ def test_over_limit_exits_one_and_reports_file(tmp_path: Path):
     assert expected in lines
     assert err == ""
 
+
 def test_empty_file_count_is_zero(tmp_path: Path):
     script = _write_script(tmp_path / "check_max_lines.sh")
     f = _make_text_file(tmp_path / "empty.txt", lines=0)
@@ -121,6 +127,7 @@ def test_empty_file_count_is_zero(tmp_path: Path):
     assert out.strip() == ""
     assert err == ""
 
+
 def test_nonexistent_file_is_safely_ignored(tmp_path: Path):
     script = _write_script(tmp_path / "check_max_lines.sh")
     missing = tmp_path / "does_not_exist.txt"
@@ -128,6 +135,7 @@ def test_nonexistent_file_is_safely_ignored(tmp_path: Path):
     assert code == 0
     assert out.strip() == ""
     assert err == ""
+
 
 def test_exception_file_is_skipped_even_if_large(tmp_path: Path):
     script = _write_script(tmp_path / "check_max_lines.sh")
@@ -141,6 +149,7 @@ def test_exception_file_is_skipped_even_if_large(tmp_path: Path):
     assert f"⏭️ {gh_script}: 例外ファイルのためチェックをスキップします。" in outs
     assert err == ""
 
+
 def test_multiple_files_mixed_results_returns_failure_if_any_violate(tmp_path: Path):
     script = _write_script(tmp_path / "check_max_lines.sh")
     ok1 = _make_text_file(tmp_path / "ok1.txt", lines=100)
@@ -153,6 +162,7 @@ def test_multiple_files_mixed_results_returns_failure_if_any_violate(tmp_path: P
     assert "ok1.txt" not in out
     assert "ok2.txt" not in out
     assert err == ""
+
 
 def test_counts_crlf_lines_correctly(tmp_path: Path):
     script = _write_script(tmp_path / "check_max_lines.sh")
@@ -168,6 +178,7 @@ def test_counts_crlf_lines_correctly(tmp_path: Path):
     assert f"❌ {crlf_bad}: 501 行（上限 500 行）→ コミットをブロックします。" in out2
     assert err == "" and err2 == ""
 
+
 def test_handles_no_arguments_gracefully(tmp_path: Path):
     script = _write_script(tmp_path / "check_max_lines.sh")
     # Calling with no args should be a no-op and succeed
@@ -175,6 +186,7 @@ def test_handles_no_arguments_gracefully(tmp_path: Path):
     assert code == 0
     assert out.strip() == ""
     assert err == ""
+
 
 # Note: wc -l counts newline characters, not logical lines without trailing newline.
 # The current script uses wc -l and only normalizes empty string to 0.

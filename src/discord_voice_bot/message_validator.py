@@ -29,13 +29,13 @@ class MessageValidator:
     def __init__(self, config: Config | None = None) -> None:
         """
         Initialize the MessageValidator.
-        
+
         Creates and configures the validator components used to assess Discord messages for TTS processing.
         If `config` is None, a Config is loaded from the environment for backward compatibility.
-        
-        Parameters
-            config (Config | None): Optional configuration. When omitted, `Config.from_env()` is used.
-        
+
+        Args:
+            config: Optional configuration. When omitted, `Config.from_env()` is used.
+
         Side effects:
             - Instantiates ContentFilter and PermissionManager and sets the content filter's max message length.
             - Compiles and stores suspicious-content regular expressions.

@@ -97,7 +97,7 @@ class MessageProcessor:
     async def should_process_message(self, message: Any, bot_user_id: int | None = None) -> bool:
         """
         Decide whether a Discord message is eligible for TTS processing.
-        
+
         Performs a series of checks and returns True only when the message should be converted to speech:
         - Only server (guild) text messages are allowed; direct messages are ignored.
         - Bot messages are normally skipped unless they are the bot's own messages and self-message processing is enabled, or a test-time override marker is present.
@@ -105,12 +105,12 @@ class MessageProcessor:
           - If self-message processing is enabled in the configuration and `bot_user_id` is supplied, messages from that bot id are permitted to continue through additional checks.
         - System message types, empty content, messages from blocked users, and messages starting with configured ignored prefixes are rejected.
         - Enforces per-user rate limiting as configured; users currently on cooldown are rejected.
-        
-        Parameters
-            message: Discord message-like object to evaluate. Expected to have attributes used in the checks (guild, author.id, author.bot, author.name, type.name, content).
-            bot_user_id: Optional integer bot user id used to identify and allow the bot's own messages when self-message processing is enabled.
-        
-        Returns
+
+        Args:
+            message: Discord message-like object to evaluate (expects attributes used in the checks like guild, author.id, author.bot, content).
+            bot_user_id: Optional bot user id; when provided and self-message processing is enabled, own messages may be allowed.
+
+        Returns:
             bool: True if the message passes all checks and should be processed for TTS; False otherwise.
 
         """

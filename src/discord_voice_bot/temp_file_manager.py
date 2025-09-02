@@ -19,7 +19,7 @@ class TempFileManager:
     def __init__(self, config: Config, audio_processor: AudioProcessor) -> None:
         """
         Create a TempFileManager that holds a weak reference to the provided Config and a strong reference to the AudioProcessor.
-        
+
         The Config is stored as a weak reference to avoid reference cycles; attempting to access the config later may raise a RuntimeError if the original Config has been garbage-collected.
         """
         super().__init__()
@@ -30,10 +30,10 @@ class TempFileManager:
     def config(self) -> Config:
         """
         Return the live Config instance referenced by this TempFileManager.
-        
+
         If the underlying weak reference has been garbage-collected, raises RuntimeError
         including the TempFileManager id and the audio processor type and id.
-        
+
         Returns:
             Config: The referenced configuration object.
 
@@ -46,14 +46,14 @@ class TempFileManager:
     async def create_audio_source(self, text: str, audio_data: bytes, speaker_id: int | None = None, engine_name: str | None = None) -> Any:
         """
         Create a Discord audio source from raw WAV audio bytes.
-        
+
         This writes `audio_data` to a temporary WAV file, constructs an FFmpeg-based
         discord.FFmpegPCMAudio source that reads that file, and returns the created
         audio source. The temporary file path is attached to the returned audio source
         as `_temp_path` and a best-effort finalizer is registered to remove the file
         when the audio source is garbage-collected; callers may also call
         cleanup_audio_source to remove the file explicitly.
-        
+
         Behavior and notable cases:
         - If the Discord library cannot be imported, the function logs an error and
           returns None.
@@ -63,15 +63,15 @@ class TempFileManager:
           debug copy of the raw audio and (after creating the source) runs an
           FFmpeg-based conversion debug step that can save the converted audio stage.
         - FFmpeg options (sample rate and channels) are taken from the configuration.
-        
-        Parameters
+
+        Args:
             text: Original text that produced the audio (used only for debugging metadata).
             audio_data: WAV-formatted audio bytes to write to the temporary file.
             speaker_id: Optional speaker identifier used for debug metadata.
             engine_name: Optional engine name used for debug metadata.
-        
-        Returns
-            A discord.FFmpegPCMAudio audio source on success, or None on failure.
+
+        Returns:
+            discord.FFmpegPCMAudio | None: Audio source on success, or None on failure.
 
         """
         # Import discord here to avoid circular imports
@@ -157,20 +157,17 @@ class TempFileManager:
     async def _debug_audio_conversion(self, temp_path: str, text: str, ffmpeg_options: str) -> None:
         """
         Run an FFmpeg-based conversion check on a temporary WAV file and, when successful, save a debug copy of the converted PCM (with a WAV header).
-        
+
         This asynchronous helper:
         - Executes FFmpeg to convert the file at `temp_path` to raw PCM matching the configured sample rate and channel count.
         - Skips the test if FFmpeg is not installed, and aborts the test on timeout.
         - On successful conversion (non-empty stdout and exit code 0), prepends a WAV header and saves the result via the audio_debugger with metadata that includes `ffmpeg_options`, converted size, sample rate, and channels.
         - Logs warnings when conversion fails or when exceptions occur; does not raise.
-        
-        Parameters
+
+        Args:
             temp_path: Path to the temporary audio file to test (expected readable WAV/PCM).
             text: Original input text associated with the audio (used for debug save metadata).
             ffmpeg_options: The FFmpeg option string used when creating the Discord source (stored in debug metadata).
-        
-        Returns
-            None
 
         """
         try:
@@ -288,7 +285,7 @@ class TempFileManager:
     def get_temp_directory_info(self) -> dict[str, int | str]:
         """
         Return summary information about the system temporary directory.
-        
+
         Returns a dictionary with the following keys:
         - temp_directory (str): Absolute path to the system temporary directory.
         - total_space (int): Total size of the filesystem containing the temp directory, in bytes.

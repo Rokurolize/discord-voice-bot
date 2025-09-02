@@ -33,22 +33,22 @@ class VoiceConnectionManager:
     async def connect_to_channel(self, channel_id: int) -> bool:
         """
         Attempt to connect the bot to a Discord voice or stage channel.
-        
+
         This method respects the reconnection cooldown and updates the manager's
         last_connection_attempt. If already connected it will move the existing
         voice client to the target channel; otherwise it creates a new connection,
         initializes the VoiceGatewayManager, verifies the connection, and for
         StageChannels attempts to request speaking. On transient failures the
         voice client is cleaned up.
-        
-        Parameters
-            channel_id (int): Discord ID of the target voice or stage channel.
-        
-        Returns
+
+        Args:
+            channel_id: Discord ID of the target voice or stage channel.
+
+        Returns:
             bool: True when connected to (or moved to) the target channel and the
             connection is verified; False on failure.
-        
-        Raises
+
+        Raises:
             asyncio.CancelledError: Propagated to allow callers to handle cancellations/timeouts.
 
         """
@@ -202,7 +202,7 @@ class VoiceConnectionManager:
     def last_connection_attempt(self) -> float:
         """
         Return the monotonic timestamp of the last attempt to (re)connect the voice client.
-        
+
         The value is taken from the running event loop's time source and is intended for
         calculating reconnection cooldowns; callers should treat it as a monotonic
         float (seconds).
@@ -213,11 +213,11 @@ class VoiceConnectionManager:
     def last_connection_attempt(self, value: float) -> None:
         """
         Set the timestamp of the last connection attempt.
-        
-        Parameters
-            value (float): A float-like value representing seconds from the asyncio loop's monotonic clock; will be coerced to float.
-        
-        Raises
+
+        Args:
+            value: Float-like seconds from the asyncio loop's monotonic clock; will be coerced to float.
+
+        Raises:
             TypeError: If `value` cannot be converted to float.
 
         """
@@ -230,7 +230,7 @@ class VoiceConnectionManager:
     def reconnection_cooldown(self) -> int:
         """
         Return the reconnection cooldown in seconds.
-        
+
         This is a non-negative integer representing how long to wait between
         connection attempts (in seconds). The corresponding setter coerces values
         to int and enforces non-negativity.
@@ -241,13 +241,13 @@ class VoiceConnectionManager:
     def reconnection_cooldown(self, value: int) -> None:
         """
         Set the reconnection cooldown duration, in seconds.
-        
+
         Accepts an int-like value which will be coerced to int and stored as the internal cooldown.
         Raises a TypeError if the value cannot be converted to int, and a ValueError if the resulting
         integer is negative.
-        
-        Parameters
-            value (int): Non-negative number of seconds to wait between reconnection attempts.
+
+        Args:
+            value: Non-negative number of seconds to wait between reconnection attempts.
 
         """
         try:

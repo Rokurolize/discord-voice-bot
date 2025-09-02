@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 async def test_bot_can_speak_in_voice_channel(caplog):
     """
     Integration test that verifies the bot can speak in a real Discord voice channel.
-    
+
     Uses an actual Discord connection to validate: (1) the bot can join a voice channel, (2) it can generate and play audio files, (3) it can process and play TTS messages, and (4) audio quality across multiple frequencies is acceptable. This test requires DISCORD_BOT_TOKEN, TARGET_VOICE_CHANNEL_ID, and TTS_ENGINE environment variables; it will be skipped when the bot token is not set. Results are collected in bot.test_results and the test asserts that voice connection, audio playback, and audio quality checks are present and at least two checks succeed.
     """
     # 環境変数の確認

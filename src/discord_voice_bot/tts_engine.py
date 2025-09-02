@@ -2,6 +2,7 @@
 
 import asyncio
 import threading
+from collections.abc import Mapping
 from typing import Any
 from weakref import WeakKeyDictionary, ref
 
@@ -191,6 +192,7 @@ class TTSEngine:
             if getattr(self.config, "debug", False):
                 try:
                     from .audio_debugger import audio_debugger
+
                     metadata = {
                         "speaker_id": speaker_id or self.speaker_id,
                         "engine": engine_name or self.engine_name,
@@ -234,7 +236,7 @@ class TTSEngine:
                 or if the resolved engine configuration lacks a 'url'.
 
         """
-        engine_config, current_speaker_id, target_api_url = self._resolve_engine_and_speaker(speaker_id, engine_name)
+        _engine_config, current_speaker_id, target_api_url = self._resolve_engine_and_speaker(speaker_id, engine_name)
         result = await self._tts_client.generate_audio_query(text, current_speaker_id, target_api_url)
         return result  # type: ignore[return-value]
 
@@ -261,20 +263,16 @@ class TTSEngine:
             TTSEngineError: If no suitable engine configuration is found or if the selected engine is missing a 'url'.
 
         """
-        engine_config, current_speaker_id, target_api_url = self._resolve_engine_and_speaker(speaker_id, engine_name)
+        _engine_config, current_speaker_id, target_api_url = self._resolve_engine_and_speaker(speaker_id, engine_name)
         return await self._tts_client.synthesize_from_query(audio_query, current_speaker_id, target_api_url)  # type: ignore[arg-type]
 
-    def _resolve_engine_and_speaker(
-        self, speaker_id: int | None, engine_name: str | None
-    ) -> tuple[dict[str, Any], int, str]:
+    def _resolve_engine_and_speaker(self, speaker_id: int | None, engine_name: str | None) -> tuple[Mapping[str, Any], int, str]:
         raw_engine = engine_name if engine_name is not None else self.config.tts_engine
         target_engine = str(raw_engine).strip().lower()
         engines = self.config.engines
         engine_config = engines.get(target_engine) or engines.get("voicevox")
         if engine_config is None:
-            raise TTSEngineError(
-                f"Unknown TTS engine '{target_engine}' and no 'voicevox' fallback configured"
-            )
+            raise TTSEngineError(f"Unknown TTS engine '{target_engine}' and no 'voicevox' fallback configured")
         if speaker_id is not None:
             try:
                 resolved_speaker = int(speaker_id)

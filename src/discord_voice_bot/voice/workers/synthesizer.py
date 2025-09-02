@@ -34,10 +34,10 @@ class VoiceHandlerProtocol(Protocol):
 def get_user_settings():
     """
     Return application user settings by delegating to load_user_settings().
-    
+
     This thin shim exists so tests can patch or replace the settings loader
     without importing or modifying the concrete loader directly.
-    
+
     Returns:
         The result of load_user_settings() — the application's loaded user settings (type depends on loader).
 
@@ -51,15 +51,15 @@ class SynthesizerWorker:
     def __init__(self, voice_handler: VoiceHandlerProtocol, config: Config):
         """
         Create a SynthesizerWorker and initialize runtime state.
-        
+
         Initializes worker state used by the background synthesis loop:
         - stores the provided config and voice handler,
         - sets buffer accounting (max_buffer_size default 50 MB, buffer_size start 0),
         - enables the run loop (_running True) and idle logging counters,
         - leaves the TTS engine uninitialized (None) — it will be created asynchronously in run(),
         - loads per-user settings via the testable shim get_user_settings().
-        
-        Parameters:
+
+        Args:
             voice_handler: The voice handler facade providing queues and stats.
             config: Configuration used by the worker (influences TTS engine selection and runtime behavior).
 
@@ -82,7 +82,7 @@ class SynthesizerWorker:
     async def run(self) -> None:
         """
         Run the synthesizer main loop.
-        
+
         Continuously consumes synthesis requests from the voice handler's synthesis_queue, uses the configured TTS engine to produce WAV audio, validates size and format, writes audio to a temporary file, updates an internal buffer size, and enqueues prepared audio items onto the voice handler's audio_queue for playback/processing. The loop enforces timeouts on queue operations and TTS synthesis, respects a maximum buffer size to avoid memory pressure, records errors to the shared stats, and stops the worker when cancelled or when a configurable threshold of consecutive synthesis errors is exceeded.
         """
         consecutive_errors = 0

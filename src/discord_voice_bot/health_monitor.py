@@ -41,7 +41,7 @@ class HealthMonitor:
     def __init__(self, bot_client: discord.Client | DiscordBotClient, config_manager: ConfigManager, tts_client: TTSClient):
         """
         Initialize the HealthMonitor.
-        
+
         Sets up references to the Discord bot, configuration manager, and TTS client, and initializes internal monitoring state used by the health system: a HealthStatus instance, placeholders for background monitoring and permission-check tasks, termination-condition counters (voice disconnection windows and an API-unavailable threshold), and graceful-shutdown bookkeeping (flag, reason, and shutdown task).
         """
         super().__init__()
@@ -163,16 +163,16 @@ class HealthMonitor:
     async def _perform_health_checks(self) -> None:
         """
         Run the bot's full set of health checks and update internal health state.
-        
+
         Performs TTS API availability checks, voice-connection checks, and critical-permission checks.
         Aggregates detected issues and recommendations, updates self.status (healthy, issues,
         recommendations, last_check, recent_failures), and records API failures or successes.
-        
+
         Side effects:
         - May call record_api_failure() / record_api_success().
         - Clears status.recent_failures.
         - Invokes _check_termination_conditions(), which can initiate a graceful shutdown if thresholds are met.
-        
+
         Exceptions raised by individual checks are caught and appended to the aggregated issues list; the method itself does not raise on those internal failures.
         """
         logger.debug("🔍 Performing comprehensive health checks...")
@@ -407,7 +407,7 @@ class HealthMonitor:
     async def _perform_shutdown(self) -> None:
         """
         Initiate a graceful shutdown: attempt to clean up the voice handler, close the Discord client, and terminate the process.
-        
+
         This coroutine attempts to run `voice_handler.cleanup()` if a `voice_handler` attribute exists on the bot (supports sync or async cleanup). It then closes the Discord client connection if it is open. Any exceptions during cleanup or closing are caught and logged. Finally, the process is terminated with exit code 1.
         """
         logger.error("🔄 Initiating graceful shutdown...")

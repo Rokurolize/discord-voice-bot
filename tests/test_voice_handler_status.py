@@ -30,7 +30,7 @@ class TestStatusGeneration:
         """
         Verify that, when present, the handler's `stats` mapping contains the essential keys:
         `messages_processed`, `connection_errors`, and `tts_messages_played`.
-        
+
         If the `voice_handler_old` object has no `stats` attribute, the test is skipped (guarded).
         """
         if hasattr(voice_handler_old, "stats"):

@@ -13,7 +13,7 @@ class MockTTSClient:
     def __init__(self, config_manager: Any) -> None:
         """
         Mock TTS client used in tests.
-        
+
         Stores the provided configuration manager and initializes an internal `session` placeholder (None) for use by async session methods.
         """
         self.config_manager = config_manager
@@ -22,14 +22,14 @@ class MockTTSClient:
     async def start_session(self) -> None:
         """
         Start a text-to-speech session.
-        
+
         In this mock implementation the method is asynchronous but performs no operation — provided so tests can await session startup without side effects.
         """
 
     async def close_session(self) -> None:
         """
         Asynchronously close the TTS client session.
-        
+
         This is a no-op placeholder used by tests to match the real client's async close behavior;
         awaiting this coroutine is safe and has no side effects.
         """
@@ -37,7 +37,7 @@ class MockTTSClient:
     async def check_api_availability(self) -> tuple[bool, str]:
         """
         Check whether the external TTS API is available.
-        
+
         Returns:
             tuple[bool, str]: A tuple where the first element is True if the API is available,
             and the second is an error message (empty string when available).
@@ -49,7 +49,7 @@ class MockVoiceState:
     def __init__(self, channel: Mock | None = None) -> None:  # type: ignore[reportMissingSuperCall]
         """
         Create a MockVoiceState representing a user's voice state in tests.
-        
+
         Parameters:
             channel (Mock | None): Optional mock channel associated with this voice state; stored on the instance as `self.channel`.
         """
@@ -302,13 +302,13 @@ class MockBot(DiscordBotClient):
 async def test_health_monitor() -> bool:
     """
     Run an end-to-end async test of the HealthMonitor using lightweight mocks and return True on success.
-    
+
     This coroutine exercises HealthMonitor behavior with mocked Discord and TTS components:
     - Instantiates HealthMonitor with MockBot, MockConfigManager, and MockTTSClient.
     - Records simulated disconnections and an API failure, then inspects the produced health status and termination condition counters.
     - Temporarily replaces the TTS client's `check_api_availability` with an AsyncMock to run a deterministic health check, then restores the original method.
     - Stops the monitor to verify graceful shutdown.
-    
+
     Returns:
         bool: Always returns True on completion (used to indicate the test ran to completion).
     """

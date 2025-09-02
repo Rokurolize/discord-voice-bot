@@ -19,14 +19,14 @@ class TestComplianceTDD:
         async def fake_sleep(duration):
             """
             Simulated async sleep that accumulates the requested duration instead of sleeping.
-            
+
             This coroutine records the provided duration (in seconds) into the enclosing scope's
             `total_sleep` variable and returns immediately. Use in tests to replace asyncio.sleep
             so sleep time can be measured without real delays.
-            
+
             Parameters:
                 duration (float): Sleep duration in seconds to record.
-            
+
             Returns:
                 None
             """
@@ -169,7 +169,7 @@ class TestComplianceTDD:
     def test_discord_gateway_version_compliance(self, voice_handler_old) -> None:
         """
         Verify the voice handler exposes the minimal attributes required for Discord Gateway voice compatibility.
-        
+
         Checks that the object has `connection_state` and `voice_client` attributes, which are required for voice gateway operations (e.g., compatibility with current Discord voice gateway expectations).
         """
         # This test ensures we're using the latest voice gateway version as required
@@ -183,7 +183,7 @@ class TestComplianceTDD:
     def test_e2ee_protocol_readiness(self, voice_handler_old) -> None:
         """
         Verify the voice handler exposes the attributes and components required to support Discord's E2EE (DAVE) protocol.
-        
+
         Checks that the handler has: `voice_client`, `connection_state`, and `stats`, and that the `rate_limiter` and `cleanup` components are present.
         """
         # As of September 2024, Discord requires E2EE support

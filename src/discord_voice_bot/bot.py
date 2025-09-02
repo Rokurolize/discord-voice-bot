@@ -33,12 +33,12 @@ class DiscordVoiceTTSBot(BaseEventBot):
     def __init__(self, config_manager: Any | None = None, *, config: Config | None = None) -> None:
         """
         Create a DiscordVoiceTTSBot instance, normalizing configuration and initializing internal placeholders and startup state.
-        
+
         This initializer accepts either:
         - a Config dataclass via the `config` keyword (preferred), or
         - a Config dataclass or a ConfigManager-compatible object via `config_manager`.
         If a Config is provided (in either parameter) it is wrapped with ConfigManagerImpl. If no configuration is supplied, the environment is used (Config.from_env()).
-        
+
         Behavioral notes:
         - Retrieves intents and command prefix from the resulting config manager and passes them to the base commands.Bot initializer.
         - Stores the normalized config manager on self.config_manager.
@@ -93,7 +93,7 @@ class DiscordVoiceTTSBot(BaseEventBot):
     async def start_with_config(self) -> None:
         """
         Start the bot using the configured Discord token.
-        
+
         If the active configuration is in test mode, this method prints a short message and returns without connecting to Discord. Otherwise it retrieves the Discord token from the bot's configuration manager and calls the underlying `start` coroutine with that token.
         """
         # Skip Discord connection in test mode
@@ -107,7 +107,7 @@ class DiscordVoiceTTSBot(BaseEventBot):
     async def on_ready(self) -> None:
         """
         Called when the bot is fully connected to Discord.
-        
+
         Prints a connection message and, if an `event_handler` attribute is present and truthy, awaits its `handle_ready()` coroutine to perform additional readiness handling.
         """
         print(f"🤖 {self.user} has connected to Discord!")
@@ -123,9 +123,9 @@ class DiscordVoiceTTSBot(BaseEventBot):
     def config(self) -> Any:
         """
         Return the underlying Config dataclass if available, otherwise return the stored config manager or None.
-        
+
         If the bot's `config_manager` has a callable `_get_config()` method, this property calls it and returns its result (exceptions from that call are suppressed). If no `config_manager` is present, returns None; if `_get_config()` is not available, returns the `config_manager` object itself.
-        
+
         Returns:
             The concrete Config dataclass, the config manager object, or None.
 
@@ -146,11 +146,11 @@ class DiscordVoiceTTSBot(BaseEventBot):
     async def on_message(self, message: Any) -> None:  # discord.Message at runtime
         """
         Delegate an incoming Discord message to the configured event handler.
-        
+
         If an event handler with a `handle_message` coroutine is attached to the bot, this forwards
         the provided message to that handler.
-        
-        Parameters:
+
+        Args:
             message: The message object received from Discord (typed as Any at runtime).
 
 
@@ -173,7 +173,7 @@ class DiscordVoiceTTSBot(BaseEventBot):
     async def on_error(self, event: str, *args: Any, **kwargs: Any) -> None:
         """
         Delegate an error event to the configured event handler.
-        
+
         If an `event_handler` with a `handle_error` coroutine is present on the bot, this forwards
         the `event` name plus any positional and keyword arguments to that handler and awaits it.
         """
@@ -183,12 +183,12 @@ class DiscordVoiceTTSBot(BaseEventBot):
 async def run_bot(config: Config | None = None) -> None:
     """
     Start the Discord Voice TTS bot using the provided configuration.
-    
+
     If `config` is None, the configuration is loaded from the environment via Config.from_env().
     This function creates a BotFactory, builds and initializes the bot and its services, then starts
     the bot's run flow (start_with_config). It ensures the bot is shut down by the factory when the
     start sequence completes or fails.
-    
+
     Notes:
     - CancelledError is propagated unchanged.
     - Other exceptions are printed and re-raised.
