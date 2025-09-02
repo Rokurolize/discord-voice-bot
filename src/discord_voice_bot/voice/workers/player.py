@@ -21,8 +21,10 @@ class VoiceHandlerProtocol(Protocol):
     def current_group_id(self, value: str | None) -> None: ...
 
     is_playing_flag: bool
+
     @property
     def is_playing(self) -> bool: ...
+
     stats_tracker: Any
     if TYPE_CHECKING:
         from .synthesizer import SynthesizerWorker
