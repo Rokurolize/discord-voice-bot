@@ -29,7 +29,7 @@ def build_status(voice_handler: "VoiceHandlerInterface") -> dict[str, Any]:
         "voice_connected": connected,  # compatibility for UI/status uses
         "voice_channel_name": channel_name,
         "voice_channel_id": channel_id,
-        "playing": voice_handler.is_playing,
+        "playing": getattr(voice_handler, "is_playing_flag", getattr(voice_handler, "_is_playing_flag", False)),
         "synthesis_queue_size": voice_handler.synthesis_queue.qsize(),
         "audio_queue_size": voice_handler.audio_queue.qsize(),
         "total_queue_size": voice_handler.synthesis_queue.qsize() + voice_handler.audio_queue.qsize(),
@@ -38,6 +38,6 @@ def build_status(voice_handler: "VoiceHandlerInterface") -> dict[str, Any]:
         "messages_skipped": voice_handler.stats.get("messages_skipped", 0),
         "errors": voice_handler.stats.get("errors", 0),
         "connection_state": voice_handler.connection_state,
-        "is_playing": voice_handler.is_playing,
+        "is_playing": getattr(voice_handler, "is_playing_flag", getattr(voice_handler, "_is_playing_flag", False)),
         "max_queue_size": 50,  # Add max queue size for UI
     }

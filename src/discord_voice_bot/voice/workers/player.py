@@ -20,7 +20,7 @@ class VoiceHandlerProtocol(Protocol):
     @current_group_id.setter
     def current_group_id(self, value: str | None) -> None: ...
 
-    is_playing: bool
+    is_playing_flag: bool
     stats_tracker: Any
     if TYPE_CHECKING:
         from .synthesizer import SynthesizerWorker
@@ -73,6 +73,7 @@ class PlayerWorker:
 
                     # Play audio with enhanced error handling
                     self.voice_handler.current_group_id = group_id
+                    self.voice_handler.is_playing_flag = True
                     self.voice_handler.is_playing = True
 
                     try:
@@ -109,6 +110,7 @@ class PlayerWorker:
                         self.voice_handler.stats_tracker.increment_errors()
                         consecutive_errors += 1
                         # Reset state since completion callback won't run
+                        self.voice_handler.is_playing_flag = False
                         self.voice_handler.is_playing = False
                         self.voice_handler.current_group_id = None
                         # Account for buffered audio which would normally be decremented in completion
@@ -145,6 +147,7 @@ class PlayerWorker:
 
     def _playback_complete(self, error: Exception | None, audio_path: str | None = None, audio_size: int | None = None) -> None:
         """Handle playback completion."""
+        self.voice_handler.is_playing_flag = False
         self.voice_handler.is_playing = False
         self.voice_handler.current_group_id = None
 

@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 import pytest
 
-ENV_EXAMPLE_PATH = Path(__file__).with_name("test_env_example.py")
+ENV_EXAMPLE_PATH = Path(__file__).with_name("test_env_example.env")
 
 
 def _parse_env_file(path: Path):

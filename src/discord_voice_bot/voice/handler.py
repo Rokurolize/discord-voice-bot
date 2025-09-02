@@ -58,7 +58,7 @@ class VoiceHandlerInterface(Protocol):
     @current_group_id.setter
     def current_group_id(self, value: str | None) -> None: ...
 
-    is_playing: bool
+    is_playing: bool | None
     stats: Any
     connection_state: str
     synthesizer: "SynthesizerWorker | None"
@@ -125,7 +125,11 @@ class VoiceHandler(VoiceHandlerInterface):
         self.health_monitor = HealthMonitor(self.connection_manager, cfg_mgr, tts_client)
 
         # Maintain backward compatibility properties
-        self.is_playing = False
+        # Expose a simple boolean attribute is_playing for legacy code/tests.
+        self._is_playing_flag = False
+        self.is_playing = False  # attribute access should be bool
+        # Public alias for external updates
+        self.is_playing_flag = self._is_playing_flag
 
         # Delegate properties to managers for backward compatibility
         # Access voice_client through dynamic property to avoid stale copies
@@ -375,7 +379,7 @@ class VoiceHandler(VoiceHandlerInterface):
             "voice_connected": connection_info["connected"],
             "voice_channel_name": connection_info["channel_name"],
             "voice_channel_id": connection_info["channel_id"],
-            "playing": self.is_playing,
+            "playing": self._is_playing_flag,
             "synthesis_queue_size": queue_sizes["synthesis_queue_size"],
             "audio_queue_size": queue_sizes["audio_queue_size"],
             "total_queue_size": queue_sizes["total_queue_size"],
@@ -384,7 +388,7 @@ class VoiceHandler(VoiceHandlerInterface):
             "messages_skipped": stats["messages_skipped"],
             "errors": stats["errors"],
             "connection_state": connection_info["connection_state"],
-            "is_playing": self.is_playing,
+            "is_playing": self._is_playing_flag,
             "max_queue_size": getattr(self.queue_manager.synthesis_queue, "maxsize", 50),
         }
 
