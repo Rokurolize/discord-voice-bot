@@ -150,6 +150,7 @@ class VoiceHandler(VoiceHandlerInterface):
             bot_client: Discord client used for gateway interactions.
             config: Effective configuration for voice behavior.
             tts_client: Optional TTS client for the HealthMonitor.
+
         """
         super().__init__()
         self.bot = bot_client
@@ -222,6 +223,7 @@ class VoiceHandler(VoiceHandlerInterface):
 
         Args:
             start_player: Whether to start the player worker in addition to the synthesizer worker.
+
         """
         # Diagnostics: ensure opus is loaded; if not, voice playback will fail
         try:
@@ -316,6 +318,7 @@ class VoiceHandler(VoiceHandlerInterface):
 
         Returns:
             bool: True on success.
+
         """
         return await self.connection_manager.connect_to_channel(channel_id)
 
@@ -328,6 +331,7 @@ class VoiceHandler(VoiceHandlerInterface):
 
         Args:
             payload: Raw gateway event payload.
+
         """
         await self.connection_manager.handle_voice_state_update(payload)
 
@@ -351,6 +355,7 @@ class VoiceHandler(VoiceHandlerInterface):
 
         Args:
             message_data: Synthesis payload (text, voice, group id, etc.).
+
         """
         await self.queue_manager.add_to_queue(message_data)
 
@@ -397,6 +402,7 @@ class VoiceHandler(VoiceHandlerInterface):
 
         Returns:
             int: Total number of items removed.
+
         """
         total = await self.queue_manager.clear_all()
 
@@ -407,9 +413,7 @@ class VoiceHandler(VoiceHandlerInterface):
         return total
 
     def get_status(self) -> dict[str, Any]:
-        """Return a snapshot of the handler's current state.
-
-        """
+        """Return a snapshot of the handler's current state."""
         connection_info = self.connection_manager.get_connection_info()
         queue_sizes = self.queue_manager.get_queue_sizes()
         stats = self.stats_tracker.get_stats()
