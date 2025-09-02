@@ -4,7 +4,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from discord_voice_bot.config import get_config
 from discord_voice_bot.message_processor import MessageProcessor
 
 
@@ -25,7 +24,19 @@ def processor() -> MessageProcessor:
 
 @pytest.fixture
 def mock_message() -> MagicMock:
-    """Create a mock Discord message."""
+    """
+    Create a MagicMock that represents a typical Discord Message for tests.
+
+    The returned mock has commonly used attributes pre-populated:
+    - author: mock user with id 123456789, name "TestUser", display_name "TestUser", and bot False
+    - content: "Test message"
+    - channel: mock channel with id 123456789 (matches test processor fixture target)
+    - guild: a mock value to indicate a server message
+    - id: 987654321
+    - type.name: "default"
+
+    Use this mock in unit tests to simulate a normal, non-bot message coming from the target channel.
+    """
     msg = MagicMock()
     msg.author = MagicMock()
     msg.author.id = 123456789
@@ -35,8 +46,8 @@ def mock_message() -> MagicMock:
     msg.content = "Test message"
     msg.channel = MagicMock()
     msg.guild = MagicMock()  # Treat as a server message
-    config = get_config()
-    msg.channel.id = config.target_voice_channel_id  # Use actual config
+    # Align with processor fixture's target channel (any server text channel is allowed)
+    msg.channel.id = 123456789
     msg.id = 987654321
     msg.type = MagicMock()
     msg.type.name = "default"

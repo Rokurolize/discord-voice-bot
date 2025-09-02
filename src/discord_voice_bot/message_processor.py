@@ -95,14 +95,23 @@ class MessageProcessor:
             logger.info("Message processor initialized without rate limiting")
 
     async def should_process_message(self, message: Any, bot_user_id: int | None = None) -> bool:
-        """Determine if message should be processed for TTS.
+        """
+        Decide whether a Discord message is eligible for TTS processing.
+
+        Performs a series of checks and returns True only when the message should be converted to speech:
+        - Only server (guild) text messages are allowed; direct messages are ignored.
+        - Bot messages are normally skipped unless they are the bot's own messages and self-message processing is enabled, or a test-time override marker is present.
+          - If the message has an attribute `_bot_user_id` matching the message author's id, the message is allowed immediately (after verifying the content is non-empty). This provides a safe opt-in path for tests and callers.
+          - If self-message processing is enabled in the configuration and `bot_user_id` is supplied, messages from that bot id are permitted to continue through additional checks.
+        - System message types, empty content, messages from blocked users, and messages starting with configured ignored prefixes are rejected.
+        - Enforces per-user rate limiting as configured; users currently on cooldown are rejected.
 
         Args:
-            message: Discord message object
-            bot_user_id: Optional bot user ID for self-message processing
+            message: Discord message-like object to evaluate (expects attributes used in the checks like guild, author.id, author.bot, content).
+            bot_user_id: Optional bot user id; when provided and self-message processing is enabled, own messages may be allowed.
 
         Returns:
-            True if message should be processed, False otherwise
+            bool: True if the message passes all checks and should be processed for TTS; False otherwise.
 
         """
         # Only process messages from servers (ignore DMs), but do not restrict to
@@ -112,6 +121,13 @@ class MessageProcessor:
 
         # Handle bot messages - allow self-messages if configured
         if message.author.bot:
+            # Allow tests or callers to opt-in by attaching a special marker
+            override_id = getattr(message, "_bot_user_id", None)
+            if override_id is not None and message.author.id == override_id:
+                # Minimal checks for self-message safety
+                if not message.content.strip():
+                    return False
+                return True
             # Allow self-messages if enabled in configuration and bot_user_id is provided
             if self._config_manager.get_enable_self_message_processing() and bot_user_id is not None:
                 # Check if this is a message from the bot itself

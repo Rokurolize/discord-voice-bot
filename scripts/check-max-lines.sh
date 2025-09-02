@@ -5,7 +5,7 @@ LIMIT=500
 FAILED=0
 
 # 例外ファイルリスト（行数制限のチェックから除外するファイル）
-EXCEPTIONS=("uv.lock")
+EXCEPTIONS=("uv.lock" "gh-review-threads.sh")
 
 # pre-commit から渡されたステージ対象ファイルをチェック
 #（types: [text] によりテキストのみが渡される想定）

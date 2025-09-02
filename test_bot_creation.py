@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Test script to create DiscordVoiceTTSBot instance."""
 
+from typing import Any, cast
+
 import pytest
 from discord import Intents
-
 from src.discord_voice_bot.bot import DiscordVoiceTTSBot
 from src.discord_voice_bot.config import Config
 
@@ -17,7 +18,8 @@ async def test_bot_creation(config: Config):
         bot = DiscordVoiceTTSBot(config=config)
         assert isinstance(bot, DiscordVoiceTTSBot)
         assert bot.config == config
-        assert bot.command_prefix == config.command_prefix
+        # Bot.command_prefix is a discord.py union type; cast for comparison
+        assert cast(Any, bot).command_prefix == config.command_prefix
         assert isinstance(bot.intents, Intents)
         assert hasattr(bot, "http")
     finally:

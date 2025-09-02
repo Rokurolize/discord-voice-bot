@@ -17,15 +17,54 @@ class VoiceHandlerProtocol(Protocol):
 
     synthesis_queue: Any
     audio_queue: Any
-    stats: Any
+    stats_tracker: Any
 
-    async def add_to_queue(self, message_data: dict[str, Any]) -> None: ...
+    async def add_to_queue(self, message_data: dict[str, Any]) -> None:
+        """Enqueue a synthesis request for asynchronous processing.
+
+        message_data should be a dict describing the synthesis job (commonly includes keys like
+        `text`, `group_id`, `chunk_index`, and optionally `user_id` and other metadata). This
+        method places the job into the voice handler's synthesis queue so a SynthesizerWorker
+        can consume it and produce audio. The call is asynchronous and does not return a value.
+        """
+        raise NotImplementedError
+
+
+# Provide a shim that tests can patch
+def get_user_settings():
+    """
+    Return application user settings by delegating to load_user_settings().
+
+    This thin shim exists so tests can patch or replace the settings loader
+    without importing or modifying the concrete loader directly.
+
+    Returns:
+        The result of load_user_settings() — the application's loaded user settings (type depends on loader).
+
+    """
+    return load_user_settings()
 
 
 class SynthesizerWorker:
     """Worker for processing TTS synthesis requests."""
 
     def __init__(self, voice_handler: VoiceHandlerProtocol, config: Config):
+        """
+        Create a SynthesizerWorker and initialize runtime state.
+
+        Initializes worker state used by the background synthesis loop:
+        - stores the provided config and voice handler,
+        - sets buffer accounting (max_buffer_size default 50 MB, buffer_size start 0),
+        - enables the run loop (_running True) and idle logging counters,
+        - leaves the TTS engine uninitialized (None) — it will be created asynchronously in run(),
+        - loads per-user settings via the testable shim get_user_settings().
+
+        Args:
+            voice_handler: The voice handler facade providing queues and stats.
+            config: Configuration used by the worker (influences TTS engine selection and runtime behavior).
+
+
+        """
         super().__init__()
         self.voice_handler = voice_handler
         self.config = config
@@ -38,10 +77,14 @@ class SynthesizerWorker:
         # Initialize TTS engine and user settings with config manager
         # Note: TTS engine will be initialized asynchronously in run() method
         self._tts_engine = None
-        self._user_settings = load_user_settings()
+        self._user_settings = get_user_settings()
 
     async def run(self) -> None:
-        """Run the synthesis worker loop."""
+        """
+        Run the synthesizer main loop.
+
+        Continuously consumes synthesis requests from the voice handler's synthesis_queue, uses the configured TTS engine to produce WAV audio, validates size and format, writes audio to a temporary file, updates an internal buffer size, and enqueues prepared audio items onto the voice handler's audio_queue for playback/processing. The loop enforces timeouts on queue operations and TTS synthesis, respects a maximum buffer size to avoid memory pressure, records errors to the shared stats, and stops the worker when cancelled or when a configurable threshold of consecutive synthesis errors is exceeded.
+        """
         consecutive_errors = 0
         max_consecutive_errors = 5
 
@@ -72,7 +115,7 @@ class SynthesizerWorker:
                 # Check buffer size before processing
                 if self.buffer_size >= self.max_buffer_size:
                     logger.warning("Audio buffer size limit reached, dropping synthesis request")
-                    self.voice_handler.stats.increment_errors()
+                    self.voice_handler.stats_tracker.increment_errors()
                     continue
 
                 # Get user settings
@@ -92,7 +135,7 @@ class SynthesizerWorker:
                     )
                 except TimeoutError:
                     logger.error(f"TTS synthesis timeout for: {item['text'][:50]}...")
-                    self.voice_handler.stats.increment_errors()
+                    self.voice_handler.stats_tracker.increment_errors()
                     consecutive_errors += 1
                     continue
 
@@ -100,7 +143,7 @@ class SynthesizerWorker:
                     # Validate audio format
                     if not validate_wav_format(audio_data):
                         logger.error(f"Invalid audio format for: {item['text'][:50]}...")
-                        self.voice_handler.stats.increment_errors()
+                        self.voice_handler.stats_tracker.increment_errors()
                         consecutive_errors += 1
                         continue
 
@@ -108,7 +151,7 @@ class SynthesizerWorker:
                     audio_size = get_audio_size(audio_data)
                     if audio_size > 10 * 1024 * 1024:  # 10MB per audio file
                         logger.warning(f"Audio file too large ({audio_size} bytes), skipping")
-                        self.voice_handler.stats.increment_errors()
+                        self.voice_handler.stats_tracker.increment_errors()
                         consecutive_errors += 1
                         continue
 
@@ -128,7 +171,7 @@ class SynthesizerWorker:
                     except TimeoutError:
                         logger.warning(f"Audio queue full, dropping synthesized audio for: {item['text'][:50]}...")
                         cleanup_file(audio_path)
-                        self.voice_handler.stats.increment_errors()
+                        self.voice_handler.stats_tracker.increment_errors()
                         self.decrement_buffer_size(audio_size)
                         continue
 
@@ -137,7 +180,7 @@ class SynthesizerWorker:
 
                 else:
                     logger.error(f"Failed to synthesize: {item['text'][:50]}...")
-                    self.voice_handler.stats.increment_errors()
+                    self.voice_handler.stats_tracker.increment_errors()
                     consecutive_errors += 1
 
                 # Check for too many consecutive errors
@@ -151,7 +194,7 @@ class SynthesizerWorker:
                 break
             except Exception:
                 logger.exception("Synthesis error")
-                self.voice_handler.stats.increment_errors()
+                self.voice_handler.stats_tracker.increment_errors()
                 consecutive_errors += 1
 
                 if consecutive_errors >= max_consecutive_errors:

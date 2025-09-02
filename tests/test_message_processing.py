@@ -6,7 +6,6 @@ from unittest.mock import Mock
 
 import discord
 import pytest
-
 from src.discord_voice_bot.config import Config
 
 

@@ -7,6 +7,7 @@ import discord
 import pytest
 
 from discord_voice_bot.config import Config
+from discord_voice_bot.config_manager import ConfigManagerImpl
 from discord_voice_bot.event_message_handler import MessageHandler
 
 
@@ -33,7 +34,7 @@ async def test_message_pipeline(config: Config):
     bot.command_handler = command_handler
 
     # Create message handler
-    message_handler = MessageHandler(bot, config)
+    message_handler = MessageHandler(bot, ConfigManagerImpl(config))
 
     # Create a mock Discord message
     message = Mock(spec=discord.Message)

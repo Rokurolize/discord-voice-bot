@@ -9,8 +9,50 @@ from discord_voice_bot.protocols import DiscordBotClient
 
 
 # Mock Discord objects for testing
+class MockTTSClient:
+    def __init__(self, config_manager: Any) -> None:
+        """
+        Mock TTS client used in tests.
+
+        Stores the provided configuration manager and initializes an internal `session` placeholder (None) for use by async session methods.
+        """
+        self.config_manager = config_manager
+        self.session = None
+
+    async def start_session(self) -> None:
+        """
+        Start a text-to-speech session.
+
+        In this mock implementation the method is asynchronous but performs no operation — provided so tests can await session startup without side effects.
+        """
+
+    async def close_session(self) -> None:
+        """
+        Asynchronously close the TTS client session.
+
+        This is a no-op placeholder used by tests to match the real client's async close behavior;
+        awaiting this coroutine is safe and has no side effects.
+        """
+
+    async def check_api_availability(self) -> tuple[bool, str]:
+        """
+        Check whether the external TTS API is available.
+
+        Returns:
+            tuple[bool, str]: A tuple where the first element is True if the API is available,
+            and the second is an error message (empty string when available).
+        """
+        return True, ""
+
+
 class MockVoiceState:
     def __init__(self, channel: Mock | None = None) -> None:  # type: ignore[reportMissingSuperCall]
+        """
+        Create a MockVoiceState representing a user's voice state in tests.
+
+        Parameters:
+            channel (Mock | None): Optional mock channel associated with this voice state; stored on the instance as `self.channel`.
+        """
         self.channel = channel
 
 
@@ -258,16 +300,28 @@ class MockBot(DiscordBotClient):
 
 
 async def test_health_monitor() -> bool:
-    """Test the health monitoring system."""
+    """
+    Run an end-to-end async test of the HealthMonitor using lightweight mocks and return True on success.
+
+    This coroutine exercises HealthMonitor behavior with mocked Discord and TTS components:
+    - Instantiates HealthMonitor with MockBot, MockConfigManager, and MockTTSClient.
+    - Records simulated disconnections and an API failure, then inspects the produced health status and termination condition counters.
+    - Temporarily replaces the TTS client's `check_api_availability` with an AsyncMock to run a deterministic health check, then restores the original method.
+    - Stops the monitor to verify graceful shutdown.
+
+    Returns:
+        bool: Always returns True on completion (used to indicate the test ran to completion).
+    """
     print("🩺 Testing Enhanced Health Monitoring System")
     print("=" * 50)
 
     # Create mock bot and health monitor
     bot: MockBot = MockBot()
     config_manager: MockConfigManager = MockConfigManager()
+    tts_client = MockTTSClient(config_manager)
     from discord_voice_bot.health_monitor import HealthMonitor
 
-    monitor: HealthMonitor = HealthMonitor(bot, config_manager)
+    monitor: HealthMonitor = HealthMonitor(bot, config_manager, tts_client)
     print("✅ Health monitor created")
 
     # Test disconnection recording
@@ -296,17 +350,9 @@ async def test_health_monitor() -> bool:
     # Test health check simulation
     print("\n🔍 Testing health check simulation...")
 
-    # Mock the TTS engine health check
-    original_tts_health_check: AsyncMock | None = None
-    try:
-        from discord_voice_bot.tts_engine import get_tts_engine
-
-        tts_engine = get_tts_engine(config_manager)
-        original_tts_health_check = tts_engine.health_check  # type: ignore[assignment]
-        mock_health_check = AsyncMock(return_value=True)
-        tts_engine.health_check = mock_health_check
-    except Exception:
-        pass
+    # Mock the TTS client health check
+    original_check = tts_client.check_api_availability
+    tts_client.check_api_availability = AsyncMock(return_value=(True, ""))  # type: ignore[assignment]
 
     # Perform health check
     try:
@@ -321,8 +367,7 @@ async def test_health_monitor() -> bool:
         print(f"   Health check error: {e}")
 
     # Restore original health check
-    if original_tts_health_check and "tts_engine" in locals():
-        tts_engine.health_check = original_tts_health_check  # type: ignore[assignment]
+    tts_client.check_api_availability = original_check
 
     # Test shutdown
     print("\n🛑 Testing shutdown...")

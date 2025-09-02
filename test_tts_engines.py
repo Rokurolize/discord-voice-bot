@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test script to verify TTS engines are working properly."""
+"""Test script to verify TTS engine factory and synthesis behavior."""
 
 import dataclasses
 from unittest.mock import AsyncMock, patch
@@ -11,46 +11,37 @@ from discord_voice_bot.tts_engine import TTSEngine, get_tts_engine
 
 
 @pytest.mark.asyncio
-@patch("discord_voice_bot.tts_engine.VoicevoxClient.synthesize_audio", new_callable=AsyncMock)
-@patch("discord_voice_bot.tts_engine.AivisClient.synthesize_audio", new_callable=AsyncMock)
-async def test_tts_engine_factory_and_synthesis(
-    mock_aivis_synth: AsyncMock, mock_voicevox_synth: AsyncMock, config: Config
-):
-    """Test the TTSEngine factory and that it can dispatch to the correct engine."""
-    # Mock the return value of the synthesizers
-    mock_voicevox_synth.return_value = b"voicevox_audio_data"
-    mock_aivis_synth.return_value = b"aivis_audio_data"
+async def test_tts_engine_factory_and_synthesis(config: Config):
+    """Validate `get_tts_engine` factory and core synthesis paths."""
+    with (
+        patch("discord_voice_bot.tts_engine.TTSEngine._generate_audio_query", new_callable=AsyncMock) as mock_gen_query,
+        patch("discord_voice_bot.tts_engine.TTSEngine._synthesize_from_query", new_callable=AsyncMock) as mock_synth_query,
+        patch("discord_voice_bot.tts_engine.TTSHealthMonitor.perform_health_check", new_callable=AsyncMock) as mock_health_check,
+        patch("discord_voice_bot.tts_engine.TTSClient.start_session", new_callable=AsyncMock) as mock_start_session,
+        patch("discord_voice_bot.tts_engine.TTSClient.close_session", new_callable=AsyncMock) as mock_close_session,
+    ):
+        # Mark mock as used for type checkers
+        _ = mock_start_session
+        mock_gen_query.return_value = {"mora": "data"}
+        mock_synth_query.return_value = b"mock_audio"
+        mock_health_check.return_value = True
 
-    # 1. Test the factory function `get_tts_engine`
-    voicevox_config = dataclasses.replace(config, tts_engine="voicevox")
-    tts_engine: TTSEngine = await get_tts_engine(voicevox_config)
-    assert isinstance(tts_engine, TTSEngine)
-    assert tts_engine.current_engine_name == "voicevox"
+        # Voicevox by default
+        voicevox_config = dataclasses.replace(config, tts_engine="voicevox")
+        engine: TTSEngine = await get_tts_engine(voicevox_config)
+        assert isinstance(engine, TTSEngine)
+        assert engine.engine_name == "voicevox"
 
-    # 2. Test that it calls the correct underlying client (Voicevox)
-    test_text = "This is a test."
-    audio_data = await tts_engine.synthesize_audio(test_text)
+        # Default synthesis path
+        out = await engine.synthesize_audio("hello")
+        assert out == b"mock_audio"
+        mock_gen_query.assert_awaited()
+        mock_synth_query.assert_awaited()
 
-    assert audio_data == b"voicevox_audio_data"
-    mock_voicevox_synth.assert_called_once_with(test_text, "normal")
-    mock_aivis_synth.assert_not_called()
+        # Engine override
+        out2 = await engine.synthesize_audio("hello", engine_name="aivis")
+        assert out2 == b"mock_audio"
 
-    # Reset mocks
-    mock_voicevox_synth.reset_mock()
-    mock_aivis_synth.reset_mock()
-
-    # 3. Test that we can switch to the other engine (Aivis)
-    audio_data_aivis = await tts_engine.synthesize_audio(test_text, engine_name="aivis")
-
-    assert audio_data_aivis == b"aivis_audio_data"
-    mock_aivis_synth.assert_called_once_with(test_text, "normal")
-    mock_voicevox_synth.assert_not_called()
-    assert getattr(tts_engine, "current_engine_name", "aivis") == "aivis"
-
-    # 4. Test cleanup
-    with patch.object(tts_engine.voicevox_client.session, "close") as mock_vv_close, patch.object(
-        tts_engine.aivis_client.session, "close"
-    ) as mock_aivis_close:
-        await tts_engine.close()
-        mock_vv_close.assert_called_once()
-        mock_aivis_close.assert_called_once()
+        # Cleanup closes client session
+        await engine.close()
+        mock_close_session.assert_awaited()

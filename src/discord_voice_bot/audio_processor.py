@@ -1,6 +1,7 @@
 """Audio processing and optimization for TTS engine."""
 
 from typing import TypedDict
+from weakref import ref
 
 from loguru import logger
 
@@ -32,22 +33,53 @@ class AudioProcessor:
     """Handles audio processing and optimization for TTS."""
 
     def __init__(self, config: Config) -> None:
-        """Initialize audio processor with a configuration object."""
+        """
+        Initialize the AudioProcessor and store a weak reference to the provided Config.
+
+        The configuration is retained via a weak reference so the processor does not prolong the Config's lifetime. If the Config is garbage-collected, accessing it through the `config` property will raise a RuntimeError.
+        """
         super().__init__()
-        self.config = config
+        self._config_ref = ref(config)
+
+    @property
+    def config(self) -> Config:
+        """
+        Return the bound Config instance.
+
+        Retrieves the Config object previously stored via a weak reference. If the Config has been garbage-collected, raises a RuntimeError indicating the AudioProcessor is unbound.
+
+        Returns:
+            Config: The live configuration instance.
+
+        Raises:
+            RuntimeError: If the referenced Config has been garbage-collected.
+
+        """
+        cfg = self._config_ref()
+        if cfg is None:
+            raise RuntimeError("Config has been garbage-collected; AudioProcessor is unbound")
+        return cfg
 
     def optimize_audio_parameters(self, audio_query: AudioQuery) -> None:
-        """Optimize audio parameters for Discord voice quality.
+        """
+        Optimize audio parameters in-place for Discord voice quality.
+
+        Modifies the provided audio_query dict: sets "outputSamplingRate" from the current config, clamps "volumeScale" to [0.0, 1.0] then scales it by 0.8 to reduce clipping, and clamps "speedScale" to [0.8, 1.2]. Intentionally does not modify "pitchScale" (left as-is to preserve natural voice). If audio_query is falsy the function returns without changes.
 
         Args:
-            audio_query: Audio query dictionary to optimize
+            audio_query: The mutable mapping of audio parameters to optimize
+                (modified in place).
+
+        Raises:
+            RuntimeError: If the processor's Config has been garbage-collected and cannot be accessed.
 
         """
         if not audio_query:
             return
 
         # Set optimal sample rate from config for Discord
-        audio_query["outputSamplingRate"] = self.config.audio_sample_rate
+        cfg = self.config
+        audio_query["outputSamplingRate"] = cfg.audio_sample_rate
 
         # Adjust volume to prevent clipping
         if "volumeScale" in audio_query:

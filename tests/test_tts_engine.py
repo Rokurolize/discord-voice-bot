@@ -11,14 +11,33 @@ from discord_voice_bot.tts_engine import TTSEngine
 @pytest.fixture
 async def tts_engine_with_mocks(config: Config):
     """
-    Fixture to provide a TTSEngine instance with mocked dependencies.
-    This isolates the TTSEngine logic from the actual API calls.
-    """
-    with patch("discord_voice_bot.tts_engine.TTSEngine._generate_audio_query", new_callable=AsyncMock) as mock_gen_query, \
-         patch("discord_voice_bot.tts_engine.TTSEngine._synthesize_from_query", new_callable=AsyncMock) as mock_synth_query, \
-         patch("discord_voice_bot.tts_engine.TTSHealthMonitor.perform_health_check", new_callable=AsyncMock) as mock_health_check, \
-         patch("discord_voice_bot.tts_engine.TTSClient.close_session", new_callable=AsyncMock) as mock_close_session:
+    Provide a TTSEngine test fixture with key internals mocked.
 
+    Creates a TTSEngine configured with the given Config, starts it, and yields a tuple
+    (engine, mock_generate_audio_query, mock_synthesize_from_query,
+    mock_perform_health_check, mock_close_session). After the test completes the engine
+    is closed.
+
+    The yielded mocks are AsyncMock instances with the following default return values:
+    - mock_generate_audio_query -> {"mora": "data"}
+    - mock_synthesize_from_query -> b"mocked_audio_data"
+    - mock_perform_health_check -> True
+
+    Parameters:
+        config (Config): Configuration used to construct the TTSEngine.
+
+    Returns:
+        Tuple[TTSEngine, AsyncMock, AsyncMock, AsyncMock, AsyncMock]: The started
+        engine and the four AsyncMock objects for `_generate_audio_query`,
+        `_synthesize_from_query`, `TTSHealthMonitor.perform_health_check`, and
+        `TTSClient.close_session`, respectively.
+    """
+    with (
+        patch("discord_voice_bot.tts_engine.TTSEngine._generate_audio_query", new_callable=AsyncMock) as mock_gen_query,
+        patch("discord_voice_bot.tts_engine.TTSEngine._synthesize_from_query", new_callable=AsyncMock) as mock_synth_query,
+        patch("discord_voice_bot.tts_engine.TTSHealthMonitor.perform_health_check", new_callable=AsyncMock) as mock_health_check,
+        patch("discord_voice_bot.tts_engine.TTSClient.close_session", new_callable=AsyncMock) as mock_close_session,
+    ):
         mock_gen_query.return_value = {"mora": "data"}
         mock_synth_query.return_value = b"mocked_audio_data"
         mock_health_check.return_value = True
@@ -89,6 +108,7 @@ class TestSynthesizeAudio:
         assert result == b"mocked_audio_data"
         mock_gen_query.assert_called_once_with("test", None, "aivis")
         mock_synth_query.assert_called_once()
+
 
 @pytest.mark.asyncio
 class TestEngineLifecycle:

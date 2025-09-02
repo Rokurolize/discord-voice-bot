@@ -73,22 +73,29 @@ class TestConfig:
             # Development defaults
             assert config.debug is False
 
-    @patch("discord_voice_bot.config.load_dotenv")
-    @patch("discord_voice_bot.config.Path.exists", return_value=True)
-    def test_dotenv_override_precedence(self, mock_exists, mock_load_dotenv) -> None:
-        """Test that .env file overrides secrets.env."""
-        # Simulate that secrets.env sets a value, then .env overrides it
-        def load_dotenv_side_effect(dotenv_path, override=False):
-            if "secrets.env" in str(dotenv_path):
-                os.environ["TTS_ENGINE"] = "secrets_engine"
-            elif ".env" in str(dotenv_path) and override:
-                os.environ["TTS_ENGINE"] = "dotenv_engine"
+    def test_dotenv_override_precedence(self, tmp_path, monkeypatch) -> None:
+        """.env overrides secrets.env; process env overrides both."""
+        # Arrange: create secrets.env and .env with different TTS_ENGINE
+        secrets = tmp_path / "secrets.env"
+        secrets.write_text("TTS_ENGINE=secrets_engine\n")
+        env = tmp_path / ".env"
+        env.write_text("TTS_ENGINE=dotenv_engine\n")
 
-        mock_load_dotenv.side_effect = load_dotenv_side_effect
-
-        with patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "test_token"}, clear=True):
+        # Precedence baseline: .env > secrets
+        with patch.dict(os.environ, {"SECRETS_FILE": str(secrets), "DISCORD_BOT_TOKEN": "test_token"}, clear=True):
+            monkeypatch.chdir(tmp_path)
             config = Config.from_env()
             assert config.tts_engine == "dotenv_engine"
+
+        # Process env should override .env
+        with patch.dict(
+            os.environ,
+            {"SECRETS_FILE": str(secrets), "DISCORD_BOT_TOKEN": "test_token", "TTS_ENGINE": "process_engine"},
+            clear=True,
+        ):
+            monkeypatch.chdir(tmp_path)
+            config = Config.from_env()
+            assert config.tts_engine == "process_engine"
 
     @pytest.mark.parametrize(
         "field_name, env_value, expected",
@@ -112,3 +119,12 @@ class TestConfig:
         with patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "test_token", env_var: env_value}, clear=True):
             config = Config.from_env()
             assert getattr(config, field_name) is expected
+
+    def test_tts_speaker_label_updates_default_speaker(self) -> None:
+        with patch.dict(
+            os.environ,
+            {"DISCORD_BOT_TOKEN": "t", "TTS_ENGINE": "voicevox", "TTS_SPEAKER": "sexy"},
+            clear=True,
+        ):
+            cfg = Config.from_env()
+            assert cfg.engines["voicevox"]["default_speaker"] == 5

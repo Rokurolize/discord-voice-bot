@@ -1,6 +1,8 @@
 """Health monitoring for TTS engine."""
 
+import time
 from typing import Any
+from weakref import ref
 
 from loguru import logger
 
@@ -12,15 +14,46 @@ class TTSHealthMonitor:
     """Monitors the health of TTS engine components."""
 
     def __init__(self, config: Config, tts_client: TTSClient) -> None:
-        """Initialize TTS health monitor with configuration and TTS client."""
-        self.config = config
+        """
+        Initialize the TTS health monitor.
+
+        Stores a weak reference to the provided Config (so the monitor does not extend its lifetime)
+        and keeps a reference to the TTS client used for health checks.
+        """
+        super().__init__()
+        self._config_ref = ref(config)
         self._tts_client = tts_client
 
-    async def perform_health_check(self) -> bool:
-        """Perform comprehensive health check on TTS engine.
+    @property
+    def config(self) -> Config:
+        """
+        Return the currently bound Config instance.
+
+        Resolves the internally stored weak reference to the Config and returns it.
+        Raises a RuntimeError if the Config has been garbage-collected, indicating
+        the monitor is no longer bound to a valid configuration.
 
         Returns:
-            True if TTS engine is healthy, False otherwise
+            Config: The live configuration object.
+
+        Raises:
+            RuntimeError: If the underlying Config has been garbage-collected.
+
+        """
+        cfg = self._config_ref()
+        if cfg is None:
+            raise RuntimeError(f"Config has been garbage-collected; {type(self).__name__}(id={id(self)}) is unbound")
+        return cfg
+
+    async def perform_health_check(self) -> bool:
+        """
+        Run a two-step health check for the TTS engine.
+
+        Performs an API availability check followed by a brief synthesis test. If either step fails
+        or an unexpected exception occurs, the method returns False; returns True only if both checks pass.
+
+        Returns:
+            bool: True when both API and synthesis checks succeed, False otherwise.
 
         """
         try:
@@ -75,7 +108,7 @@ class TTSHealthMonitor:
                 return False
 
             # Basic validation of the audio data
-            if len(test_audio) < 100:  # Very small minimum size
+            if len(test_audio) < MIN_TEST_AUDIO_BYTES:
                 logger.warning(f"TTS health check failed: synthesized audio too small ({len(test_audio)} bytes)")
                 return False
 
@@ -110,7 +143,7 @@ class TTSHealthMonitor:
 
             # Test synthesis
             test_audio = await self._tts_client.synthesize_audio("test")
-            synthesis_working = test_audio is not None and len(test_audio) > 100
+            synthesis_working = test_audio is not None and len(test_audio) >= MIN_TEST_AUDIO_BYTES
             health_status["synthesis_working"] = synthesis_working
 
             if not synthesis_working:
@@ -118,7 +151,7 @@ class TTSHealthMonitor:
 
             # Overall health
             health_status["healthy"] = api_available and synthesis_working
-            health_status["last_check"] = __import__("time").time()
+            health_status["last_check"] = time.time()
 
             if health_status["healthy"]:
                 logger.debug("TTS health status: ✅ Healthy")
@@ -133,11 +166,13 @@ class TTSHealthMonitor:
             return health_status
 
     async def diagnose_issues(self) -> list[str]:
-        """Diagnose and return a list of potential issues with TTS engine.
+        """
+        Return a list of diagnostic messages describing potential TTS engine issues.
 
-        Returns:
-            List of diagnostic messages and suggestions
-
+        Performs a sequence of checks: API availability, a test synthesis, and validation of configured engines.
+        Each discovered problem is appended as a human-readable message (including suggested actions). Any unexpected
+        exception during diagnosis is caught and added to the returned list as an error entry — the function always
+        returns a list of diagnostic strings.
         """
         issues: list[str] = []
 
@@ -166,12 +201,16 @@ class TTSHealthMonitor:
                     issues.append("🔴 No TTS engines configured")
                     issues.append("   💡 Check configuration file for engine settings")
                 else:
-                    # Check each engine configuration (dict or object/dataclass)
+                    # Check each engine configuration
                     for engine_name, engine_config in engines.items():
-                        getter = engine_config.get if isinstance(engine_config, dict) else (lambda k, d=None: getattr(engine_config, k, d))
-                        if not getter("url"):
+                        url = engine_config.get("url")
+                        default_speaker = engine_config.get("default_speaker")
+
+                        if not url:
                             issues.append(f"🔴 Engine '{engine_name}' missing URL configuration")
-                        if not getter("default_speaker"):
+                        try:
+                            _ = int(default_speaker)
+                        except (TypeError, ValueError):
                             issues.append(f"🔴 Engine '{engine_name}' missing default speaker")
             except Exception as e:
                 issues.append(f"🔴 Configuration error: {e}")
@@ -183,3 +222,7 @@ class TTSHealthMonitor:
             issues.append(f"🔴 Diagnostic error: {e}")
 
         return issues
+
+
+# Health-check thresholds
+MIN_TEST_AUDIO_BYTES = 256

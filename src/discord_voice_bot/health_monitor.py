@@ -9,6 +9,7 @@ import discord
 from loguru import logger
 
 from .protocols import ConfigManager, DiscordBotClient
+from .tts_client import TTSClient
 
 
 @dataclass
@@ -37,11 +38,16 @@ class HealthStatus:
 class HealthMonitor:
     """Comprehensive health monitoring system with automatic termination."""
 
-    def __init__(self, bot_client: discord.Client | DiscordBotClient, config_manager: ConfigManager):
-        """Initialize health monitor."""
+    def __init__(self, bot_client: discord.Client | DiscordBotClient, config_manager: ConfigManager, tts_client: TTSClient):
+        """
+        Initialize the HealthMonitor.
+
+        Sets up references to the Discord bot, configuration manager, and TTS client, and initializes internal monitoring state used by the health system: a HealthStatus instance, placeholders for background monitoring and permission-check tasks, termination-condition counters (voice disconnection windows and an API-unavailable threshold), and graceful-shutdown bookkeeping (flag, reason, and shutdown task).
+        """
         super().__init__()
         self.bot = bot_client
         self._config_manager = config_manager
+        self._tts_client = tts_client
         self.status = HealthStatus()
         self._monitoring_task: asyncio.Task[None] | None = None
         self._permission_check_task: asyncio.Task[None] | None = None
@@ -112,11 +118,10 @@ class HealthMonitor:
 
         # Check API unavailable duration
         condition = self._termination_conditions["api_unavailable_duration"]
-        if condition["window"] is None:
-            # Count consecutive failures
-            condition["count"] += 1
-            if condition["count"] >= condition["max"]:
-                self._trigger_termination(f"TTS API unavailable for {condition['count']} consecutive checks")
+        # Count consecutive failures and mark the start of the outage window
+        if condition["count"] == 0:
+            condition["last_reset"] = now
+        condition["count"] += 1
 
         logger.error(f"🚨 TTS API failure recorded (Count: {condition['count']})")
 
@@ -155,7 +160,20 @@ class HealthMonitor:
         )
 
     async def _perform_health_checks(self) -> None:
-        """Perform comprehensive health checks."""
+        """
+        Run the bot's full set of health checks and update internal health state.
+
+        Performs TTS API availability checks, voice-connection checks, and critical-permission checks.
+        Aggregates detected issues and recommendations, updates self.status (healthy, issues,
+        recommendations, last_check, recent_failures), and records API failures or successes.
+
+        Side effects:
+        - May call record_api_failure() / record_api_success().
+        - Clears status.recent_failures.
+        - Invokes _check_termination_conditions(), which can initiate a graceful shutdown if thresholds are met.
+
+        Exceptions raised by individual checks are caught and appended to the aggregated issues list; the method itself does not raise on those internal failures.
+        """
         logger.debug("🔍 Performing comprehensive health checks...")
 
         issues: list[str] = list[str]()
@@ -163,22 +181,15 @@ class HealthMonitor:
 
         # Check TTS API health
         try:
-            from .tts_engine import get_tts_engine
-
-            logger.debug("🔍 Creating new TTS engine for health check")
-            tts_engine = await get_tts_engine(self._config_manager)
-            api_healthy = await tts_engine.health_check()
-            logger.debug("🔍 TTS engine health check completed, closing engine")
-            await tts_engine.close()  # Close the engine after use
-            logger.debug("🔍 TTS engine closed successfully")
+            api_healthy, error_detail = await self._tts_client.check_api_availability()
             if not api_healthy:
-                issues.append("TTS API health check failed")
+                issues.append(f"TTS API health check failed: {error_detail}")
                 recommendations.append("Check TTS server status and network connectivity")
                 self.record_api_failure()
             else:
                 self.record_api_success()
         except Exception as e:
-            issues.append("TTS API check error: " + str(e))
+            issues.append(f"TTS API check error: {e}")
             recommendations.append("Verify TTS engine configuration")
 
         # Check voice connection health
@@ -206,7 +217,8 @@ class HealthMonitor:
         self.status.issues = issues
         self.status.recommendations = recommendations
         self.status.last_check = time.time()
-        self.status.recent_failures = []
+        # Keep a bounded history (last 50) for diagnostics
+        self.status.recent_failures = self.status.recent_failures[-50:]
 
         if not self.status.healthy:
             logger.warning(f"⚠️ Health check detected {len(issues)} issues:")
@@ -284,8 +296,8 @@ class HealthMonitor:
                 if trigger_termination:
                     logger.error(f"🚨 Critical permissions missing in target guild {guild.name}")
                     self._trigger_termination(f"Missing critical permissions: {', '.join(missing_perms)}")
-            else:
-                logger.debug(f"✅ All permissions present in {guild.name}")
+        else:
+            logger.debug(f"✅ All permissions present in {guild.name}")
 
         return missing_perms
 
@@ -393,7 +405,11 @@ class HealthMonitor:
         self._shutdown_task = asyncio.create_task(self._perform_shutdown())
 
     async def _perform_shutdown(self) -> None:
-        """Perform graceful shutdown."""
+        """
+        Initiate a graceful shutdown: attempt to clean up the voice handler, close the Discord client, and terminate the process.
+
+        This coroutine attempts to run `voice_handler.cleanup()` if a `voice_handler` attribute exists on the bot (supports sync or async cleanup). It then closes the Discord client connection if it is open. Any exceptions during cleanup or closing are caught and logged. Finally, the process is terminated with exit code 1.
+        """
         logger.error("🔄 Initiating graceful shutdown...")
 
         try:
@@ -410,12 +426,6 @@ class HealthMonitor:
                     except Exception as e:
                         logger.warning(f"Voice handler cleanup failed: {e}")
 
-            # Stop TTS engine
-            from .tts_engine import get_tts_engine
-
-            tts_engine = await get_tts_engine(self._config_manager)
-            await tts_engine.close()
-
             # Close Discord connection
             if not self.bot.is_closed():
                 await self.bot.close()
@@ -425,10 +435,18 @@ class HealthMonitor:
 
         finally:
             logger.error("💀 Server shutdown complete")
-            # Exit with error code
+            # Exit with error code (skip in test mode)
             import sys
 
-            sys.exit(1)
+            try:
+                is_test = getattr(self._config_manager, "is_test_mode", None)
+                if callable(is_test) and is_test():
+                    logger.error("🧪 Test mode detected; skipping sys.exit(1)")
+                else:
+                    sys.exit(1)
+            except Exception:
+                # Fall through to exit if we cannot determine test mode
+                sys.exit(1)
 
     def get_health_status(self) -> dict[str, Any]:
         """Get current health status information."""

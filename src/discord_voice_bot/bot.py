@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
-"""Discord Voice TTS Bot - Main Entry Point."""
+"""Discord Voice TTS Bot - Main Entry Point.
+
+This module supports both the previous ConfigManager-based initialization and the
+newer direct Config dataclass injection used by tests and runtime.
+"""
 
 import asyncio
-import logging
-from typing import TYPE_CHECKING, Any, override
+from typing import Any, override
 
-import discord
 from discord.ext import commands
 
 from .bot_factory import BotFactory
-
-logger = logging.getLogger(__name__)
-
-if TYPE_CHECKING:
-    from .config import Config
+from .config import Config
+from .config_manager import ConfigManagerImpl
 
 
 class BaseEventBot(commands.Bot):
@@ -31,23 +30,43 @@ class BaseEventBot(commands.Bot):
 class DiscordVoiceTTSBot(BaseEventBot):
     """Main Discord Voice TTS Bot class."""
 
-    def __init__(self, config: Config) -> None:
-        """Initialize the bot.
-
-        Args:
-            config: Configuration object
-
+    def __init__(self, config_manager: Any | None = None, *, config: Config | None = None) -> None:
         """
-        # Get intents and command prefix from config
-        intents = discord.Intents.default()
-        intents.message_content = True
-        intents.voice_states = True
-        intents.guilds = True
+        Create a DiscordVoiceTTSBot instance, normalizing configuration and initializing internal placeholders and startup state.
 
-        super().__init__(command_prefix=config.command_prefix, intents=intents)
+        This initializer accepts either:
+        - a Config dataclass via the `config` keyword (preferred), or
+        - a Config dataclass or a ConfigManager-compatible object via `config_manager`.
+        If a Config is provided (in either parameter) it is wrapped with ConfigManagerImpl. If no configuration is supplied, the environment is used (Config.from_env()).
 
-        # Store config
-        self.config = config
+        Behavioral notes:
+        - Retrieves intents and command prefix from the resulting config manager and passes them to the base commands.Bot initializer.
+        - Stores the normalized config manager on self.config_manager.
+        - Initializes component placeholders (voice_handler, event_handler, command_handler, slash_handler, message_validator, status_manager, health_monitor) to None; these are expected to be wired by the surrounding factory.
+        - Initializes startup state (startup_complete, startup_connection_failures, monitor_task) and a stats dict with keys: "messages_processed", "voice_connections", "tts_requests", "errors".
+        """
+        # Normalize to a ConfigManager-compatible instance
+        if config is not None:
+            _cm = ConfigManagerImpl(config)
+        else:
+            # If a Config dataclass was passed via the legacy positional arg, wrap it
+            if isinstance(config_manager, Config):
+                _cm = ConfigManagerImpl(config_manager)
+            else:
+                _cm = config_manager
+
+        if _cm is None:
+            # Fall back to environment-derived configuration
+            _cm = ConfigManagerImpl(Config.from_env())
+
+        # Get intents and command prefix from config manager
+        intents = _cm.get_intents()
+        command_prefix = _cm.get_command_prefix()
+
+        super().__init__(command_prefix=command_prefix, intents=intents)
+
+        # Store config manager
+        self.config_manager = _cm
 
         # Initialize component placeholders (will be set by factory)
         self.voice_handler: Any = None
@@ -71,66 +90,27 @@ class DiscordVoiceTTSBot(BaseEventBot):
             "errors": 0,
         }
 
-    async def _log_http_exception_details(self, http_exc: discord.HTTPException) -> None:
-        """Log detailed HTTP exception information."""
-        logger.error(
-            "HTTP error: status=%s code=%s text=%r",
-            getattr(http_exc, "status", "unknown"),
-            getattr(http_exc, "code", "unknown"),
-            getattr(http_exc, "text", "unknown"),
-        )
-        if hasattr(http_exc, "response") and http_exc.response:
-            logger.debug("HTTP response headers: %s", dict(http_exc.response.headers))
-        try:
-            data = getattr(http_exc, "data", None)
-            if data is not None:
-                logger.debug("HTTP response data: %s", data)
-        except AttributeError:
-            pass
-
-        if hasattr(http_exc, "response") and http_exc.response:
-            try:
-                response = getattr(http_exc, "response", None)
-                if response and hasattr(response, "text"):
-                    text_method = getattr(response, "text", None)
-                    if text_method and callable(text_method):
-                        try:
-                            result = text_method()
-                            if asyncio.iscoroutine(result):
-                                logger.debug("HTTP response body: %s", await result)
-                            elif result is not None:
-                                logger.debug("HTTP response body: %s", result)
-                        except Exception:
-                            logger.debug("Could not read response body", exc_info=True)
-            except Exception:
-                logger.debug("Could not read response body", exc_info=True)
-
     async def start_with_config(self) -> None:
-        """Start the bot using the stored configuration."""
+        """
+        Start the bot using the configured Discord token.
+
+        If the active configuration is in test mode, this method prints a short message and returns without connecting to Discord. Otherwise it retrieves the Discord token from the bot's configuration manager and calls the underlying `start` coroutine with that token.
+        """
         # Skip Discord connection in test mode
-        if self.config.test_mode:
-            logger.info("🧪 Test mode enabled - skipping Discord connection")
+        if self.config_manager.is_test_mode():
+            print("🧪 Test mode enabled - skipping Discord connection")
             return
 
-        token = self.config.discord_token
-
-        try:
-            await self.start(token)
-        except Exception as e:
-            # Log detailed error information for HTTP exceptions
-            if isinstance(e, discord.LoginFailure) and e.__cause__:
-                cause = e.__cause__
-                if isinstance(cause, discord.HTTPException):
-                    await self._log_http_exception_details(cause)
-            elif isinstance(e, discord.HTTPException):
-                await self._log_http_exception_details(e)
-
-            logger.exception("Start failed with %s: %s", type(e).__name__, e)
-            raise
+        token = self.config_manager.get_discord_token()
+        await self.start(token)
 
     async def on_ready(self) -> None:
-        """Handle bot ready event and delegate to event handler."""
-        logger.info("🤖 %s has connected to Discord!", self.user)
+        """
+        Called when the bot is fully connected to Discord.
+
+        Prints a connection message and, if an `event_handler` attribute is present and truthy, awaits its `handle_ready()` coroutine to perform additional readiness handling.
+        """
+        print(f"🤖 {self.user} has connected to Discord!")
         if hasattr(self, "event_handler") and self.event_handler:
             await self.event_handler.handle_ready()
 
@@ -139,10 +119,51 @@ class DiscordVoiceTTSBot(BaseEventBot):
         """Change bot presence (required by StartupBot protocol)."""
         await super().change_presence(status=status, activity=activity)
 
+    @property
+    def config(self) -> Any:
+        """
+        Return the underlying Config dataclass if available, otherwise return the stored config manager or None.
+
+        If the bot's `config_manager` has a callable `_get_config()` method, this property calls it and returns its result (exceptions from that call are suppressed). If no `config_manager` is present, returns None; if `_get_config()` is not available, returns the `config_manager` object itself.
+
+        Returns:
+            The concrete Config dataclass, the config manager object, or None.
+
+        """
+        cm = getattr(self, "config_manager", None)
+        if cm is None:
+            return None
+        # Prefer a concrete Config; support both attribute and callable accessors
+        attr = getattr(cm, "config", None)
+        if attr is not None:
+            if callable(attr):
+                try:
+                    return attr()
+                except Exception:
+                    pass
+            else:
+                return attr
+        getter = getattr(cm, "_get_config", None)
+        if callable(getter):
+            try:
+                return getter()
+            except Exception:
+                pass
+        return cm
 
     @override
     async def on_message(self, message: Any) -> None:  # discord.Message at runtime
-        """Delegate message events to the event handler and process commands."""
+        """
+        Delegate an incoming Discord message to the configured event handler.
+
+        If an event handler with a `handle_message` coroutine is attached to the bot, this forwards
+        the provided message to that handler.
+
+        Args:
+            message: The message object received from Discord (typed as Any at runtime).
+
+
+        """
         await self._delegate_event_async("event_handler", "handle_message", message)
 
     async def on_voice_state_update(self, member: Any, before: Any, after: Any) -> None:
@@ -159,27 +180,50 @@ class DiscordVoiceTTSBot(BaseEventBot):
 
     @override
     async def on_error(self, event: str, *args: Any, **kwargs: Any) -> None:
-        """Delegate errors to the event handler for centralized logging."""
-        # Log detailed error information for HTTP exceptions
-        if args and isinstance(args[0], discord.HTTPException):
-            await self._log_http_exception_details(args[0])
-        logger.exception("HTTPException during event: %s", event)
+        """
+        Delegate an error event to the configured event handler.
 
+        If an `event_handler` with a `handle_error` coroutine is present on the bot, this forwards
+        the `event` name plus any positional and keyword arguments to that handler and awaits it.
+        """
+        had_handler = hasattr(self, "event_handler") and self.event_handler and hasattr(self.event_handler, "handle_error")
         await self._delegate_event_async("event_handler", "handle_error", event, *args, **kwargs)
+        if not had_handler:
+            print(f"[on_error] Unhandled error event: {event}", flush=True)
 
 
-async def run_bot(config: Config) -> None:
-    """Create and run the Discord bot."""
+async def run_bot(config: Config | None = None) -> None:
+    """
+    Start the Discord Voice TTS bot using the provided configuration.
+
+    If `config` is None, the configuration is loaded from the environment via Config.from_env().
+    This function creates a BotFactory, builds and initializes the bot and its services, then starts
+    the bot's run flow (start_with_config). It ensures the bot is shut down by the factory when the
+    start sequence completes or fails.
+
+    Notes:
+    - CancelledError is propagated unchanged.
+    - Other exceptions are printed and re-raised.
+
+    """
+    factory = BotFactory()
+    bot: Any | None = None
     try:
-        factory = BotFactory()
-        bot = await factory.create_bot(config)
+        cfg = config or Config.from_env()
+        bot = await factory.create_bot(cfg)
+        if not cfg.test_mode:
+            await factory.initialize_services(bot)
+        assert bot is not None
         await bot.start_with_config()
-    except Exception:
-        logger.exception("Failed to start bot")
+    except asyncio.CancelledError:
         raise
+    except Exception as e:
+        print(f"Failed to start bot: {e}")
+        raise
+    finally:
+        if bot:
+            await factory.shutdown_bot(bot)
 
 
 if __name__ == "__main__":
-    # 遅延 import で起動時だけ依存
-    from .config import Config
-    asyncio.run(run_bot(Config.from_env()))
+    asyncio.run(run_bot())
