@@ -387,6 +387,9 @@ class TTSClient:
             logger.info(f"Successfully synthesized audio for text: '{text[:50]}...'")
             return audio_data
 
+        except asyncio.CancelledError:
+            # Preserve cooperative cancellation
+            raise
         except Exception as e:
             logger.error(f"Failed to synthesize audio: {type(e).__name__} - {e!s}")
             return None
