@@ -8,6 +8,9 @@ from typing import Any, cast
 import discord
 from loguru import logger
 
+from .health.permissions_check import (
+    check_critical_permissions as _hm_check_critical_permissions,
+)
 from .protocols import ConfigManager, DiscordBotClient
 from .tts_client import TTSClient
 
@@ -60,6 +63,41 @@ class HealthMonitor:
         self._graceful_shutdown = False
         self._shutdown_reason: str | None = None
         self._shutdown_task: asyncio.Task[None] | None = None
+        # Startup timestamp to allow a brief grace window for caches/login
+        self._start_ts: float = time.time()
+        # Debounce map for repeated warnings
+        self._warn_last: dict[str, float] = {}
+        # One-time log flags
+        self._permission_scan_started: bool = False
+        self._critical_perm_checks_started: bool = False
+
+    def _bot_is_ready(self) -> bool:
+        """Return True if the bot reports ready; supports both attr and method."""
+        ready_attr = getattr(self.bot, "is_ready", None)
+        try:
+            return bool(ready_attr()) if callable(ready_attr) else bool(ready_attr)
+        except Exception:
+            return False
+
+    def _in_grace_window(self, seconds: float = 15.0) -> bool:
+        """Return True if within initial startup grace period."""
+        try:
+            return (time.time() - self._start_ts) < seconds
+        except Exception:
+            return False
+
+    def _should_emit_warning(self, key: str, window_s: float = 10.0) -> bool:
+        """Return True if a warning identified by `key` should be emitted.
+
+        Maintains a short-lived timestamp map of previously emitted warnings and suppresses
+        identical messages within the provided window.
+        """
+        now = time.time()
+        last = self._warn_last.get(key, 0.0)
+        if now - last >= window_s:
+            self._warn_last[key] = now
+            return True
+        return False
 
     async def start(self) -> None:
         """Start health monitoring tasks."""
@@ -192,7 +230,7 @@ class HealthMonitor:
             issues.append(f"TTS API check error: {e}")
             recommendations.append("Verify TTS engine configuration")
 
-        # Check voice connection health
+        # Check voice connection health (use shim to preserve tests)
         try:
             voice_healthy, voice_issues = await self._check_voice_connection_health()
             # Ensure issues list is fully typed as list[str]
@@ -203,9 +241,10 @@ class HealthMonitor:
         except Exception as e:
             issues.append("Voice connection check error: " + str(e))
 
-        # Check bot permissions
+        # Check bot permissions (delegated)
         try:
-            perm_healthy, perm_issues = await self._check_critical_permissions()
+            target_channel_id = self._config_manager.get_target_voice_channel_id()
+            perm_healthy, perm_issues = await _hm_check_critical_permissions(cast(discord.Client, self.bot), target_channel_id)
             if not perm_healthy:
                 issues.extend(perm_issues)
                 recommendations.append("Review and fix bot permissions in Discord server")
@@ -233,77 +272,59 @@ class HealthMonitor:
         await self._check_termination_conditions()
 
     async def _check_voice_connection_health(self) -> tuple[bool, list[str]]:
-        """Check voice connection health."""
+        """Backward shim preserving old semantics used in tests.
+
+        - During startup/grace: suppress warnings and treat as healthy
+        - If voice handler present, use its get_status() to infer connectivity
+        - Otherwise, if bot is ready and no handler: report issue
+        """
         issues: list[str] = []
+        bot_ready = self._bot_is_ready()
+        voice_handler = cast(Any, getattr(self.bot, "voice_handler", None))
 
-        try:
-            # Check bot readiness status
-            bot_ready = hasattr(self.bot, "is_ready") and self.bot.is_ready
-            logger.debug(f"🔍 Voice health check: Bot ready = {bot_ready}")
+        if voice_handler is None:
+            if bot_ready:
+                issues.append("Voice handler not initialized")
+            return (len(issues) == 0), issues
 
-            # Get voice handler status
-            voice_handler = getattr(self.bot, "voice_handler", None)
-            logger.debug(f"🔍 Voice health check: Voice handler present = {voice_handler is not None}")
+        if not bot_ready or self._in_grace_window():
+            return True, []
 
-            if voice_handler:
-                # Obtain status defensively (support sync or async get_status implementations)
-                get_status = getattr(voice_handler, "get_status", None)
-                status: dict[str, Any] = {}
-                if callable(get_status):
-                    try:
-                        if asyncio.iscoroutinefunction(get_status):
-                            maybe = await get_status()
-                        else:
-                            maybe = get_status()
-                        if isinstance(maybe, dict):
-                            status = cast(dict[str, Any], maybe)
-                    except Exception:
-                        status = {}
-                if not status.get("connected", False):
-                    issues.append("Voice connection lost")
-                    logger.warning(f"🔍 Voice health check: Connection status = {status.get('connected', 'unknown')}")
-                    self.record_disconnection("Health check detected disconnection")
-                elif not status.get("audio_playback_ready", True):
-                    issues.append("Audio playback not ready")
-                    logger.warning(f"🔍 Voice health check: Audio playback ready = {status.get('audio_playback_ready', 'unknown')}")
-            else:
-                # Only report as issue if bot is ready but voice handler is missing
-                if bot_ready:
-                    issues.append("Voice handler not initialized")
-                    logger.warning("🔍 Voice health check: Bot is ready but voice handler is missing - this may indicate a problem")
-                else:
-                    logger.debug("🔍 Voice health check: Voice handler not yet available (bot not ready) - this is normal during startup")
-        except AttributeError:
-            issues.append("Voice handler access error")
-            logger.warning("🔍 Voice health check: AttributeError accessing voice handler")
+        status: dict[str, Any] = {}
+        get_status = getattr(voice_handler, "get_status", None)
+        if callable(get_status):
+            try:
+                maybe = await get_status() if asyncio.iscoroutinefunction(get_status) else get_status()
+                if isinstance(maybe, dict):
+                    status = cast(dict[str, Any], maybe)
+            except Exception:
+                status = {}
 
-        except Exception as e:
-            issues.append("Voice health check error: " + str(e))
-            logger.error(f"🔍 Voice health check: Unexpected error: {e}")
+        if not status.get("connected", False):
+            issues.append("Voice connection lost")
+            self.record_disconnection("Health check detected disconnection")
+        elif not status.get("audio_playback_ready", True):
+            issues.append("Audio playback not ready")
 
-        return len(issues) == 0, issues
+        return (len(issues) == 0), issues
 
     def _check_permissions_in_guild(self, guild: discord.Guild, critical_perms: dict[str, bool], trigger_termination: bool = False) -> list[str]:
-        """Check permissions in a specific guild."""
-        missing_perms = [perm for perm, has_perm in critical_perms.items() if not has_perm]
-
-        if missing_perms:
-            logger.warning(f"⚠️ Missing permissions in {guild.name}: {', '.join(missing_perms)}")
-
-            # Check if this affects our target channel
-            target_channel = self.bot.get_channel(self._config_manager.get_target_voice_channel_id())
-            if isinstance(target_channel, (discord.VoiceChannel, discord.StageChannel)) and target_channel.guild == guild:
-                if trigger_termination:
-                    logger.error(f"🚨 Critical permissions missing in target guild {guild.name}")
-                    self._trigger_termination(f"Missing critical permissions: {', '.join(missing_perms)}")
-        else:
-            logger.debug(f"✅ All permissions present in {guild.name}")
-
-        return missing_perms
+        """Compute missing perms based on provided map (kept for backward compatibility)."""
+        return [perm for perm, has_perm in critical_perms.items() if not has_perm]
 
     async def _check_bot_permissions(self) -> None:
         """Check bot permissions across all accessible guilds."""
         logger.debug("🔐 Performing comprehensive bot permissions check...")
+
+        # Suppress early warnings until ready or after grace
+        if not self._bot_is_ready() or self._in_grace_window():
+            logger.debug("🔐 Startup phase; skipping guild permission warnings")
+            return
+
+        # First time we are past startup/grace, announce that permission scans begin
+        if not self._permission_scan_started:
+            self._permission_scan_started = True
+            logger.info("🔐 Bot is ready; starting periodic guild permission scans")
 
         if not self.bot.guilds:
             logger.warning("⚠️ Bot is not in any guilds")
@@ -326,36 +347,9 @@ class HealthMonitor:
                 logger.error(f"Error checking permissions in {guild.name}: {e}")
 
     async def _check_critical_permissions(self) -> tuple[bool, list[str]]:
-        """Check critical permissions for bot operation."""
-        issues: list[str] = []
-
-        try:
-            target_channel_id = self._config_manager.get_target_voice_channel_id()
-            target_channel = self.bot.get_channel(target_channel_id)
-            if not target_channel:
-                issues.append(f"Target voice channel {target_channel_id} not found")
-                return False, issues
-
-            if not isinstance(target_channel, (discord.VoiceChannel, discord.StageChannel)):
-                issues.append(f"Target channel is not a voice channel (type: {type(target_channel).__name__})")
-                return False, issues
-
-            # Check if bot can access the channel
-            bot_perms = target_channel.permissions_for(target_channel.guild.me)
-
-            critical_perms = {
-                "view_channel": bot_perms.view_channel,
-                "connect": bot_perms.connect,
-                "speak": bot_perms.speak,
-            }
-
-            missing_perms = [perm for perm, has_perm in critical_perms.items() if not has_perm]
-            issues.extend([f"Missing '{perm}' permission for target voice channel" for perm in missing_perms])
-
-        except Exception as e:
-            issues.append("Critical permission check error: " + str(e))
-
-        return len(issues) == 0, issues
+        """Delegate to health.permissions_check (backward shim)."""
+        target_channel_id = self._config_manager.get_target_voice_channel_id()
+        return await _hm_check_critical_permissions(cast(discord.Client, self.bot), target_channel_id)
 
     async def _check_termination_conditions(self) -> None:
         """Check if any termination conditions are met."""

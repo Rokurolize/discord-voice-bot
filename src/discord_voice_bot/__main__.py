@@ -12,6 +12,7 @@ from loguru import logger
 
 from .bot import run_bot
 from .config import Config
+from .errors import HealthCheckError
 from .health_monitor import HealthMonitor
 
 
@@ -190,37 +191,68 @@ class BotManager:
         logger.info("Performing startup health checks...")
 
         try:
+            # Optional fast-path: allow developers to skip network TTS checks locally
+            # Recognized truthy values: true, 1, yes, on (case-insensitive)
+            skip_flag = os.environ.get("STARTUP_SKIP_TTS_CHECK", "").strip().lower()
+            if skip_flag in {"true", "1", "yes", "on"}:
+                logger.info("STARTUP_SKIP_TTS_CHECK enabled; skipping TTS availability/synthesis checks")
+                return True
+
             # Import TTS engine for health check
             from .tts_engine import get_tts_engine
 
-            # Initialize TTS engine with config
+            # Initialize TTS engine with config and ensure it's always closed
             tts_engine = await get_tts_engine(self.config)
-
-            # Check TTS API availability
-            logger.info("Checking TTS API availability...")
             await tts_engine.start()
+            ok = True
+            try:
+                # Check TTS API availability
+                logger.info("Checking TTS API availability...")
 
-            is_available, error_detail = await tts_engine.check_api_availability()
-            if not is_available:
-                logger.error(f"TTS API health check failed: {error_detail}")
-                # Get engine info from environment variables directly to avoid early Config creation
-                engine_name = os.environ.get("TTS_ENGINE", "voicevox").upper()
-                api_url = os.environ.get("VOICEVOX_URL", "http://localhost:50021")
-                logger.error(f"Please ensure {engine_name} server is running at {api_url}")
+                result = await tts_engine.check_api_availability()
+                # Pyright asserts this is tuple[bool, str]; add a runtime len check only for safety
+                # Avoid strict isinstance check to satisfy pyright; only verify length
+                if not (hasattr(result, "__len__") and len(result) == 2):
+                    raise HealthCheckError(
+                        message="Health check returned unexpected result",
+                        result_type=type(result).__name__,
+                        result_repr=repr(result),
+                        engine_name=getattr(tts_engine, "engine_name", "<unknown>").upper(),
+                        api_url=getattr(tts_engine, "api_url", "<unknown>"),
+                    )
+
+                is_available, error_detail = result
+                if not is_available:
+                    logger.error(f"TTS API health check failed: {error_detail}")
+                    # Get engine info from environment variables directly to avoid early Config creation
+                    engine_name = os.environ.get("TTS_ENGINE", "voicevox").upper()
+                    api_url = os.environ.get("VOICEVOX_URL", "http://localhost:50021")
+                    logger.error(f"Please ensure {engine_name} server is running at {api_url}")
+                    ok = False
+                else:
+                    logger.info("TTS API health check passed")
+
+                # Test TTS synthesis only if API is available
+                if ok:
+                    logger.info("Testing TTS synthesis...")
+                    test_audio = await tts_engine.synthesize_audio("Startup test")
+                    if not test_audio:
+                        logger.error("TTS synthesis test failed")
+                        ok = False
+                    else:
+                        logger.info("TTS synthesis test passed")
+            finally:
+                try:
+                    await tts_engine.close()
+                except Exception:
+                    pass
+
+            if not ok:
                 return False
 
-            logger.info("TTS API health check passed")
-
-            # Test TTS synthesis
-            logger.info("Testing TTS synthesis...")
-            test_audio = await tts_engine.synthesize_audio("Startup test")
-            if not test_audio:
-                logger.error("TTS synthesis test failed")
-                return False
-
-            logger.info("TTS synthesis test passed")
-
-            await tts_engine.close()
+        except HealthCheckError:
+            # Let HealthCheckError bubble up to be handled by the top-level main()
+            raise
 
         except ImportError as e:
             logger.error(f"Module import failed: {e!s}")
@@ -228,6 +260,12 @@ class BotManager:
 
         except Exception as e:
             logger.error(f"Health check failed: {type(e).__name__} - {e!s}")
+            # Provide full traceback to aid diagnosis of startup failures
+            import traceback
+
+            logger.error("Health check traceback:")
+            for line in traceback.format_exc().splitlines():
+                logger.error(line)
             return False
 
         logger.info("All health checks passed ✅")
@@ -260,6 +298,14 @@ async def main() -> None:
 
     except KeyboardInterrupt:
         logger.info("Shutdown requested by user")
+
+    except HealthCheckError as e:
+        # Structured log for health check contract violations
+        logger.error(
+            "HealthCheckError: {msg}",
+            msg=(f"{e.message} | result_type={e.result_type} result_repr={e.result_repr} engine={e.engine_name} url={e.api_url}"),
+        )
+        sys.exit(1)
 
     except RuntimeError as e:
         if "Voice connection failed during startup" in str(e):

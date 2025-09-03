@@ -15,8 +15,8 @@ from ..audio_utils import calculate_message_priority, cleanup_file, get_audio_si
 class VoiceHandlerProtocol(Protocol):
     """Protocol defining the interface for voice handler."""
 
-    synthesis_queue: Any
-    audio_queue: Any
+    synthesis_queue: Any  # async queue of synthesis jobs (dict)
+    audio_queue: Any  # async queue of AudioItem-compatible tuples
     stats_tracker: Any
 
     async def add_to_queue(self, message_data: dict[str, Any]) -> None:

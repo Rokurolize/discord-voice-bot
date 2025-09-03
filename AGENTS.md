@@ -1,5 +1,9 @@
 # Repository Guidelines
 
+## MCP tool
+use serena activate_project, "project": "/home/ubuntu/workbench/projects/discord-voice-bot"
+use context7 get-library-docs, "context7CompatibleLibraryID": "/rapptz/discord.py"
+
 ## Project Structure & Module Organization
 - `src/discord_voice_bot/`: core package and entrypoint (`__main__.py`).
 - `src/discord_voice_bot/voice/`: voice pipeline, queues, workers, and health.
