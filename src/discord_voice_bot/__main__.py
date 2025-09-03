@@ -262,6 +262,7 @@ class BotManager:
             logger.error(f"Health check failed: {type(e).__name__} - {e!s}")
             # Provide full traceback to aid diagnosis of startup failures
             import traceback
+
             logger.error("Health check traceback:")
             for line in traceback.format_exc().splitlines():
                 logger.error(line)
@@ -302,10 +303,7 @@ async def main() -> None:
         # Structured log for health check contract violations
         logger.error(
             "HealthCheckError: {msg}",
-            msg=(
-                f"{e.message} | result_type={e.result_type} result_repr={e.result_repr} "
-                f"engine={e.engine_name} url={e.api_url}"
-            ),
+            msg=(f"{e.message} | result_type={e.result_type} result_repr={e.result_repr} engine={e.engine_name} url={e.api_url}"),
         )
         sys.exit(1)
 

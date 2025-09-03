@@ -165,12 +165,23 @@ class VoiceConnectionManager:
 
         try:
             if hasattr(self.voice_client, "is_connected") and self.voice_client.is_connected():
-                await self.voice_client.disconnect()
-                logger.debug("✅ Voice client disconnected gracefully")
+                try:
+                    await asyncio.wait_for(self.voice_client.disconnect(), timeout=5.0)
+                    logger.debug("✅ Voice client disconnected gracefully")
+                except TimeoutError:
+                    logger.warning("⚠️ Voice client disconnect timed out after 5s; forcing cleanup")
+                except asyncio.CancelledError:
+                    # Propagate cancellation
+                    raise
+                except Exception as e:
+                    logger.warning(f"⚠️ Error during graceful disconnect: {e}")
             else:
                 logger.debug("ℹ️ Voice client was already disconnected")
+        except asyncio.CancelledError:
+            # Preserve cooperative cancellation
+            raise
         except Exception as e:
-            logger.warning(f"⚠️ Error during graceful disconnect: {e}")
+            logger.warning(f"⚠️ Error during voice client cleanup: {e}")
 
         try:
             self.voice_client = None

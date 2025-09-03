@@ -2,6 +2,9 @@
 
 from typing import Any, Protocol
 
+# Protocol-level imports should avoid importing concrete types from subpackages
+# to prevent circulars; keep this file minimal. Remove stray unused imports.
+
 
 class ConfigManager(Protocol):
     """Protocol for configuration management to avoid circular imports."""
@@ -185,6 +188,9 @@ class DiscordBotClient(Protocol):
     def __getattr__(self, name: str) -> Any:
         """Allow dynamic attribute access for optional components."""
         ...
+
+
+# (Intentionally no imports from subpackages to avoid cycles)
 
 
 class StatsLike(Protocol):

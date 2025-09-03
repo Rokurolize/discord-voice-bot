@@ -12,7 +12,8 @@ from ..audio_utils import cleanup_file
 class VoiceHandlerProtocol(Protocol):
     """Protocol defining the interface for voice handler."""
 
-    audio_queue: Any
+    # Queues
+    audio_queue: Any  # Should be an async queue of AudioItem-compatible tuples
     voice_client: Any
 
     @property

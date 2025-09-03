@@ -214,17 +214,20 @@ class TTSClient:
         - "connection timeout - server may be starting up",
         - "unexpected error: <ExceptionName>" for other errors.
 
-        Preserves cooperative cancellation by re-raising asyncio.CancelledError.
+        Logs always include engine, method name, and target URL for easier triage. Preserves cooperative
+        cancellation by re-raising asyncio.CancelledError.
         """
         if not self._session:
             await self.start_session()
 
+        method = "check_api_availability"
+        url = f"{self.api_url.rstrip('/')}/version"
+
         try:
             assert self._session is not None  # Type guard for mypy
-            url = f"{self.api_url.rstrip('/')}/version"
             async with self._session.get(url) as response:
                 if response.status == 200:
-                    logger.debug(f"{self.engine_name} TTS API is available")
+                    logger.debug(f"{self.engine_name} TTS API OK | method={method} url={url} status=200")
                     return True, ""
                 else:
                     # Read up to 256 bytes of body for diagnostics
@@ -233,34 +236,28 @@ class TTSClient:
                     except Exception:
                         body_snippet = "<unavailable>"
                     error_msg = f"HTTP {response.status}"
-                    logger.warning(f"{self.engine_name} TTS API returned {error_msg}; body={body_snippet!r}")
+                    logger.warning(f"{self.engine_name} TTS API returned {error_msg} | method={method} url={url} body={body_snippet!r}")
                     return False, error_msg
 
         except aiohttp.ClientConnectorError:
             error_msg = "connection refused - server not running"
-            logger.error(f"{self.engine_name} TTS API: {error_msg}")
+            logger.error(f"{self.engine_name} TTS API error | method={method} url={url} detail={error_msg}")
             return False, error_msg
         except aiohttp.InvalidURL as e:
             error_msg = "invalid url - misconfigured api_url"
-            logger.error(f"{self.engine_name} TTS API: {error_msg} - {e!s}")
+            logger.error(f"{self.engine_name} TTS API error | method={method} url={url} detail={error_msg} exc={e!s}")
             return False, error_msg
         except aiohttp.ClientError as e:
             error_msg = f"client error: {type(e).__name__}"
-            logger.error(f"{self.engine_name} TTS API: {error_msg} - {e!s}")
+            logger.error(f"{self.engine_name} TTS API error | method={method} url={url} detail={error_msg} exc={e!s}")
             return False, error_msg
 
         # Why we catch the built-in TimeoutError (Python ≥ 3.11, our project uses 3.12):
         # - In Python 3.11+, asyncio.TimeoutError is an alias of the built-in TimeoutError.
-        #   (See Python docs: asyncio.TimeoutError — deprecated alias of TimeoutError.)
-        # - aiohttp raises timeout-specific exceptions (ServerTimeoutError, ConnectionTimeoutError,
-        #   SocketTimeoutError) that all inherit from asyncio.TimeoutError — and therefore from TimeoutError.
-        # - Catching TimeoutError thus handles all aiohttp timeouts without redundancy; writing
-        #   (asyncio.TimeoutError, TimeoutError) is equivalent but noisier.
-        # - Linters (e.g., Ruff UP041) recommend using the built-in TimeoutError directly on 3.11+.
-        # - If this code is ever backported to Python ≤ 3.10, revisit this decision.
+        # - aiohttp raises timeout-specific exceptions that inherit from TimeoutError.
         except TimeoutError:
             error_msg = "connection timeout - server may be starting up"
-            logger.error(f"{self.engine_name} TTS API: {error_msg}")
+            logger.error(f"{self.engine_name} TTS API error | method={method} url={url} detail={error_msg}")
             return False, error_msg
 
         except asyncio.CancelledError:
@@ -269,8 +266,8 @@ class TTSClient:
 
         except Exception as e:
             error_msg = f"unexpected error: {type(e).__name__}"
-            logger.error(f"{self.engine_name} TTS API: {error_msg} - {e!s}")
-            return False, error_msg
+            logger.error(f"{self.engine_name} TTS API error | method={method} url={url} detail={error_msg} exc={e!s}")
+        return False, error_msg
 
     async def generate_audio_query(self, text: str, speaker_id: int, api_url: str) -> dict[str, Any] | None:
         """

@@ -78,6 +78,13 @@ uv run discord-voice-bot
 ### Test Mode (No Discord Connection)
 ```bash
 TEST_MODE=true uv run discord-voice-bot
+
+### Startup Health & Logs
+
+- Startup health checks validate TTS API availability and a small synthesis test.
+- Set `STARTUP_SKIP_TTS_CHECK=true` to bypass network TTS checks locally (an info log notes the skip).
+- A short grace window suppresses early voice/permission warnings until the bot is ready.
+- Health logs include engine name and API URL for easier diagnosis. Repeated identical warnings are debounced for ~10 seconds.
 ```
 
 ## Development

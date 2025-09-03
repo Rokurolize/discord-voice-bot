@@ -24,7 +24,4 @@ class HealthCheckError(Exception):
 
     @override
     def __str__(self) -> str:  # pragma: no cover - formatting convenience
-        return (
-            f"{self.message} | result_type={self.result_type} "
-            f"result_repr={self.result_repr} engine={self.engine_name} url={self.api_url}"
-        )
+        return f"{self.message} | result_type={self.result_type} result_repr={self.result_repr} engine={self.engine_name} url={self.api_url}"

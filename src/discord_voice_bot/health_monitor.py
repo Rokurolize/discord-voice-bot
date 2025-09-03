@@ -62,6 +62,11 @@ class HealthMonitor:
         self._shutdown_task: asyncio.Task[None] | None = None
         # Startup timestamp to allow a brief grace window for caches/login
         self._start_ts: float = time.time()
+        # Debounce map for repeated warnings
+        self._warn_last: dict[str, float] = {}
+        # One-time log flags
+        self._permission_scan_started: bool = False
+        self._critical_perm_checks_started: bool = False
 
     def _bot_is_ready(self) -> bool:
         """Return True if the bot reports ready; supports both attr and method."""
@@ -77,6 +82,19 @@ class HealthMonitor:
             return (time.time() - self._start_ts) < seconds
         except Exception:
             return False
+
+    def _should_emit_warning(self, key: str, window_s: float = 10.0) -> bool:
+        """Return True if a warning identified by `key` should be emitted.
+
+        Maintains a short-lived timestamp map of previously emitted warnings and suppresses
+        identical messages within the provided window.
+        """
+        now = time.time()
+        last = self._warn_last.get(key, 0.0)
+        if now - last >= window_s:
+            self._warn_last[key] = now
+            return True
+        return False
 
     async def start(self) -> None:
         """Start health monitoring tasks."""
@@ -282,21 +300,29 @@ class HealthMonitor:
                         status = {}
                 if not status.get("connected", False):
                     issues.append("Voice connection lost")
-                    logger.warning(f"🔍 Voice health check: Connection status = {status.get('connected', 'unknown')}")
+                    msg = f"🔍 Voice health check: Connection status = {status.get('connected', 'unknown')}"
+                    if self._should_emit_warning(msg):
+                        logger.warning(msg)
                     self.record_disconnection("Health check detected disconnection")
                 elif not status.get("audio_playback_ready", True):
                     issues.append("Audio playback not ready")
-                    logger.warning(f"🔍 Voice health check: Audio playback ready = {status.get('audio_playback_ready', 'unknown')}")
+                    msg = f"🔍 Voice health check: Audio playback ready = {status.get('audio_playback_ready', 'unknown')}"
+                    if self._should_emit_warning(msg):
+                        logger.warning(msg)
             else:
                 # Only report as issue if bot is ready but voice handler is missing
                 if bot_ready:
                     issues.append("Voice handler not initialized")
-                    logger.warning("🔍 Voice health check: Bot is ready but voice handler is missing - this may indicate a problem")
+                    msg = "🔍 Voice health check: Bot is ready but voice handler is missing - this may indicate a problem"
+                    if self._should_emit_warning(msg):
+                        logger.warning(msg)
                 else:
                     logger.debug("🔍 Voice health check: Voice handler not yet available (bot not ready) - this is normal during startup")
         except AttributeError:
             issues.append("Voice handler access error")
-            logger.warning("🔍 Voice health check: AttributeError accessing voice handler")
+            msg = "🔍 Voice health check: AttributeError accessing voice handler"
+            if self._should_emit_warning(msg):
+                logger.warning(msg)
 
         except Exception as e:
             issues.append("Voice health check error: " + str(e))
@@ -309,7 +335,9 @@ class HealthMonitor:
         missing_perms = [perm for perm, has_perm in critical_perms.items() if not has_perm]
 
         if missing_perms:
-            logger.warning(f"⚠️ Missing permissions in {guild.name}: {', '.join(missing_perms)}")
+            msg = f"⚠️ Missing permissions in {guild.name}: {', '.join(missing_perms)}"
+            if self._should_emit_warning(msg):
+                logger.warning(msg)
 
             # Check if this affects our target channel
             target_channel = self.bot.get_channel(self._config_manager.get_target_voice_channel_id())
@@ -330,6 +358,11 @@ class HealthMonitor:
         if not self._bot_is_ready() or self._in_grace_window():
             logger.debug("🔐 Startup phase; skipping guild permission warnings")
             return
+
+        # First time we are past startup/grace, announce that permission scans begin
+        if not self._permission_scan_started:
+            self._permission_scan_started = True
+            logger.info("🔐 Bot is ready; starting periodic guild permission scans")
 
         if not self.bot.guilds:
             logger.warning("⚠️ Bot is not in any guilds")
@@ -358,7 +391,12 @@ class HealthMonitor:
         try:
             # Suppress target-channel checks until ready (or after grace)
             if not self._bot_is_ready() or self._in_grace_window():
+                logger.debug("🔐 Startup phase; skipping critical permission checks for target channel")
                 return True, []
+
+            if not self._critical_perm_checks_started:
+                self._critical_perm_checks_started = True
+                logger.info("🔐 Beginning critical permission checks for target voice channel")
 
             target_channel_id = self._config_manager.get_target_voice_channel_id()
             target_channel = self.bot.get_channel(target_channel_id)
