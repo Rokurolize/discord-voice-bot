@@ -281,11 +281,16 @@ class BotFactory:
         # Register built-in Cogs (hybrid commands, etc.)
         try:
             from .cogs.status import StatusCommands
+            from .cogs.voice import VoiceCommands
 
             # Avoid double-registration during tests/restarts
             if not any(isinstance(cog, StatusCommands) for cog in bot.cogs.values()):
                 await bot.add_cog(StatusCommands(bot))
                 logger.debug("Registered StatusCommands cog")
+
+            if not any(isinstance(cog, VoiceCommands) for cog in bot.cogs.values()):
+                await bot.add_cog(VoiceCommands(bot))
+                logger.debug("Registered VoiceCommands cog")
         except Exception as e:
             logger.debug(f"Skipping Cog registration (optional): {e}")
 
