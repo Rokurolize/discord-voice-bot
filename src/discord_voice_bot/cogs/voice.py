@@ -137,6 +137,40 @@ class VoiceCommands(commands.Cog):
         except Exception as e:
             await self._send(ctx, f"❌ Error during reconnection: {e}", ephemeral=True)
 
+    @commands.hybrid_command(name="test", description="Test TTS with custom text")
+    @app_commands.describe(text="Text to convert to speech")
+    @commands.has_permissions(send_messages=True)
+    @commands.cooldown(1, 5.0, commands.BucketType.user)
+    @app_commands.default_permissions()
+    async def test_tts(self, ctx: commands.Context[Any], *, text: str = "テストメッセージです") -> None:
+        if not hasattr(self.bot, "voice_handler") or not getattr(self.bot, "voice_handler"):
+            await self._send(ctx, "❌ Voice handler not available", ephemeral=True)
+            return
+
+        status = cast(dict[str, Any], self.bot.voice_handler.get_status())  # type: ignore[attr-defined]
+        if not status.get("connected"):
+            await self._send(ctx, "❌ Not connected to voice channel", ephemeral=True)
+            return
+
+        # Process text using existing message processor
+        from ..message_processor import get_message_processor
+
+        message_processor = get_message_processor(self.bot.config_manager)  # type: ignore[attr-defined]
+        processed_text = message_processor.process_message_content(text, ctx.author.display_name)
+        chunks = message_processor.chunk_message(processed_text)
+
+        group_id = f"hybrid_test_{getattr(getattr(ctx, 'interaction', None), 'id', getattr(getattr(ctx, 'message', None), 'id', '0'))}"
+        processed_message = {
+            "text": processed_text,
+            "user_id": ctx.author.id,
+            "username": ctx.author.display_name,
+            "chunks": chunks,
+            "group_id": group_id,
+        }
+
+        await self.bot.voice_handler.add_to_queue(processed_message)  # type: ignore[attr-defined]
+        await self._send(ctx, f"🎤 Test TTS queued: `{processed_text[:50]}...`", ephemeral=True)
+
 
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(VoiceCommands(bot))
