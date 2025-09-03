@@ -1,8 +1,8 @@
 # Repository Guidelines
 
-## MCP tools
-
-Use Serena: Serena excels at navigating and manipulating complex codebases, providing tools that support precise code retrieval and editing in the presence of large, strongly structured codebases.
+## MCP tool
+use serena activate_project, "project": "/home/ubuntu/workbench/projects/discord-voice-bot"
+use context7 get-library-docs, "context7CompatibleLibraryID": "/rapptz/discord.py"
 
 ## Project Structure & Module Organization
 - `src/discord_voice_bot/`: core package and entrypoint (`__main__.py`).
