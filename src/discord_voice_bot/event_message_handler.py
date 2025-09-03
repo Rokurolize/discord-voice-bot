@@ -30,13 +30,8 @@ class MessageHandler:
             logger.debug(f"🔵 Message details - Type: {message.type}, Author bot: {message.author.bot}, Content length: {len(message.content)}")
 
             # Process commands first (with optional rate limiting) - BEFORE TTS filtering
-            logger.debug("🟡 STEP 1: Processing commands for message")
-            if hasattr(self.bot, "voice_handler") and self.bot.voice_handler:  # type: ignore
-                logger.debug("🟡 Using voice_handler.make_rate_limited_request for bot.process_commands")
-                await self.bot.voice_handler.make_rate_limited_request(self.bot.process_commands, message)  # type: ignore
-            else:
-                logger.debug("🟡 Using bot.process_commands directly")
-                await self.bot.process_commands(message)
+            logger.debug("🟡 STEP 1: Processing commands for message (no custom rate-limit; delegate to discord.py)")
+            await self.bot.process_commands(message)
             logger.debug("✅ STEP 1 COMPLETED: Command processing done")
 
             # Apply comprehensive message filtering
