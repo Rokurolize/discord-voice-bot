@@ -131,7 +131,7 @@ class BotFactory:
         # Create and register components
         components_to_setup = [
             ("event_handler", self._create_event_handler),
-            ("slash_handler", self._create_slash_command_handler),
+            # Slash registry is deprecated; hybrid Cogs register themselves
             ("message_validator", self._create_message_validator),
             ("status_manager", self._create_status_manager),
             ("voice_handler", self._create_voice_handler),
@@ -222,16 +222,9 @@ class BotFactory:
     async def _create_command_handler(self, bot: Any) -> Any:  # pragma: no cover
         return None
 
-    async def _create_slash_command_handler(self, bot: Any) -> Any:
-        """
-        Create and return a slash command registry (or None if unavailable).
-
-        """
-        try:
-            return self._create_component("discord_voice_bot.slash.registry", "SlashCommandRegistry", bot)
-        except (ImportError, AttributeError):
-            logger.warning("Slash command handler not available")
-            return None
+    # Deprecated: registry is no longer created; hybrid Cogs handle registration
+    async def _create_slash_command_handler(self, bot: Any) -> Any:  # pragma: no cover
+        return None
 
     async def _create_message_validator(self, bot: Any, config: Config) -> "MessageValidator":
         """Create a MessageValidator using the provided per-bot Config."""
