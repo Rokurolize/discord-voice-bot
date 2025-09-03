@@ -16,19 +16,23 @@
 - [x] Discord API 呼び出しのレートはライブラリに委譲（独自は TTS API限定）
 
 ## イベントハンドリング簡素化（任意）
-- [ ] `event_handler` 経由の単純委譲を Cog 直実装に集約する案の評価
-- [ ] 重要イベントのみ委譲層を残す（可観測性・分離の観点）
+- [x] `event_handler` 経由の単純委譲を Cog 直実装に集約する案の評価
+- [x] 重要イベントのみ委譲層を残す（可観測性・分離の観点）
 
 ## Voice 層見直し（中期）
-- [ ] `VoiceConnectionManager` で `VoiceChannel.connect()`/`Guild.voice_client` を標準経路に寄せる
-- [ ] `NullVoiceClient` の利用箇所棚卸し（`None`/guard で代替可能か）
+- [x] `VoiceConnectionManager` で `VoiceChannel.connect()`/`Guild.voice_client` を標準経路に寄せる
+- [x] `NullVoiceClient` の利用箇所棚卸し（`None`/guard で代替可能か）
 - [ ] 必要なら `VoiceProtocol`/`connect(cls=...)` の正攻法拡張
 
 ## ログ/ステータス整備
-- [ ] `discord.utils.setup_logging`/`client.run(log_handler=...)` の採用要否を決定
-- [ ] stats のレガシー互換層の deprecate 計画（`StatsTracker` に収束）
+- [x] `discord.utils.setup_logging`/`client.run(log_handler=...)` の採用要否を決定（loguru維持）
+- [x] stats のレガシー互換層の deprecate 計画（`StatsTracker` に収束）
 
 ## テスト/CI
 - [ ] 変更点に対する単体/統合テストの追加
 - [x] `poe check` がローカルでグリーンになることを確認
 - [ ] PR 説明に移行背景と差分の根拠（公式 docs）を添付
+## レガシー互換層
+- [x] `slash/registry.py` を撤去（Hybrid Cogへ移行済み）
+- [x] `slash/handlers/*` を撤去（機能はCogへ統合）
+- [x] `slash_command_handler.py` と `slash/__init__.py` の互換層を廃止

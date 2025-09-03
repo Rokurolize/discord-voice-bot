@@ -1,7 +1,7 @@
 """Voice connection management for voice handler."""
 
 import asyncio
-from typing import Any
+from typing import Any, cast
 
 import discord
 from loguru import logger
@@ -151,7 +151,21 @@ class VoiceConnectionManager:
     def is_connected(self) -> bool:
         """Check if the bot is connected to a voice channel."""
         try:
-            return self.voice_client is not None and self.voice_client.is_connected()
+            # Prefer current voice_client if available
+            if self.voice_client is not None:
+                return self.voice_client.is_connected()
+
+            # Fallback: if we know the target channel, ask the guild for its voice_client
+            if self.target_channel is not None:
+                vc = cast(discord.VoiceClient | None, self.target_channel.guild.voice_client)
+                return bool(vc and getattr(vc, "is_connected", lambda: False)())
+
+            # Last resort: inspect any active voice_clients on the bot
+            if hasattr(self.bot, "voice_clients"):
+                for vc in getattr(self.bot, "voice_clients"):
+                    if vc and getattr(vc, "is_connected", lambda: False)():
+                        return True
+            return False
         except Exception:
             return False
 
@@ -211,14 +225,18 @@ class VoiceConnectionManager:
 
     def get_connection_info(self) -> dict[str, Any]:
         """Get current connection information."""
-        connected = bool(self.voice_client and self.voice_client.is_connected())
+        connected = self.is_connected()
         channel_name = None
         channel_id = None
 
         try:
-            if self.voice_client and getattr(self.voice_client, "channel", None):
-                channel_name = self.voice_client.channel.name
-                channel_id = self.voice_client.channel.id
+            vc = self.voice_client
+            if not vc and self.target_channel is not None:
+                vc = cast(discord.VoiceClient | None, self.target_channel.guild.voice_client)
+            if vc and getattr(vc, "channel", None):
+                ch = cast(Any, vc.channel)
+                channel_name = cast(str, getattr(ch, "name", None))
+                channel_id = cast(int, getattr(ch, "id", None))
             elif self.target_channel:
                 channel_name = self.target_channel.name
                 channel_id = self.target_channel.id

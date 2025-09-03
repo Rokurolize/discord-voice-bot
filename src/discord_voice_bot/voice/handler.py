@@ -439,6 +439,9 @@ class VoiceHandler(VoiceHandlerInterface):
         """
         Set stats from a legacy-style dictionary, mapping known keys.
         """
+        logger.warning(
+            "DEPRECATED: Setting VoiceHandler.stats via legacy dict. Prefer using StatsTracker APIs."
+        )
         # Reset and map known keys into the tracker
         self.stats_tracker.reset_stats()
         # Prefer direct keys if present
