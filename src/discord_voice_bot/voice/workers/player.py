@@ -51,7 +51,7 @@ class PlayerWorker:
                     # Add timeout to queue.get() to prevent indefinite blocking
                     try:
                         audio_path, group_id, priority, chunk_index, audio_size = await asyncio.wait_for(self.voice_handler.audio_queue.get(), timeout=1.0)
-                    except TimeoutError:
+                    except (TimeoutError, asyncio.QueueEmpty):
                         now = asyncio.get_running_loop().time()
                         if now - getattr(self, "_last_idle_log", 0.0) >= 60.0:
                             logger.debug("PlayerWorker is idle, waiting for audio chunks in the queue.")

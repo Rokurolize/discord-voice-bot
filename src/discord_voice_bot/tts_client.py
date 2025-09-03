@@ -221,7 +221,8 @@ class TTSClient:
 
         try:
             assert self._session is not None  # Type guard for mypy
-            async with self._session.get(f"{self.api_url.rstrip('/')}/version") as response:
+            url = f"{self.api_url.rstrip('/')}/version"
+            async with self._session.get(url) as response:
                 if response.status == 200:
                     logger.debug(f"{self.engine_name} TTS API is available")
                     return True, ""

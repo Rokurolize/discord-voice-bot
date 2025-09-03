@@ -106,6 +106,14 @@ class Config:
     test_mode: bool
     enable_self_message_processing: bool
 
+    # Use identity-based hashing to allow weak-key caching without hashing nested mappings.
+    # The default dataclass-generated __hash__ would attempt to hash all fields, which include
+    # mapping types (dict/mappingproxy) that are unhashable, leading to "unhashable type: 'dict'"
+    # when used as keys in WeakKeyDictionary. Identity hashing is sufficient for our use-case
+    # (cache per Config instance) and preserves weakref semantics.
+    def __hash__(self) -> int:  # type: ignore[override]  # pragma: no cover - trivial
+        return id(self)
+
     @classmethod
     def from_env(cls) -> "Config":
         """

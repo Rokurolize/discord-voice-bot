@@ -60,6 +60,23 @@ class HealthMonitor:
         self._graceful_shutdown = False
         self._shutdown_reason: str | None = None
         self._shutdown_task: asyncio.Task[None] | None = None
+        # Startup timestamp to allow a brief grace window for caches/login
+        self._start_ts: float = time.time()
+
+    def _bot_is_ready(self) -> bool:
+        """Return True if the bot reports ready; supports both attr and method."""
+        ready_attr = getattr(self.bot, "is_ready", None)
+        try:
+            return bool(ready_attr()) if callable(ready_attr) else bool(ready_attr)
+        except Exception:
+            return False
+
+    def _in_grace_window(self, seconds: float = 15.0) -> bool:
+        """Return True if within initial startup grace period."""
+        try:
+            return (time.time() - self._start_ts) < seconds
+        except Exception:
+            return False
 
     async def start(self) -> None:
         """Start health monitoring tasks."""
@@ -238,7 +255,7 @@ class HealthMonitor:
 
         try:
             # Check bot readiness status
-            bot_ready = hasattr(self.bot, "is_ready") and self.bot.is_ready
+            bot_ready = self._bot_is_ready()
             logger.debug(f"🔍 Voice health check: Bot ready = {bot_ready}")
 
             # Get voice handler status
@@ -246,6 +263,10 @@ class HealthMonitor:
             logger.debug(f"🔍 Voice health check: Voice handler present = {voice_handler is not None}")
 
             if voice_handler:
+                # Suppress voice connection warnings until bot is ready (or during grace)
+                if not bot_ready or self._in_grace_window():
+                    logger.debug("🔍 Voice health check: Startup phase; suppressing voice connection warnings")
+                    return True, []
                 # Obtain status defensively (support sync or async get_status implementations)
                 get_status = getattr(voice_handler, "get_status", None)
                 status: dict[str, Any] = {}
@@ -305,6 +326,11 @@ class HealthMonitor:
         """Check bot permissions across all accessible guilds."""
         logger.debug("🔐 Performing comprehensive bot permissions check...")
 
+        # Suppress early warnings until ready or after grace
+        if not self._bot_is_ready() or self._in_grace_window():
+            logger.debug("🔐 Startup phase; skipping guild permission warnings")
+            return
+
         if not self.bot.guilds:
             logger.warning("⚠️ Bot is not in any guilds")
             return
@@ -330,6 +356,10 @@ class HealthMonitor:
         issues: list[str] = []
 
         try:
+            # Suppress target-channel checks until ready (or after grace)
+            if not self._bot_is_ready() or self._in_grace_window():
+                return True, []
+
             target_channel_id = self._config_manager.get_target_voice_channel_id()
             target_channel = self.bot.get_channel(target_channel_id)
             if not target_channel:
