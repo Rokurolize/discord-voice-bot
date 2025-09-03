@@ -1,5 +1,9 @@
 # Repository Guidelines
 
+## MCP tools
+
+Use Serena: Serena excels at navigating and manipulating complex codebases, providing tools that support precise code retrieval and editing in the presence of large, strongly structured codebases.
+
 ## Project Structure & Module Organization
 - `src/discord_voice_bot/`: core package and entrypoint (`__main__.py`).
 - `src/discord_voice_bot/voice/`: voice pipeline, queues, workers, and health.
