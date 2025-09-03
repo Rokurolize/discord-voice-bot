@@ -10,6 +10,8 @@ from ..config import Config
 from ..slash.autocomplete.voice import voice_autocomplete
 from ..slash.embeds.voices import create_voices_embed
 from ..user_settings import load_user_settings
+from ..utils.embeds import make_embed
+from ..utils.respond import send_interaction
 
 
 class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech controls"):
@@ -37,19 +39,19 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
             if speaker is None:
                 current = settings.get_user_settings(user_id)
                 if current:
-                    embed = discord.Embed(
-                        title="🎭 Your Voice Settings",
+                    embed = make_embed(
+                        "🎭 Your Voice Settings",
+                        f"Current voice: **{current['speaker_name']}** (ID: {current['speaker_id']})",
                         color=discord.Color.blue(),
-                        description=f"Current voice: **{current['speaker_name']}** (ID: {current['speaker_id']})",
                     )
                     _ = embed.add_field(
                         name="Commands",
                         value="`/tts set <name>` to set\n`/tts set reset` to default\n`/tts list` to list",
                         inline=False,
                     )
-                    _ = await interaction.response.send_message(embed=embed, ephemeral=True)
+                    _ = await send_interaction(interaction, embed=embed, ephemeral=True)
                 else:
-                    _ = await interaction.response.send_message("ℹ️ No custom voice set. Using default.", ephemeral=True)
+                    _ = await send_interaction(interaction, content="ℹ️ No custom voice set. Using default.", ephemeral=True)
                 return
 
             sp = speaker.strip()
@@ -85,10 +87,7 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
 
             if matched_name and matched_id is not None:
                 if settings.set_user_speaker(user_id, matched_id, matched_name, cfg.tts_engine):
-                    _ = await interaction.response.send_message(
-                        f"✅ Voice set to **{matched_name}** (ID: {matched_id}) on {cfg.tts_engine.upper()}",
-                        ephemeral=True,
-                    )
+                    _ = await send_interaction(interaction, content=f"✅ Voice set to **{matched_name}** (ID: {matched_id}) on {cfg.tts_engine.upper()}", ephemeral=True)
                     # Optional short test
                     test_text = f"{matched_name}の声です"
                     if hasattr(self.bot, "voice_handler") and getattr(self.bot, "voice_handler"):
@@ -103,11 +102,11 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
                         }
                         await self.bot.voice_handler.add_to_queue(msg)  # type: ignore[attr-defined]
                 else:
-                    _ = await interaction.response.send_message("❌ Failed to save voice preference", ephemeral=True)
+                    _ = await send_interaction(interaction, content="❌ Failed to save voice preference", ephemeral=True)
             else:
-                _ = await interaction.response.send_message(f"❌ Voice '{speaker}' not found. Use `/tts list` to see available options.", ephemeral=True)
+                _ = await send_interaction(interaction, content=f"❌ Voice '{speaker}' not found. Use `/tts list` to see available options.", ephemeral=True)
         except Exception:
-            await self._safe_error(interaction, "❌ Error setting voice preference")
+            _ = await send_interaction(interaction, content="❌ Error setting voice preference", ephemeral=True)
 
     # /tts list
     @app_commands.command(name="list", description="List all available voices")
@@ -118,34 +117,30 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
             cfg = cast(Config, config_val)
             tts_engine = getattr(self.bot, "tts_engine", None)
             if not cfg or not tts_engine:
-                _ = await interaction.response.send_message("❌ Voice information unavailable", ephemeral=True)
+                _ = await send_interaction(interaction, content="❌ Voice information unavailable", ephemeral=True)
                 return
             user_settings = load_user_settings()
             embed = await create_voices_embed(interaction.user.id, cfg, tts_engine, user_settings)
-            _ = await interaction.response.send_message(embed=embed, ephemeral=False)
+            _ = await send_interaction(interaction, embed=embed, ephemeral=False)
         except Exception:
-            await self._safe_error(interaction, "❌ Error retrieving voice information")
+            _ = await send_interaction(interaction, content="❌ Error retrieving voice information", ephemeral=True)
 
     # /tts check
     @app_commands.command(name="check", description="Perform voice connection health check")
     async def tts_check(self, interaction: discord.Interaction) -> None:
         try:
             if not hasattr(self.bot, "voice_handler") or not getattr(self.bot, "voice_handler"):
-                embed = discord.Embed(
-                    title="🔍 Voice Health Check",
-                    color=discord.Color.red(),
-                    description="❌ Voice handler not initialized",
-                )
-                _ = await interaction.response.send_message(embed=embed, ephemeral=True)
+                embed = make_embed("🔍 Voice Health Check", "❌ Voice handler not initialized", color=discord.Color.red())
+                _ = await send_interaction(interaction, embed=embed, ephemeral=True)
                 return
 
             status = cast(dict[str, Any], self.bot.voice_handler.get_status())  # type: ignore[attr-defined]
             health = cast(dict[str, Any], await self.bot.voice_handler.health_check())  # type: ignore[attr-defined]
 
-            embed = discord.Embed(
-                title="🔍 Voice Health Check Results",
+            embed = make_embed(
+                "🔍 Voice Health Check Results",
+                f"Overall Status: {'✅ HEALTHY' if health.get('healthy') else '❌ ISSUES FOUND'}",
                 color=(discord.Color.green() if health.get("healthy") else discord.Color.red()),
-                description=f"Overall Status: {'✅ HEALTHY' if health.get('healthy') else '❌ ISSUES FOUND'}",
             )
             _ = embed.add_field(
                 name="🔗 Connection Status",
@@ -172,16 +167,16 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
             if recs:
                 _ = embed.add_field(name="🛠️ Recommendations", value="\n".join(f"💡 {r}" for r in recs), inline=False)
 
-            _ = await interaction.response.send_message(embed=embed, ephemeral=True)
+            _ = await send_interaction(interaction, embed=embed, ephemeral=True)
         except Exception:
-            await self._safe_error(interaction, "❌ Error during health check")
+            _ = await send_interaction(interaction, content="❌ Error during health check", ephemeral=True)
 
     # /tts reconnect
     @app_commands.command(name="reconnect", description="Manually attempt to reconnect to voice channel")
     async def tts_reconnect(self, interaction: discord.Interaction) -> None:
         try:
             if not hasattr(self.bot, "voice_handler") or not getattr(self.bot, "voice_handler"):
-                _ = await interaction.response.send_message("❌ Voice handler not initialized", ephemeral=True)
+                _ = await send_interaction(interaction, content="❌ Voice handler not initialized", ephemeral=True)
                 return
 
             cm = getattr(self.bot, "config_manager", None)
@@ -191,9 +186,9 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
             success = False
             if target_id:
                 success = await self.bot.voice_handler.connect_to_channel(int(target_id))  # type: ignore[attr-defined]
-            _ = await interaction.response.send_message("✅ Reconnected to voice channel" if success else "❌ Reconnection failed", ephemeral=True)
+            _ = await send_interaction(interaction, content=("✅ Reconnected to voice channel" if success else "❌ Reconnection failed"), ephemeral=True)
         except Exception as e:
-            await self._safe_error(interaction, f"❌ Error during reconnection: {e}")
+            _ = await send_interaction(interaction, content=f"❌ Error during reconnection: {e}", ephemeral=True)
 
     # /tts test
     @app_commands.command(name="test", description="Test TTS with custom text")
@@ -201,11 +196,11 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
     async def tts_test(self, interaction: discord.Interaction, text: str = "テストメッセージです") -> None:
         try:
             if not hasattr(self.bot, "voice_handler") or not getattr(self.bot, "voice_handler"):
-                _ = await interaction.response.send_message("❌ Voice handler not available", ephemeral=True)
+                _ = await send_interaction(interaction, content="❌ Voice handler not available", ephemeral=True)
                 return
             status = cast(dict[str, Any], self.bot.voice_handler.get_status())  # type: ignore[attr-defined]
             if not status.get("connected"):
-                _ = await interaction.response.send_message("❌ Not connected to voice channel", ephemeral=True)
+                _ = await send_interaction(interaction, content="❌ Not connected to voice channel", ephemeral=True)
                 return
 
             from ..message_processor import get_message_processor
@@ -222,9 +217,9 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
                 "group_id": f"tts_test_{interaction.id}",
             }
             await self.bot.voice_handler.add_to_queue(processed_message)  # type: ignore[attr-defined]
-            _ = await interaction.response.send_message(f"🎤 Test TTS queued: `{processed_text[:50]}...`")
+            _ = await send_interaction(interaction, content=f"🎤 Test TTS queued: `{processed_text[:50]}...`")
         except Exception:
-            await self._safe_error(interaction, "❌ Error testing TTS")
+            _ = await send_interaction(interaction, content="❌ Error testing TTS", ephemeral=True)
 
     # /tts skip
     @app_commands.command(name="skip", description="Skip current TTS playback")
@@ -246,12 +241,12 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
     async def tts_clear(self, interaction: discord.Interaction) -> None:
         try:
             if not hasattr(self.bot, "voice_handler") or not getattr(self.bot, "voice_handler"):
-                _ = await interaction.response.send_message("❌ Voice handler not available", ephemeral=True)
+                _ = await send_interaction(interaction, content="❌ Voice handler not available", ephemeral=True)
                 return
             count = await self.bot.voice_handler.clear_all()  # type: ignore[attr-defined]
-            _ = await interaction.response.send_message(f"🗑️ Cleared {count} messages from TTS queue", ephemeral=True)
+            _ = await send_interaction(interaction, content=f"🗑️ Cleared {count} messages from TTS queue", ephemeral=True)
         except Exception:
-            await self._safe_error(interaction, "❌ Error clearing queue")
+            _ = await send_interaction(interaction, content="❌ Error clearing queue", ephemeral=True)
 
     async def _safe_error(self, interaction: discord.Interaction, message: str) -> None:
         try:
