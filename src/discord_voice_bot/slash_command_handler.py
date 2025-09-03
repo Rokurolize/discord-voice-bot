@@ -29,8 +29,11 @@ class SlashCommandHandler(NewSlashCommandHandler):
             bot: The Discord bot instance
 
         """
-        # Delegate to new implementation
-        super().__init__(bot)
+        # Delegate to new implementation (no-op in modern path)
+        try:
+            super().__init__()
+        except Exception:
+            pass
         logger.warning("⚠️  DEPRECATED: Using old SlashCommandHandler. Consider migrating to discord_voice_bot.slash.SlashCommandHandler")
 
     # All methods are inherited from NewSlashCommandHandler

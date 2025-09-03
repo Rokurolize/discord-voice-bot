@@ -1,10 +1,12 @@
 """Slash command handling for Discord Voice TTS Bot."""
 
 # Compatibility layer - re-export old names
-# Legacy alias retained for backward-compat imports in external code.
-try:
-    from .registry import SlashCommandRegistry as SlashCommandHandler
-except Exception:  # pragma: no cover
-    SlashCommandHandler = object  # fallback
+class SlashCommandHandler:  # pragma: no cover
+    """Deprecated no-op placeholder.
+
+    This exists only for backward compatibility with external imports.
+    All slash commands are now provided by Hybrid Cogs.
+    """
+    
 
 __all__ = ["SlashCommandHandler"]

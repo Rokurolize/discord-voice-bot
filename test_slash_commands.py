@@ -10,9 +10,9 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 import discord
 from discord.ext import commands
-from loguru import logger
 
-from discord_voice_bot.slash.registry import SlashCommandRegistry
+from discord_voice_bot.cogs.status import StatusCommands
+from discord_voice_bot.cogs.voice import VoiceCommands
 
 
 async def test_slash_commands():
@@ -27,30 +27,17 @@ async def test_slash_commands():
     bot = commands.Bot(command_prefix="!", intents=intents)
 
     try:
-        # Create slash command registry
-        registry = SlashCommandRegistry(bot)
-
-        # Register slash commands (without syncing to avoid auth requirements)
-        logger.info("🔧 Registering slash commands...")
-
-        # Clear existing commands to avoid conflicts
+        # Clear existing commands to avoid conflicts and load Hybrid Cogs
         bot.tree.clear_commands(guild=None)
+        await bot.add_cog(StatusCommands(bot))
+        await bot.add_cog(VoiceCommands(bot))
 
-        # Register core commands
-        await registry._register_core()  # type: ignore[reportPrivateUsage]
-
-        # Register voice commands
-        await registry._register_voice()  # type: ignore[reportPrivateUsage]
-
-        # Register utility commands
-        await registry._register_util()  # type: ignore[reportPrivateUsage]
-
-        # Get registered commands
-        registered = registry.get_registered_commands()
+        # Inspect CommandTree for registered commands
+        commands_list = bot.tree.get_commands()
+        registered = {cmd.name for cmd in commands_list}
         print(f"✅ Successfully registered {len(registered)} slash commands:")
-
-        for name, info in registered.items():
-            print(f"  - /{name}: {info.get('handler', 'No handler')}")
+        for name in sorted(registered):
+            print(f"  - /{name}")
 
         # Test that we have the expected commands
         expected_commands = ["status", "skip", "clear", "voice", "voices", "voicecheck", "reconnect", "test"]
