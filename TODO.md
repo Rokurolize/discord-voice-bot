@@ -1,112 +1,36 @@
-# TODOs for Robust Error Propagation, Design Contracts, and Clean Startup Logs
+# TODO (本タスク用)
 
-This list captures concrete follow-ups to eliminate diagnostic gaps, align caller/callee contracts, and keep production logs clear and actionable. Each item references the current code location and prescribes a precise change and a test.
+進め方: チェックボックスで進捗管理します。完了時は [x] に変更。
 
-## 1) Error Propagation & Diagnostics
+## ブランチ運用
+- [x] 新規ブランチ作成（`chore/task-todo-setup`）
+- [ ] 最終反映用ブランチ命名を確定（例: `feat/discordpy-alignment`）
 
-- Health-check result guard: replace opaque log with typed error propagation
-  - Status: Implemented (code) — tests implemented
-  - Where: `src/discord_voice_bot/__main__.py:~200`, `src/discord_voice_bot/errors.py`
-  - Problem: `logger.error(f"Health check returned unexpected result: {result!r}")` logs but doesn’t propagate root cause context.
-  - Action:
-    - Introduced `HealthCheckError` in `src/discord_voice_bot/errors.py`.
-    - On invalid result shape, now raises `HealthCheckError` with fields: `result_type`, `result_repr`, `engine_name`, `api_url`.
-    - In `main()`, added an explicit `except HealthCheckError` to log structured details and exit with status 1.
-  - Remaining Tests:
-    - DONE: Extended `tests/test_startup_health_smoke.py` with a “weird return” case asserting `HealthCheckError` is raised and message includes engine/url.
+## コマンド/スラッシュ整理
+- [ ] 旧 `slash_command_handler.py` の段階的撤去方針を決定
+- [ ] `slash/` 配下を `app_commands`/`bot.tree` ベースに統一する設計
+- [ ] 代表ハンドラをハイブリッド化（必要に応じて `@bot.hybrid_command`）
+- [ ] 移行の最小パス（互換 alias／deprecated log）の提示
 
-- Standardize exception-to-log mapping for TTS checks
-  - Where: `src/discord_voice_bot/tts_client.py:206` and callers
-  - Action: Ensure any unexpected exception is converted to a structured `(False, reason)` with short reason and log includes: engine, method, url, exception type, and a brief snippet. Keep cooperative cancellation intact.
-  - Tests: Contract test asserting exact tuple shape and non-empty detail on failures.
+## レート制御の標準化
+- [ ] コマンドのクールダウンを `app_commands.checks.cooldown` / `commands.cooldown` に移行
+- [ ] Discord API 呼び出しのレートはライブラリに委譲（独自は TTS API限定）
 
-## 2) Logging Quality & Structure
+## イベントハンドリング簡素化（任意）
+- [ ] `event_handler` 経由の単純委譲を Cog 直実装に集約する案の評価
+- [ ] 重要イベントのみ委譲層を残す（可観測性・分離の観点）
 
-- Structured log fields (actionable context)
-  - Where: hot paths in `__main__.py`, `health_monitor.py`, `tts_client.py`, `voice/` workers
-  - Action: Include context fields consistently: `engine`, `api_url`, `target_channel_id`, `guild_id` (when available), `ready`, `in_grace`, `event` code (e.g., `HM-VOICE-NOT-CONNECTED`). Keep human sentence plus fields.
-  - Tests: Snapshot/regex tests verifying presence of key fields in warnings after ready.
+## Voice 層見直し（中期）
+- [ ] `VoiceConnectionManager` で `VoiceChannel.connect()`/`Guild.voice_client` を標準経路に寄せる
+- [ ] `NullVoiceClient` の利用箇所棚卸し（`None`/guard で代替可能か）
+- [ ] 必要なら `VoiceProtocol`/`connect(cls=...)` の正攻法拡張
 
-- Debounce repeated warnings
-  - Where: `src/discord_voice_bot/health_monitor.py`
-  - Action: Keep a short-lived map of last-emitted issue string → timestamp; suppress identical warning logs within, e.g., 10 seconds.
-  - Tests: Simulate repeated detections; assert single warning within window.
+## ログ/ステータス整備
+- [ ] `discord.utils.setup_logging`/`client.run(log_handler=...)` の採用要否を決定
+- [ ] stats のレガシー互換層の deprecate 計画（`StatsTracker` に収束）
 
-## 3) Startup Gating (No False Alarms)
+## テスト/CI
+- [ ] 変更点に対する単体/統合テストの追加
+- [ ] `poe check` がローカルでグリーンになることを確認
+- [ ] PR 説明に移行背景と差分の根拠（公式 docs）を添付
 
-- Correct readiness detection and grace window (implemented, verify coverage)
-  - Where: `src/discord_voice_bot/health_monitor.py:_bot_is_ready`, `_in_grace_window`, voice/permission gating
-  - Action: Keep as is; ensure permission and voice checks remain suppressed pre-ready and within grace.
-  - Tests: `tests/test_health_monitor_startup_gating.py` (done). Consider adding a test that flips ready from False→True and re-runs checks.
-
-- Optional flag to skip network TTS checks locally
-  - Where: `src/discord_voice_bot/__main__.py:health_check`
-  - Action: Support `STARTUP_SKIP_TTS_CHECK=true` to bypass TTS health in dev; log info that check was skipped. (Implemented)
-  - Tests: Unit test toggling the env and verifying skip behavior. (Implemented)
-
-## 4) Caller/Callee Contracts (Type-Safe)
-
-- Replace ad-hoc audio tuples with a single `AudioItem` type
-  - Where: `src/discord_voice_bot/voice/queues.py`, `voice/workers/synthesizer.py`, `voice/workers/player.py`
-  - Action: Introduce `AudioItem` NamedTuple and return it from `PriorityAudioQueue.get()`. (Implemented)
-  - Migration: Keep legacy 4-tuple acceptance in queue; normalize to `AudioItem(size=0)` internally. (Implemented)
-  - Tests: Existing `tests/test_audio_queue_contract.py` passes; consider adding explicit type assertion in future.
-
-- Protocols reference shared types
-  - Where: `voice/workers/*.py` Protocol declarations
-  - Action: Protocols should annotate parameters/returns with `AudioItem` instead of `tuple[...]` to prevent future drift.
-  - Tests: Pyright should flag tuple misuse if reintroduced.
-
-## 5) Health Monitor Detail and Severity
-
-- Channel existence checks only after caches are ready (done)
-  - Where: `src/discord_voice_bot/health_monitor.py:_check_critical_permissions`
-  - Action: Already gated. Add log context when the check is skipped (debug) vs. when it runs (info) to make behavior explicit.
-  - Tests: Extend startup gating tests to assert no “target channel not found” pre-ready.
-
-- Permission checks pre-ready
-  - Where: `src/discord_voice_bot/health_monitor.py:_check_bot_permissions`
-  - Action: Already gated. Add a single info log once the bot becomes ready and permission scan starts.
-
-## 6) Lifecycle & Resource Safety
-
-- Ensure all TTS sessions close on any failure path
-  - Where: `src/discord_voice_bot/__main__.py:health_check`
-  - Action: Already in `finally`. Add this invariant to tests if not present: “no unclosed client session”.
-
-- Voice client cleanup duration
-  - Where: `src/discord_voice_bot/voice/connection_manager.py:cleanup_voice_client`
-  - Action: Consider a bounded timeout and a warning if disconnect hangs beyond N seconds.
-  - Tests: Stub a hanging disconnect and assert warning.
-
-## 7) Tests (Acceptance + Unit)
-
-- Acceptance
-  - Keep `tests/test_startup_health_smoke.py` to emulate CLI health.
-  - Add “enqueue→dequeue→playback (stub)” test to assert no unpack errors and correct queue contract end-to-end.
-
-- Unit
-  - Health monitor suppression pre-ready (done) and post-ready severity.
-  - Debounce behavior on repeated warnings.
-  - `AudioItem` contract tests.
-
-## 8) CI & Tooling
-
-- Tighten Pyright for interface drift
-  - Enable/report unknown-type/any bans for public interfaces in `voice/` and `health_monitor.py`.
-
-- Pre-commit rule
-  - Add simple AST-based check (or ruff rule) to forbid raw audio tuple literals in `voice/` in favor of `AudioItem`.
-
-## 9) Documentation
-
-- README / CONTRIBUTING
-  - Document startup grace behavior, structured logs, `STARTUP_SKIP_TTS_CHECK`, and the health-check error contract `(bool, str)`.
-  - Add a short “How to interpret health logs” section with examples.
-
----
-
-Implementation Notes
-- Keep changes incremental: raise `HealthCheckError` first, migrate to `AudioItem` second.
-- Maintain backward compatibility for tuple inputs until downstream code is fully migrated and tests are updated.
-- Prefer small PRs: (1) error propagation + tests, (2) `AudioItem` migration + tests, (3) logging/observability polish.
