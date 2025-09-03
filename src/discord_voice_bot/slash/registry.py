@@ -69,14 +69,19 @@ class SlashCommandRegistry:
 
     async def _register_core(self) -> None:
         """Register core bot commands."""
-        # Status command
-        status_handler = _get_handler("status")
-        self._registered["status"] = {"handler": status_handler}
+        # Status command (skip if already provided by a hybrid Cog)
+        try:
+            existing = [c for c in self.bot.tree.get_commands() if c.name == "status"]
+        except Exception:
+            existing = []
+        if not existing:
+            status_handler = _get_handler("status")
+            self._registered["status"] = {"handler": status_handler}
 
-        @self.bot.tree.command(name="status", description="Show bot status and statistics")
-        async def _status_slash(interaction: discord.Interaction):  # type: ignore[reportUnusedFunction]
-            """Show bot status via slash command."""
-            await status_handler(interaction, self.bot)
+            @self.bot.tree.command(name="status", description="Show bot status and statistics")
+            async def _status_slash(interaction: discord.Interaction):  # type: ignore[reportUnusedFunction]
+                """Show bot status via slash command."""
+                await status_handler(interaction, self.bot)
 
         # Skip command
         @self.bot.tree.command(name="skip", description="Skip current TTS playback")

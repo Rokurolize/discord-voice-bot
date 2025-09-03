@@ -29,13 +29,10 @@ class MessageHandler:
             logger.debug(f"🔵 RECEIVED message from {message.author.name} (ID: {message.id}) in channel {message.channel.id}: '{message.content[:50]}'")
             logger.debug(f"🔵 Message details - Type: {message.type}, Author bot: {message.author.bot}, Content length: {len(message.content)}")
 
-            # Process commands first (with rate limiting) - BEFORE TTS filtering
+            # Process commands first (with optional rate limiting) - BEFORE TTS filtering
             logger.debug("🟡 STEP 1: Processing commands for message")
-            if hasattr(self.bot, "command_handler") and self.bot.command_handler:  # type: ignore
-                logger.debug("🟡 Using command_handler.process_command")
-                await self.bot.command_handler.process_command(message)  # type: ignore
-            elif hasattr(self.bot, "voice_handler") and self.bot.voice_handler:  # type: ignore
-                logger.debug("🟡 Using voice_handler.make_rate_limited_request")
+            if hasattr(self.bot, "voice_handler") and self.bot.voice_handler:  # type: ignore
+                logger.debug("🟡 Using voice_handler.make_rate_limited_request for bot.process_commands")
                 await self.bot.voice_handler.make_rate_limited_request(self.bot.process_commands, message)  # type: ignore
             else:
                 logger.debug("🟡 Using bot.process_commands directly")

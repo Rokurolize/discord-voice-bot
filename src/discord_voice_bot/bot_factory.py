@@ -9,7 +9,6 @@ from loguru import logger
 from .config import Config
 
 if TYPE_CHECKING:
-    from .command_handler import CommandHandler
     from .event_handler import EventHandler
     from .message_validator import MessageValidator
     from .status_manager import StatusManager
@@ -132,7 +131,6 @@ class BotFactory:
         # Create and register components
         components_to_setup = [
             ("event_handler", self._create_event_handler),
-            ("command_handler", self._create_command_handler),
             ("slash_handler", self._create_slash_command_handler),
             ("message_validator", self._create_message_validator),
             ("status_manager", self._create_status_manager),
@@ -217,9 +215,12 @@ class BotFactory:
         config_manager = ConfigManagerImpl(config)
         return self._create_component("discord_voice_bot.event_handler", "EventHandler", bot, config_manager)
 
-    async def _create_command_handler(self, bot: Any) -> "CommandHandler":
-        """Create and return a CommandHandler instance bound to the bot."""
-        return self._create_component("discord_voice_bot.command_handler", "CommandHandler", bot)
+    # NOTE: Legacy prefix CommandHandler is deprecated in favor of discord.py's
+    # built-in commands extension (process_commands / hybrid commands). We keep
+    # this method name reserved for backward compatibility, but it is no longer
+    # used in setup.
+    async def _create_command_handler(self, bot: Any) -> Any:  # pragma: no cover
+        return None
 
     async def _create_slash_command_handler(self, bot: Any) -> Any:
         """
@@ -277,6 +278,17 @@ class BotFactory:
             self.registry.register("health_monitor", health_monitor)
             logger.debug("Registered existing health_monitor component")
 
+        # Register built-in Cogs (hybrid commands, etc.)
+        try:
+            from .cogs.status import StatusCommands
+
+            # Avoid double-registration during tests/restarts
+            if not any(isinstance(cog, StatusCommands) for cog in bot.cogs.values()):
+                await bot.add_cog(StatusCommands(bot))
+                logger.debug("Registered StatusCommands cog")
+        except Exception as e:
+            logger.debug(f"Skipping Cog registration (optional): {e}")
+
     async def _validate_configuration(self, bot: Any, config: Config) -> None:
         """Validate bot configuration and components."""
         await self._execute_with_logging("Validating bot configuration...", lambda: self._perform_configuration_validation(config), "Bot configuration validation completed successfully")
@@ -287,8 +299,8 @@ class BotFactory:
         logger.debug("Configuration validation passed")
 
         # Validate required components
-        required_components = ["event_handler", "command_handler", "message_validator", "status_manager"]
-        component_requirements = {"command_handler": ["process_command"], "event_handler": ["handle_ready"], "message_validator": ["validate_message"], "status_manager": ["record_command_usage"]}
+        required_components = ["event_handler", "message_validator", "status_manager"]
+        component_requirements = {"event_handler": ["handle_ready"], "message_validator": ["validate_message"], "status_manager": ["record_command_usage"]}
 
         for component_name in required_components:
             component = self.registry.get(component_name)
