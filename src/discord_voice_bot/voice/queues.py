@@ -110,7 +110,7 @@ class PriorityAudioQueue:
 
     async def put(
         self,
-        item: AudioItem | tuple[str, str, int, int] | tuple[str, str, int, int, int],
+        item: AudioItem | tuple[Any, ...],
     ) -> None:
         """Add item to priority queue with proper ordering.
 
@@ -122,12 +122,17 @@ class PriorityAudioQueue:
             # item format: (audio_path, group_id, priority, chunk_index, [audio_size])
             if isinstance(item, AudioItem):
                 audio_path, group_id, priority, chunk_index, audio_size = item
-            elif len(item) == 4:
-                audio_path, group_id, priority, chunk_index = item
-                audio_size = 0
             else:
-                # Branch ensures a 5-tuple for plain tuples
-                audio_path, group_id, priority, chunk_index, audio_size = item
+                # Validate tuple input strictly for clearer errors
+                if len(item) == 4:
+                    audio_path, group_id, priority, chunk_index = item
+                    audio_size = 0
+                elif len(item) == 5:
+                    audio_path, group_id, priority, chunk_index, audio_size = item
+                else:
+                    raise ValueError(
+                        f"Invalid audio tuple length {len(item)}. Expected 4-tuple (path, group, priority, chunk) or 5-tuple (path, group, priority, chunk, size)."
+                    )
             # heap format: (priority, counter, audio_path, group_id, priority, chunk_index, audio_size)
             heapq.heappush(
                 self._heap,

@@ -22,6 +22,11 @@ class HealthCheckError(Exception):
     engine_name: str
     api_url: str
 
+    def __post_init__(self) -> None:
+        # Populate Exception.args for better compatibility with log handlers
+        # Use explicit base call to avoid MRO quirks with dataclass + slots
+        Exception.__init__(self, self.message)
+
     @override
     def __str__(self) -> str:  # pragma: no cover - formatting convenience
         return f"{self.message} | result_type={self.result_type} result_repr={self.result_repr} engine={self.engine_name} url={self.api_url}"

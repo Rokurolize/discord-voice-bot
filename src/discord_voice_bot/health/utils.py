@@ -10,7 +10,7 @@ class WarningDebouncer:
         self._last: dict[str, float] = {}
 
     def should_emit(self, key: str, now: float | None = None) -> bool:
-        t = now or time.time()
+        t = now if now is not None else time.time()
         last = self._last.get(key)
         if last is None or (t - last) >= self.window:
             self._last[key] = t

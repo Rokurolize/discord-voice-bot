@@ -10,7 +10,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, TypedDict, cast
+from typing import Any, TypedDict, cast, override
 
 from dotenv import dotenv_values
 
@@ -81,7 +81,7 @@ class EngineConfig(TypedDict):
     speakers: Mapping[str, int]
 
 
-@dataclass(frozen=True, kw_only=True)
+@dataclass(frozen=True, kw_only=True, eq=False)
 class Config:
     """Configuration for the Discord Voice TTS Bot."""
 
@@ -111,7 +111,8 @@ class Config:
     # mapping types (dict/mappingproxy) that are unhashable, leading to "unhashable type: 'dict'"
     # when used as keys in WeakKeyDictionary. Identity hashing is sufficient for our use-case
     # (cache per Config instance) and preserves weakref semantics.
-    def __hash__(self) -> int:  # type: ignore[override]  # pragma: no cover - trivial
+    @override
+    def __hash__(self) -> int:
         return id(self)
 
     @classmethod

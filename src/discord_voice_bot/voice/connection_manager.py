@@ -93,9 +93,8 @@ class VoiceConnectionManager:
                             return True
                     except Exception as move_error:
                         logger.error(f"❌ MOVE FAILED - Error moving to channel {channel.name}: {move_error}")
-                        if self.voice_client:
-                            await self.voice_client.disconnect()
-                            self.voice_client = None
+                        # Use unified cleanup path to ensure consistent teardown
+                        await self.cleanup_voice_client()
 
             # Fresh connection attempt
             logger.info(f"🔗 ESTABLISHING NEW CONNECTION - Connecting to {channel.name}")
@@ -169,7 +168,26 @@ class VoiceConnectionManager:
                     await asyncio.wait_for(self.voice_client.disconnect(), timeout=5.0)
                     logger.debug("✅ Voice client disconnected gracefully")
                 except TimeoutError:
-                    logger.warning("⚠️ Voice client disconnect timed out after 5s; forcing cleanup")
+                    logger.warning("⚠️ Voice client disconnect timed out after 5s; attempting retries and forced cleanup")
+                    # Short retry sequence with smaller timeouts, then force cleanup
+                    for i in range(2):
+                        try:
+                            await asyncio.wait_for(self.voice_client.disconnect(), timeout=2.0)
+                            logger.debug("✅ Voice client disconnected on retry #%d", i + 1)
+                            break
+                        except TimeoutError:
+                            continue
+                        except Exception as e2:
+                            logger.warning(f"⚠️ Error during disconnect retry: {e2}")
+                            break
+                    else:
+                        # Last resort: try best-effort attribute-level close/cleanup if present
+                        try:
+                            closer = getattr(self.voice_client, "close", None)
+                            if callable(closer):
+                                await asyncio.wait_for(closer(), timeout=2.0) if asyncio.iscoroutinefunction(closer) else closer()
+                        except Exception as e3:
+                            logger.warning(f"⚠️ Force cleanup encountered an error: {e3}")
                 except asyncio.CancelledError:
                     # Propagate cancellation
                     raise
