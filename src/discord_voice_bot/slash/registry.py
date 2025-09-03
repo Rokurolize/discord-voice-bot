@@ -27,7 +27,12 @@ def _get_handler(name: str):
 
 
 class SlashCommandRegistry:
-    """Manages Discord slash command registration and synchronization."""
+    """Thin orchestrator for slash command registration and sync.
+
+    This class intentionally keeps minimal internal state and relies on
+    discord.py's CommandTree as the source of truth. The `_registered`
+    mapping is retained only for test visibility and backward compatibility.
+    """
 
     def __init__(self, bot: commands.Bot):
         """Initialize slash command registry.
@@ -38,6 +43,7 @@ class SlashCommandRegistry:
         """
         super().__init__()
         self.bot = bot
+        # Back-compat minimal registry used by tests; real state lives in bot.tree
         self._registered: dict[str, dict[str, Any]] = {}
         logger.info("Slash command registry initialized")
 
@@ -175,44 +181,18 @@ class SlashCommandRegistry:
             logger.error(f"❌ Failed to sync slash commands: {e}")
             raise
 
-    async def handle_interaction(self, interaction: discord.Interaction) -> None:
-        """Handle slash command interactions.
+    def get_registered_commands(self) -> dict[str, dict[str, Any]]:
+        """Get information about registered slash commands.
 
-        Args:
-            interaction: Discord interaction object
-
+        Returns a merged view of commands discovered from CommandTree and the
+        minimal compatibility mapping tracked locally.
         """
         try:
-            # Get command info
-            command_name = interaction.command.name if interaction.command else "unknown"
-            logger.debug(f"Received slash command interaction: /{command_name}")
-
-            # Check if command is registered
-            if command_name not in self._registered:
-                logger.warning(f"Unknown slash command: {command_name}")
-                _ = await interaction.response.send_message(f"❌ Unknown command: `{command_name}`", ephemeral=True)
-                return
-
-            # Update command statistics
-            if hasattr(self.bot, "status_manager") and getattr(self.bot, "status_manager", None):
-                status_manager = getattr(self.bot, "status_manager")
-                if status_manager:
-                    await status_manager.record_command_usage(f"slash_{command_name}")
-
-            # Command is handled by the registered decorator function
-            # The actual response is handled by the individual command handlers
-
-        except Exception as e:
-            logger.error(f"Error handling slash command interaction: {e}")
-            try:
-                if not interaction.response.is_done():
-                    _ = await interaction.response.send_message("❌ An error occurred processing this command", ephemeral=True)
-            except Exception:
-                pass  # Interaction already responded to or failed
-
-    def get_registered_commands(self) -> dict[str, dict[str, Any]]:
-        """Get information about registered slash commands."""
-        return self._registered.copy()
+            tree_cmds = {c.name: {"handler": None} for c in self.bot.tree.get_commands()}
+        except Exception:
+            tree_cmds = {}
+        merged = {**tree_cmds, **self._registered}
+        return merged
 
     def clear_commands(self) -> None:
         """Clear all registered slash commands."""
