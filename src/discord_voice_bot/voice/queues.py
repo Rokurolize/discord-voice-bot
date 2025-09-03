@@ -2,7 +2,25 @@
 
 import asyncio
 import heapq
-from typing import Any
+from typing import Any, NamedTuple
+
+
+class AudioItem(NamedTuple):
+    """Typed audio queue item used across voice workers.
+
+    Fields:
+    - path: path to the audio file on disk
+    - group_id: logical group identifier for batching/cancellation
+    - priority: lower value means higher playback priority
+    - chunk_index: zero-based index for multi-chunk messages
+    - size: audio file size in bytes (0 if unknown)
+    """
+
+    path: str
+    group_id: str
+    priority: int
+    chunk_index: int
+    size: int
 
 
 class SynthesisQueue:
@@ -74,31 +92,58 @@ class SynthesisQueue:
 
 
 class PriorityAudioQueue:
-    """Priority queue for audio playback with proper ordering."""
+    """Priority queue for audio playback with proper ordering.
+
+    Item layout used by the public API:
+    - put(): (audio_path, group_id, priority, chunk_index, audio_size)
+    - get(): (audio_path, group_id, priority, chunk_index, audio_size)
+
+    Internally we store a heap tuple to maintain stable ordering:
+    (priority, counter, audio_path, group_id, priority, chunk_index, audio_size)
+    """
 
     def __init__(self):
         super().__init__()
-        self._heap: list[tuple[int, int, str, str, int, int]] = []
+        self._heap: list[tuple[int, int, str, str, int, int, int]] = []
         self._lock = asyncio.Lock()
         self._counter = 0  # For FIFO ordering with same priority
 
-    async def put(self, item: tuple[str, str, int, int]) -> None:
-        """Add item to priority queue with proper ordering."""
+    async def put(
+        self,
+        item: AudioItem | tuple[str, str, int, int] | tuple[str, str, int, int, int],
+    ) -> None:
+        """Add item to priority queue with proper ordering.
+
+        Accepts both 5-tuple (preferred) and legacy 4-tuple input:
+        - (audio_path, group_id, priority, chunk_index, audio_size)
+        - (audio_path, group_id, priority, chunk_index)  # audio_size assumed 0
+        """
         async with self._lock:
-            # item format: (audio_path, group_id, priority, chunk_index)
-            # heap format: (priority, counter, audio_path, group_id, priority, chunk_index)
-            heapq.heappush(self._heap, (item[2], self._counter, item[0], item[1], item[2], item[3]))
+            # item format: (audio_path, group_id, priority, chunk_index, [audio_size])
+            if isinstance(item, AudioItem):
+                audio_path, group_id, priority, chunk_index, audio_size = item
+            elif len(item) == 4:
+                audio_path, group_id, priority, chunk_index = item
+                audio_size = 0
+            else:
+                # Branch ensures a 5-tuple for plain tuples
+                audio_path, group_id, priority, chunk_index, audio_size = item
+            # heap format: (priority, counter, audio_path, group_id, priority, chunk_index, audio_size)
+            heapq.heappush(
+                self._heap,
+                (priority, self._counter, audio_path, group_id, priority, chunk_index, audio_size),
+            )
             self._counter += 1
 
-    async def get(self) -> tuple[str, str, int, int]:
+    async def get(self) -> AudioItem:
         """Get highest priority item from queue (lowest priority number first)."""
         async with self._lock:
             if not self._heap:
                 raise asyncio.QueueEmpty("Queue is empty")
 
-            # Get item from heap: (priority, counter, audio_path, group_id, priority, chunk_index)
-            _, _, audio_path, group_id, priority, chunk_index = heapq.heappop(self._heap)
-            return (audio_path, group_id, priority, chunk_index)
+            # Get item from heap: (priority, counter, audio_path, group_id, priority, chunk_index, audio_size)
+            _, _, audio_path, group_id, priority, chunk_index, audio_size = heapq.heappop(self._heap)
+            return AudioItem(audio_path, group_id, priority, chunk_index, audio_size)
 
     def qsize(self) -> int:
         """Get queue size."""
