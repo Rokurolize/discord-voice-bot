@@ -13,4 +13,3 @@ def add_field(embed: discord.Embed, name: str, value: str, *, inline: bool = Tru
     """Add a field to an embed and return it for fluent style."""
     _ = embed.add_field(name=name, value=value, inline=inline)
     return embed
-
