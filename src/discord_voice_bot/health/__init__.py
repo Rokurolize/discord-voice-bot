@@ -5,4 +5,3 @@ Modules:
 - voice_check: voice connection health checks
 - utils: shared helpers (debounce, formatting)
 """
-

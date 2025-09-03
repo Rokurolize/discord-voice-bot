@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Iterable, List, Tuple
-
 import discord
-
 
 CRITICAL_PERMISSIONS = (
     "connect",
@@ -17,7 +14,7 @@ def check_permissions_in_guild(
     perms: discord.Permissions,
     trigger_termination: bool = False,
 ) -> list[str]:
-    issues: List[str] = []
+    issues: list[str] = []
     for name in CRITICAL_PERMISSIONS:
         if not getattr(perms, name, False):
             issues.append(f"Missing permission: {name} in guild {guild.id}")
@@ -32,14 +29,12 @@ async def check_critical_permissions(
 
     Returns (healthy, issues).
     """
-    issues: List[str] = []
+    issues: list[str] = []
     if not bot.guilds:
         return True, issues
 
     for guild in bot.guilds:
         me = guild.me
-        if me is None:
-            continue
         perms = None
         if target_channel_id:
             ch = guild.get_channel(target_channel_id)
@@ -50,4 +45,3 @@ async def check_critical_permissions(
         issues.extend(check_permissions_in_guild(guild, perms))
 
     return (len(issues) == 0), issues
-

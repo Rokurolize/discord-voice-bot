@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Tuple, List
+from collections.abc import Callable
+from typing import Any
 
 import discord
 
@@ -14,7 +15,7 @@ async def check_voice_connection_health(
 
     Returns (healthy, issues).
     """
-    issues: List[str] = []
+    issues: list[str] = []
 
     # Guild or voice client absent typically means not connected yet; consider healthy but informative.
     if guild is None or voice_client is None:
@@ -37,4 +38,3 @@ async def check_voice_connection_health(
             issues.append(f"Connection state getter error: {type(e).__name__}")
 
     return (len(issues) == 0), issues
-

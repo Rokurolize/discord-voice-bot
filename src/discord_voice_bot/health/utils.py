@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import time
-from typing import Callable
+
 
 class WarningDebouncer:
     def __init__(self, window_seconds: float = 10.0) -> None:
+        super().__init__()
         self.window = window_seconds
         self._last: dict[str, float] = {}
 
@@ -16,6 +17,6 @@ class WarningDebouncer:
             return True
         return False
 
+
 def format_issue(prefix: str, detail: str) -> str:
     return f"{prefix}: {detail}".strip()
-
