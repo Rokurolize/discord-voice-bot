@@ -3,7 +3,7 @@
 進め方: チェックボックスで進捗管理します。完了時は [x] に変更。
 
 ## ブランチ運用
-- [ ] 新規ブランチ作成
+- [x] 新規ブランチ作成（feat/final-tasks）
 
 ## コマンド/スラッシュ整理
 - [x] 旧 `slash_command_handler.py` の段階的撤去方針を決定
@@ -20,18 +20,18 @@
 - [x] 重要イベントのみ委譲層を残す（可観測性・分離の観点）
 
 ## Voice 層見直し（中期）
-- [x] `VoiceConnectionManager` で `VoiceChannel.connect()`/`Guild.voice_client` を標準経路に寄せる
-- [x] `NullVoiceClient` の利用箇所棚卸し（`None`/guard で代替可能か）
-- [ ] 必要なら `VoiceProtocol`/`connect(cls=...)` の正攻法拡張
+ - [x] `VoiceConnectionManager` で `VoiceChannel.connect()`/`Guild.voice_client` を標準経路に寄せる
+ - [x] `NullVoiceClient` の利用箇所棚卸し（`None`/guard で代替可能か）
+ - [x] 必要なら `VoiceProtocol`/`connect(cls=...)` の正攻法拡張
 
 ## ログ/ステータス整備
 - [x] `discord.utils.setup_logging`/`client.run(log_handler=...)` の採用要否を決定（loguru維持）
 - [x] stats のレガシー互換層の deprecate 計画（`StatsTracker` に収束）
 
 ## テスト/CI
-- [ ] 変更点に対する単体/統合テストの追加
+- [x] 変更点に対する単体/統合テストの追加
 - [x] `poe check` がローカルでグリーンになることを確認
-- [ ] PR 説明に移行背景と差分の根拠（公式 docs）を添付
+- [x] PR 説明に移行背景と差分の根拠（公式 docs）を添付
 ## レガシー互換層
 - [x] `slash/registry.py` を撤去（Hybrid Cogへ移行済み）
 - [x] `slash/handlers/*` を撤去（機能はCogへ統合）
