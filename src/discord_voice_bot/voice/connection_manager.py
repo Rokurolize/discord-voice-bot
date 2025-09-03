@@ -98,7 +98,14 @@ class VoiceConnectionManager:
 
             # Fresh connection attempt
             logger.info(f"🔗 ESTABLISHING NEW CONNECTION - Connecting to {channel.name}")
-            self.voice_client = await channel.connect()
+            # Optional custom VoiceProtocol class provided via config manager
+            cls = self._get_voice_client_class()
+            if cls is not None:
+                # mypy/pyright: channel.connect accepts VoiceProtocol subclass via cls
+                vc = await channel.connect(cls=cls)
+                self.voice_client = cast(discord.VoiceClient, vc)
+            else:
+                self.voice_client = await channel.connect()
             logger.info(f"✅ CONNECTION SUCCESSFUL - Connected to voice channel: {channel.name}")
 
             # Initialize voice gateway manager
@@ -244,6 +251,28 @@ class VoiceConnectionManager:
             pass
 
         return {"connected": connected, "channel_name": channel_name, "channel_id": channel_id, "connection_state": self.connection_state}
+
+    # --- Voice protocol extension point -------------------------------------------------
+    def _get_voice_client_class(self) -> type[discord.VoiceProtocol] | None:
+        """Resolve a custom VoiceProtocol subclass from the config manager if available.
+
+        Returns:
+            A subclass of discord.VoiceProtocol (typically discord.VoiceClient) or None
+            when no override is provided. This allows advanced users to supply a custom
+            voice client implementation using Discord.py's ``connect(cls=...)`` hook.
+
+        """
+        getter = getattr(self._config_manager, "get_voice_client_class", None)
+        if callable(getter):
+            try:
+                cls = getter()
+                # runtime safeguard: ensure it's a subclass of VoiceProtocol
+                if isinstance(cls, type) and issubclass(cls, discord.VoiceProtocol):
+                    return cls
+                return None
+            except Exception:
+                return None
+        return None
 
     @property
     def last_connection_attempt(self) -> float:
