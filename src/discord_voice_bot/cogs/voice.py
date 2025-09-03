@@ -101,9 +101,7 @@ class VoiceCommands(commands.Cog):
         _ = embed.add_field(
             name="🎵 Audio System",
             value=(
-                f"Playback Ready: {'✅' if health.get('audio_playback_ready') else '❌'}\n"
-                f"Synthesis: {'✅' if health.get('can_synthesize') else '❌'}\n"
-                f"Queue Size: {status.get('total_queue_size', 0)}"
+                f"Playback Ready: {'✅' if health.get('audio_playback_ready') else '❌'}\nSynthesis: {'✅' if health.get('can_synthesize') else '❌'}\nQueue Size: {status.get('total_queue_size', 0)}"
             ),
             inline=True,
         )
@@ -238,7 +236,13 @@ class VoiceCommands(commands.Cog):
                 if hasattr(self.bot, "voice_handler") and getattr(self.bot, "voice_handler"):
                     mp = getattr(self.bot, "message_processor", None)
                     chunks = mp.chunk_message(test_text) if mp and hasattr(mp, "chunk_message") else [test_text]
-                    msg = {"text": test_text, "user_id": ctx.author.id, "username": ctx.author.display_name, "chunks": chunks, "group_id": f"hybrid_voice_test_{getattr(getattr(ctx, 'interaction', None), 'id', getattr(getattr(ctx, 'message', None), 'id', '0'))}"}
+                    msg = {
+                        "text": test_text,
+                        "user_id": ctx.author.id,
+                        "username": ctx.author.display_name,
+                        "chunks": chunks,
+                        "group_id": f"hybrid_voice_test_{getattr(getattr(ctx, 'interaction', None), 'id', getattr(getattr(ctx, 'message', None), 'id', '0'))}",
+                    }
                     await self.bot.voice_handler.add_to_queue(msg)  # type: ignore[attr-defined]
             else:
                 await self._send(ctx, "❌ Failed to save voice preference", ephemeral=True)

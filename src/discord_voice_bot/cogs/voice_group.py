@@ -49,21 +49,15 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
                     )
                     _ = await interaction.response.send_message(embed=embed, ephemeral=True)
                 else:
-                    _ = await interaction.response.send_message(
-                        "ℹ️ No custom voice set. Using default.", ephemeral=True
-                    )
+                    _ = await interaction.response.send_message("ℹ️ No custom voice set. Using default.", ephemeral=True)
                 return
 
             sp = speaker.strip()
             if sp.lower() == "reset":
                 if settings.remove_user_speaker(user_id):
-                    _ = await interaction.response.send_message(
-                        "✅ Voice preference reset to default", ephemeral=True
-                    )
+                    _ = await interaction.response.send_message("✅ Voice preference reset to default", ephemeral=True)
                 else:
-                    _ = await interaction.response.send_message(
-                        "ℹ️ You don't have a custom voice set", ephemeral=True
-                    )
+                    _ = await interaction.response.send_message("ℹ️ You don't have a custom voice set", ephemeral=True)
                 return
 
             # Resolve available speakers from config (no engine startup)
@@ -78,9 +72,7 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
             engine_cfg = cast(dict[str, Any], cfg.engines.get(engine_key, {}))
             speakers_map = cast(dict[str, int], engine_cfg.get("speakers", {}))
             if not speakers_map:
-                _ = await interaction.response.send_message(
-                    f"❌ No speakers configured for engine '{engine_key}'. Use `/tts list`.", ephemeral=True
-                )
+                _ = await interaction.response.send_message(f"❌ No speakers configured for engine '{engine_key}'. Use `/tts list`.", ephemeral=True)
                 return
 
             matched_name: str | None = None
@@ -113,9 +105,7 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
                 else:
                     _ = await interaction.response.send_message("❌ Failed to save voice preference", ephemeral=True)
             else:
-                _ = await interaction.response.send_message(
-                    f"❌ Voice '{speaker}' not found. Use `/tts list` to see available options.", ephemeral=True
-                )
+                _ = await interaction.response.send_message(f"❌ Voice '{speaker}' not found. Use `/tts list` to see available options.", ephemeral=True)
         except Exception:
             await self._safe_error(interaction, "❌ Error setting voice preference")
 
@@ -201,9 +191,7 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
             success = False
             if target_id:
                 success = await self.bot.voice_handler.connect_to_channel(int(target_id))  # type: ignore[attr-defined]
-            _ = await interaction.response.send_message(
-                "✅ Reconnected to voice channel" if success else "❌ Reconnection failed", ephemeral=True
-            )
+            _ = await interaction.response.send_message("✅ Reconnected to voice channel" if success else "❌ Reconnection failed", ephemeral=True)
         except Exception as e:
             await self._safe_error(interaction, f"❌ Error during reconnection: {e}")
 
