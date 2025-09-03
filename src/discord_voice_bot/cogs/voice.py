@@ -6,6 +6,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from ..config import Config
+from ..slash.autocomplete.voice import voice_autocomplete
 from ..slash.embeds.voices import create_voices_embed
 from ..user_settings import load_user_settings
 
@@ -170,6 +171,79 @@ class VoiceCommands(commands.Cog):
 
         await self.bot.voice_handler.add_to_queue(processed_message)  # type: ignore[attr-defined]
         await self._send(ctx, f"🎤 Test TTS queued: `{processed_text[:50]}...`", ephemeral=True)
+
+    @commands.hybrid_command(name="voice", description="Set or show personal voice preference")
+    @app_commands.describe(speaker="Voice name or numeric ID; use 'reset' to clear")
+    @app_commands.autocomplete(speaker=voice_autocomplete)
+    @commands.has_permissions(send_messages=True)
+    @commands.cooldown(1, 3.0, commands.BucketType.user)
+    @app_commands.default_permissions()
+    async def voice(self, ctx: commands.Context[Any], speaker: str | None = None) -> None:
+        user_id = str(ctx.author.id)
+        settings = load_user_settings()
+
+        # Show current setting
+        if speaker is None:
+            current = settings.get_user_settings(user_id)
+            if current:
+                from discord import Color, Embed
+
+                embed = Embed(
+                    title="🎭 Your Voice Settings",
+                    color=Color.blue(),
+                    description=f"Current voice: **{current['speaker_name']}** (ID: {current['speaker_id']})",
+                )
+                _ = embed.add_field(name="Commands", value="`/voice <name>` to set\n`/voice reset` to default\n`/voices` to list", inline=False)
+                await self._send(ctx, embed=embed, ephemeral=True)
+            else:
+                await self._send(ctx, "ℹ️ No custom voice set. Using default.", ephemeral=True)
+            return
+
+        sp = speaker.strip()
+        if sp.lower() == "reset":
+            if settings.remove_user_speaker(user_id):
+                await self._send(ctx, "✅ Voice preference reset to default", ephemeral=True)
+            else:
+                await self._send(ctx, "ℹ️ You don't have a custom voice set", ephemeral=True)
+            return
+
+        # Resolve available speakers from config (no engine startup)
+        config_val = getattr(self.bot, "config", None)
+        config_val = config_val() if callable(config_val) else config_val
+        cfg = cast(Config, config_val)
+        if not cfg or not hasattr(cfg, "engines") or not hasattr(cfg, "tts_engine"):
+            await self._send(ctx, "❌ Configuration unavailable; try again later.", ephemeral=True)
+            return
+
+        engine_key = (cfg.tts_engine or "voicevox").lower()
+        engine_cfg = cast(dict[str, Any], cfg.engines.get(engine_key, {}))
+        speakers_map = cast(dict[str, int], engine_cfg.get("speakers", {}))
+        if not speakers_map:
+            await self._send(ctx, f"❌ No speakers configured for engine '{engine_key}'. Use `/voices`.", ephemeral=True)
+            return
+
+        matched_name: str | None = None
+        matched_id: int | None = None
+        sp_lower = sp.lower()
+        for name, sid in speakers_map.items():
+            if name.lower() == sp_lower or str(sid) == sp:
+                matched_name, matched_id = name, sid
+                break
+
+        if matched_name and matched_id is not None:
+            if settings.set_user_speaker(user_id, matched_id, matched_name, cfg.tts_engine):
+                await self._send(ctx, f"✅ Voice set to **{matched_name}** (ID: {matched_id}) on {cfg.tts_engine.upper()}", ephemeral=True)
+                # Optional short test
+                test_text = f"{matched_name}の声です"
+                if hasattr(self.bot, "voice_handler") and getattr(self.bot, "voice_handler"):
+                    mp = getattr(self.bot, "message_processor", None)
+                    chunks = mp.chunk_message(test_text) if mp and hasattr(mp, "chunk_message") else [test_text]
+                    msg = {"text": test_text, "user_id": ctx.author.id, "username": ctx.author.display_name, "chunks": chunks, "group_id": f"hybrid_voice_test_{getattr(getattr(ctx, 'interaction', None), 'id', getattr(getattr(ctx, 'message', None), 'id', '0'))}"}
+                    await self.bot.voice_handler.add_to_queue(msg)  # type: ignore[attr-defined]
+            else:
+                await self._send(ctx, "❌ Failed to save voice preference", ephemeral=True)
+        else:
+            await self._send(ctx, f"❌ Voice '{speaker}' not found. Use `/voices` to see available options.", ephemeral=True)
 
 
 async def setup(bot: commands.Bot) -> None:
