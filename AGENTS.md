@@ -1,8 +1,8 @@
 # Repository Guidelines
 
-## MCP tool
-use serena activate_project, "project": "/home/ubuntu/workbench/projects/discord-voice-bot"
-use context7 get-library-docs, "context7CompatibleLibraryID": "/rapptz/discord.py"
+## First, initialize it using the MCP tool
+For tasks involving searching and replacing existing code: Use serena activate_project, "project": "/home/ubuntu/workbench/projects/discord-voice-bot"
+When coding: Use context7 get-library-docs, "context7CompatibleLibraryID": "/rapptz/discord.py"
 
 ## Project Structure & Module Organization
 - `src/discord_voice_bot/`: core package and entrypoint (`__main__.py`).
@@ -38,6 +38,7 @@ use context7 get-library-docs, "context7CompatibleLibraryID": "/rapptz/discord.p
 - Commits: imperative, concise subjects (e.g., "Fix type-check errors in voice handler").
 - PRs: include description, rationale, linked issues, and local test results; attach logs/screenshots when user-facing.
 - Before requesting review: `uv run poe check` must pass; update/ add tests for changed behavior.
+- Push policy: Do not push unless the user explicitly requests it. Keep changes local (staged/committed) until a push is asked for.
 
 ## Security & Configuration Tips
 - Copy `.env.example` → `.env`; set `DISCORD_BOT_TOKEN`, `TARGET_VOICE_CHANNEL_ID`, and TTS settings (`TTS_ENGINE`, `VOICEVOX_URL`/`AIVIS_URL`).
@@ -79,7 +80,7 @@ uv run poe check
 
 ## Single-Action Summary
 - After each fix: `uv run poe check` → commit locally → resolve in the PR UI.
-- After all items: push once to your PR branch (e.g., `git push`).
+- After all items: push only when the user explicitly requests a push; otherwise leave commits local.
 - Do not bypass pre-push hooks; if hooks fail, address issues and rerun `uv run poe check` before pushing again.
   If your PR originates from a fork, verify your remotes and push explicitly:
   ```bash

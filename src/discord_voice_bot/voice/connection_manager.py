@@ -1,7 +1,7 @@
 """Voice connection management for voice handler."""
 
 import asyncio
-from typing import Any
+from typing import Any, cast
 
 import discord
 from loguru import logger
@@ -98,8 +98,19 @@ class VoiceConnectionManager:
 
             # Fresh connection attempt
             logger.info(f"🔗 ESTABLISHING NEW CONNECTION - Connecting to {channel.name}")
-            self.voice_client = await channel.connect()
+            # Update target and state before attempting connection
+            self.target_channel = channel
+            self.connection_state = "CONNECTING"
+            # Optional custom VoiceProtocol class provided via config manager
+            cls = self._get_voice_client_class()
+            if cls is not None:
+                # mypy/pyright: channel.connect accepts VoiceProtocol subclass via cls
+                vc = await channel.connect(cls=cls)
+                self.voice_client = cast(discord.VoiceClient, vc)
+            else:
+                self.voice_client = await channel.connect()
             logger.info(f"✅ CONNECTION SUCCESSFUL - Connected to voice channel: {channel.name}")
+            self.connection_state = "CONNECTED"
 
             # Initialize voice gateway manager
             if self.voice_client:
@@ -151,7 +162,27 @@ class VoiceConnectionManager:
     def is_connected(self) -> bool:
         """Check if the bot is connected to a voice channel."""
         try:
-            return self.voice_client is not None and self.voice_client.is_connected()
+            # Prefer current voice_client if available
+            if self.voice_client is not None:
+                return self.voice_client.is_connected()
+
+            # Fallback: if we know the target channel, ask the guild for its voice_client
+            if self.target_channel is not None:
+                vc = cast(discord.VoiceClient | None, self.target_channel.guild.voice_client)
+                return bool(vc and getattr(vc, "is_connected", lambda: False)())
+
+            # Last resort: inspect active voice_clients but scope to same guild when possible
+            if hasattr(self.bot, "voice_clients"):
+                vcs = getattr(self.bot, "voice_clients")
+                if self.target_channel is not None:
+                    tgt_guild = self.target_channel.guild
+                    for vc in vcs:
+                        if vc and getattr(vc, "is_connected", lambda: False)() and getattr(getattr(vc, "channel", None), "guild", None) == tgt_guild:
+                            return True
+                else:
+                    # Unknown target guild → be conservative to avoid false positives
+                    return False
+            return False
         except Exception:
             return False
 
@@ -211,14 +242,18 @@ class VoiceConnectionManager:
 
     def get_connection_info(self) -> dict[str, Any]:
         """Get current connection information."""
-        connected = bool(self.voice_client and self.voice_client.is_connected())
+        connected = self.is_connected()
         channel_name = None
         channel_id = None
 
         try:
-            if self.voice_client and getattr(self.voice_client, "channel", None):
-                channel_name = self.voice_client.channel.name
-                channel_id = self.voice_client.channel.id
+            vc = self.voice_client
+            if not vc and self.target_channel is not None:
+                vc = cast(discord.VoiceClient | None, self.target_channel.guild.voice_client)
+            if vc and getattr(vc, "channel", None):
+                ch = cast(Any, vc.channel)
+                channel_name = cast(str, getattr(ch, "name", None))
+                channel_id = cast(int, getattr(ch, "id", None))
             elif self.target_channel:
                 channel_name = self.target_channel.name
                 channel_id = self.target_channel.id
@@ -226,6 +261,28 @@ class VoiceConnectionManager:
             pass
 
         return {"connected": connected, "channel_name": channel_name, "channel_id": channel_id, "connection_state": self.connection_state}
+
+    # --- Voice protocol extension point -------------------------------------------------
+    def _get_voice_client_class(self) -> type[discord.VoiceProtocol] | None:
+        """Resolve a custom VoiceProtocol subclass from the config manager if available.
+
+        Returns:
+            A subclass of discord.VoiceProtocol (typically discord.VoiceClient) or None
+            when no override is provided. This allows advanced users to supply a custom
+            voice client implementation using Discord.py's ``connect(cls=...)`` hook.
+
+        """
+        getter = getattr(self._config_manager, "get_voice_client_class", None)
+        if callable(getter):
+            try:
+                cls = getter()
+                # runtime safeguard: ensure it's a subclass of VoiceProtocol
+                if isinstance(cls, type) and issubclass(cls, discord.VoiceProtocol):
+                    return cls
+                return None
+            except Exception:
+                return None
+        return None
 
     @property
     def last_connection_attempt(self) -> float:

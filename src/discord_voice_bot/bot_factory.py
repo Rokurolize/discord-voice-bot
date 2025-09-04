@@ -9,8 +9,6 @@ from loguru import logger
 from .config import Config
 
 if TYPE_CHECKING:
-    from .command_handler import CommandHandler
-    from .event_handler import EventHandler
     from .message_validator import MessageValidator
     from .status_manager import StatusManager
 
@@ -131,9 +129,7 @@ class BotFactory:
 
         # Create and register components
         components_to_setup = [
-            ("event_handler", self._create_event_handler),
-            ("command_handler", self._create_command_handler),
-            ("slash_handler", self._create_slash_command_handler),
+            # Slash registry is deprecated; hybrid Cogs register themselves
             ("message_validator", self._create_message_validator),
             ("status_manager", self._create_status_manager),
             ("voice_handler", self._create_voice_handler),
@@ -143,7 +139,7 @@ class BotFactory:
         for component_name, creator_func in components_to_setup:
             try:
                 # Pass config to components that need it
-                if component_name in ["event_handler", "voice_handler", "health_monitor", "message_validator"]:
+                if component_name in ["voice_handler", "health_monitor", "message_validator"]:
                     component = await creator_func(bot, config)  # type: ignore[call-arg]
                 else:
                     component = await creator_func(bot)  # type: ignore[call-arg]
@@ -209,28 +205,7 @@ class BotFactory:
             logger.error(f"Operation failed: {e}")
             raise
 
-    async def _create_event_handler(self, bot: Any, config: Config) -> "EventHandler":
-        """Create and return an EventHandler wired with a ConfigManager wrapper."""
-        # Lazy import to avoid cycles
-        from .config_manager import ConfigManagerImpl
-
-        config_manager = ConfigManagerImpl(config)
-        return self._create_component("discord_voice_bot.event_handler", "EventHandler", bot, config_manager)
-
-    async def _create_command_handler(self, bot: Any) -> "CommandHandler":
-        """Create and return a CommandHandler instance bound to the bot."""
-        return self._create_component("discord_voice_bot.command_handler", "CommandHandler", bot)
-
-    async def _create_slash_command_handler(self, bot: Any) -> Any:
-        """
-        Create and return a slash command registry (or None if unavailable).
-
-        """
-        try:
-            return self._create_component("discord_voice_bot.slash.registry", "SlashCommandRegistry", bot)
-        except (ImportError, AttributeError):
-            logger.warning("Slash command handler not available")
-            return None
+    # Legacy handlers removed; EventBridge Cog handles events and Cogs manage commands.
 
     async def _create_message_validator(self, bot: Any, config: Config) -> "MessageValidator":
         """Create a MessageValidator using the provided per-bot Config."""
@@ -277,6 +252,32 @@ class BotFactory:
             self.registry.register("health_monitor", health_monitor)
             logger.debug("Registered existing health_monitor component")
 
+        # Register built-in Cogs (hybrid commands, etc.)
+        try:
+            from .cogs.events import EventBridge
+            from .cogs.status import StatusCommands
+            from .cogs.voice import VoiceCommands
+            from .cogs.voice_group import TTSGroup
+
+            # Avoid double-registration during tests/restarts
+            if bot.get_cog("EventBridge") is None:
+                await bot.add_cog(EventBridge(bot))
+                logger.debug("Registered EventBridge cog")
+
+            if bot.get_cog("StatusCommands") is None:
+                await bot.add_cog(StatusCommands(bot))
+                logger.debug("Registered StatusCommands cog")
+
+            if bot.get_cog("VoiceCommands") is None:
+                await bot.add_cog(VoiceCommands(bot))
+                logger.debug("Registered VoiceCommands cog")
+
+            if bot.get_cog("TTSGroup") is None:
+                await bot.add_cog(TTSGroup(bot))
+                logger.debug("Registered TTSGroup group cog")
+        except Exception as e:
+            logger.debug(f"Skipping Cog registration (optional): {e}")
+
     async def _validate_configuration(self, bot: Any, config: Config) -> None:
         """Validate bot configuration and components."""
         await self._execute_with_logging("Validating bot configuration...", lambda: self._perform_configuration_validation(config), "Bot configuration validation completed successfully")
@@ -287,8 +288,8 @@ class BotFactory:
         logger.debug("Configuration validation passed")
 
         # Validate required components
-        required_components = ["event_handler", "command_handler", "message_validator", "status_manager"]
-        component_requirements = {"command_handler": ["process_command"], "event_handler": ["handle_ready"], "message_validator": ["validate_message"], "status_manager": ["record_command_usage"]}
+        required_components = ["message_validator", "status_manager"]
+        component_requirements = {"message_validator": ["validate_message"], "status_manager": ["record_command_usage"]}
 
         for component_name in required_components:
             component = self.registry.get(component_name)
@@ -399,8 +400,7 @@ class BotFactory:
 
         Performs an orderly, best-effort shutdown:
         - Invokes component-specific stop/cleanup/shutdown methods in a fixed reverse order:
-          health_monitor, voice_handler, status_manager, message_validator, slash_handler,
-          command_handler, event_handler.
+          health_monitor, voice_handler, status_manager, message_validator.
         - Swallows and logs exceptions from individual components so shutdown proceeds.
         - Clears the internal component registry.
         - If the bot has a `tts_engine` attribute with a `close` coroutine, awaits it to close the engine.
@@ -418,9 +418,6 @@ class BotFactory:
             "voice_handler",
             "status_manager",
             "message_validator",
-            "slash_handler",
-            "command_handler",
-            "event_handler",
         ]
 
         for component_name in shutdown_order:

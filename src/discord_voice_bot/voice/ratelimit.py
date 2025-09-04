@@ -5,14 +5,21 @@ from typing import Any
 
 
 class SimpleRateLimiter:
-    """Simple rate limiter that respects Discord's global limit."""
+    """Simple client-side limiter for external APIs (e.g., TTS).
+
+    Note:
+        Discord API レート制御は discord.py が自動で処理するため、本プロジェクトでは
+        Discord への呼び出しには使用しません。外部 TTS エンジン等の呼び出しに限定して
+        使用してください。
+
+    """
 
     def __init__(self) -> None:
         super().__init__()
         self.last_request_time = 0.0
 
     async def wait_if_needed(self) -> None:
-        """Wait to respect Discord's 50 requests per second global limit."""
+        """Wait to respect a conservative per-request spacing for external APIs."""
         current_time = time.time()
         time_since_last = current_time - self.last_request_time
 

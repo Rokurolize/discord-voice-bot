@@ -1,4 +1,4 @@
-"""Startup management for event handler."""
+"""Startup management."""
 
 import asyncio
 from typing import TYPE_CHECKING
@@ -38,13 +38,9 @@ class StartupManager:
         activity = discord.Activity(type=discord.ActivityType.listening, name="声チャットのメッセージ 📢")
         await self.bot.change_presence(status=discord.Status.online, activity=activity)
 
-        # Log compliance information
-        logger.info("🔧 DISCORD API COMPLIANCE CHECK:")
-        logger.info("   - Voice Gateway Version: 8 (required since Nov 2024)")
-        logger.info("   - E2EE Support: Enabled via discord.py abstraction")
-        logger.info("   - Rate Limiting: 50 req/sec with dynamic headers")
-        logger.info("   - Invalid Request Protection: Circuit breaker enabled")
-        logger.info("✅ Bot configured for Discord API compliance")
+        # Optional: debug-only compliance info
+        if getattr(self._config_manager, "is_debug", lambda: False)():
+            logger.info("🔧 DISCORD API COMPLIANCE CHECK (debug): delegated to discord.py; external TTS guarded by CB")
 
         # Initialize components
         await self._initialize_components()
@@ -88,18 +84,19 @@ class StartupManager:
                 logger.error(f"💥 CRITICAL ERROR during connection attempt {attempt + 1}: {e}")
                 if attempt == max_retries - 1:
                     logger.error("❌ STARTUP CONNECTION ABORTED - All retry attempts failed with critical errors")
-                    import sys
-
-                    sys.exit(1)
+                    raise RuntimeError("Startup aborted after critical connection errors") from e
 
         # Start monitoring task (defensive: task may be a custom object with start())
         monitor_task = getattr(self.bot, "monitor_task", None)
         if monitor_task and hasattr(monitor_task, "start"):
-            getattr(monitor_task, "start")()
+            start_fn = getattr(monitor_task, "start")
+            maybe_coro = start_fn()
+            if asyncio.iscoroutine(maybe_coro):
+                _ = asyncio.create_task(maybe_coro)
 
         # Mark startup complete
         self.bot.startup_complete = True
-        self.bot.stats["uptime_start"] = asyncio.get_event_loop().time()
+        self.bot.stats["uptime_start"] = asyncio.get_running_loop().time()
 
         # Sync slash commands
         await self._sync_slash_commands()
@@ -130,13 +127,7 @@ class StartupManager:
         else:
             logger.warning("Health monitor not available during startup")
 
-        # Register slash commands via registry if available
-        try:
-            slash_handler = getattr(self.bot, "slash_handler", None)
-            if slash_handler and hasattr(slash_handler, "register_slash_commands"):
-                await slash_handler.register_slash_commands()
-        except Exception as e:
-            logger.warning(f"Slash command registration failed during initialization: {e}")
+        # Legacy slash registry removed; Hybrid/Group Cogs are registered and synced via CommandTree
 
     async def _attempt_voice_connection(self) -> bool:
         """Attempt to connect to the target voice channel."""

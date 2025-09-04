@@ -477,3 +477,14 @@ class ConfigManagerImpl:
         if self._test_mode_override is not None:
             return self._test_mode_override
         return self._get_config().test_mode
+
+    # Optional hook: custom VoiceProtocol for voice connections
+    # Matches ConfigManager protocol; default is None (use discord.py default)
+    from typing import TYPE_CHECKING
+
+    if TYPE_CHECKING:  # pragma: no cover
+        from discord import VoiceProtocol
+
+    def get_voice_client_class(self) -> "type[VoiceProtocol] | None":
+        """Return a custom VoiceProtocol subclass or None (default)."""
+        return None

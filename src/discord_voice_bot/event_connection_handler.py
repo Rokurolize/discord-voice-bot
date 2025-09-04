@@ -1,4 +1,4 @@
-"""Connection handling for event handler."""
+"""Connection handling."""
 
 import asyncio
 from typing import TYPE_CHECKING, Any

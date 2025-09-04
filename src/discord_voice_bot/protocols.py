@@ -1,6 +1,9 @@
 """Protocol definitions for Discord Voice TTS Bot components."""
 
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
+
+if TYPE_CHECKING:  # pragma: no cover
+    from discord import VoiceProtocol
 
 # Protocol-level imports should avoid importing concrete types from subpackages
 # to prevent circulars; keep this file minimal. Remove stray unused imports.
@@ -63,6 +66,10 @@ class ConfigManager(Protocol):
 
     def get_engines(self) -> dict[str, dict[str, Any]]:
         """Get all engine configurations."""
+        ...
+
+    def get_voice_client_class(self) -> "type[VoiceProtocol] | None":
+        """Return a custom VoiceProtocol subclass for voice connections, or None."""
         ...
 
     def get_max_message_length(self) -> int:
@@ -130,22 +137,7 @@ class HasStatusManager(Protocol):
     status_manager: Any
 
 
-class HasEventHandler(Protocol):
-    """Protocol for objects that have event handler."""
-
-    event_handler: Any
-
-
-class HasCommandHandler(Protocol):
-    """Protocol for objects that have command handler."""
-
-    command_handler: Any
-
-
-class HasSlashHandler(Protocol):
-    """Protocol for objects that have slash command handler."""
-
-    slash_handler: Any
+# Legacy handler protocols removed; EventBridge manages events and Cogs manage commands.
 
 
 class HasMessageValidator(Protocol):

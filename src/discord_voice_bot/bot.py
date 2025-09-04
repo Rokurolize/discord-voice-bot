@@ -16,15 +16,7 @@ from .config_manager import ConfigManagerImpl
 
 
 class BaseEventBot(commands.Bot):
-    """Base class for Discord bots with unified event delegation."""
-
-    async def _delegate_event_async(self, handler_name: str, method_name: str, *args: Any, **kwargs: Any) -> None:
-        """Delegate async events to handler if available."""
-        if hasattr(self, handler_name) and getattr(self, handler_name):
-            handler_instance = getattr(self, handler_name)
-            if hasattr(handler_instance, method_name):
-                method = getattr(handler_instance, method_name)
-                await method(*args, **kwargs)
+    """Base class for Discord bots (reserved for future extensions)."""
 
 
 class DiscordVoiceTTSBot(BaseEventBot):
@@ -42,7 +34,7 @@ class DiscordVoiceTTSBot(BaseEventBot):
         Behavioral notes:
         - Retrieves intents and command prefix from the resulting config manager and passes them to the base commands.Bot initializer.
         - Stores the normalized config manager on self.config_manager.
-        - Initializes component placeholders (voice_handler, event_handler, command_handler, slash_handler, message_validator, status_manager, health_monitor) to None; these are expected to be wired by the surrounding factory.
+        - Initializes component placeholders (voice_handler, message_validator, status_manager, health_monitor) to None; these are expected to be wired by the surrounding factory. Event handlers are managed by the EventBridge Cog.
         - Initializes startup state (startup_complete, startup_connection_failures, monitor_task) and a stats dict with keys: "messages_processed", "voice_connections", "tts_requests", "errors".
         """
         # Normalize to a ConfigManager-compatible instance
@@ -70,9 +62,7 @@ class DiscordVoiceTTSBot(BaseEventBot):
 
         # Initialize component placeholders (will be set by factory)
         self.voice_handler: Any = None
-        self.event_handler: Any = None
-        self.command_handler: Any = None
-        self.slash_handler: Any = None
+        # Event handlers are owned by EventBridge
         self.message_validator: Any = None
         self.status_manager: Any = None
         self.health_monitor: Any = None
@@ -87,7 +77,7 @@ class DiscordVoiceTTSBot(BaseEventBot):
             "messages_processed": 0,
             "voice_connections": 0,
             "tts_requests": 0,
-            "errors": 0,
+            "connection_errors": 0,
         }
 
     async def start_with_config(self) -> None:
@@ -108,11 +98,13 @@ class DiscordVoiceTTSBot(BaseEventBot):
         """
         Called when the bot is fully connected to Discord.
 
-        Prints a connection message and, if an `event_handler` attribute is present and truthy, awaits its `handle_ready()` coroutine to perform additional readiness handling.
+        Prints a connection message. Readiness handling is performed by the
+        EventBridge Cog listener; this method is otherwise a no-op.
         """
-        print(f"🤖 {self.user} has connected to Discord!")
-        if hasattr(self, "event_handler") and self.event_handler:
-            await self.event_handler.handle_ready()
+        from loguru import logger
+
+        logger.info(f"🤖 {self.user} has connected to Discord!")
+        return
 
     @override
     async def change_presence(self, *, status: Any = None, activity: Any = None) -> None:
@@ -153,43 +145,38 @@ class DiscordVoiceTTSBot(BaseEventBot):
 
     @override
     async def on_message(self, message: Any) -> None:  # discord.Message at runtime
-        """
-        Delegate an incoming Discord message to the configured event handler.
-
-        If an event handler with a `handle_message` coroutine is attached to the bot, this forwards
-        the provided message to that handler.
-
-        Args:
-            message: The message object received from Discord (typed as Any at runtime).
-
-
-        """
-        await self._delegate_event_async("event_handler", "handle_message", message)
+        """No-op: EventBridge Cog handles on_message."""
+        return
 
     async def on_voice_state_update(self, member: Any, before: Any, after: Any) -> None:
-        """Delegate voice state updates to the event handler."""
-        await self._delegate_event_async("event_handler", "handle_voice_state_update", member, before, after)
+        """No-op: EventBridge Cog handles voice state updates."""
+        return
 
     async def on_disconnect(self) -> None:
-        """Delegate disconnect events to the event handler."""
-        await self._delegate_event_async("event_handler", "handle_disconnect")
+        """No-op: EventBridge Cog handles disconnect."""
+        return
 
     async def on_resumed(self) -> None:
-        """Delegate resume events to the event handler."""
-        await self._delegate_event_async("event_handler", "handle_resumed")
+        """No-op: EventBridge Cog handles resume."""
+        return
 
     @override
     async def on_error(self, event: str, *args: Any, **kwargs: Any) -> None:
         """
-        Delegate an error event to the configured event handler.
-
-        If an `event_handler` with a `handle_error` coroutine is present on the bot, this forwards
-        the `event` name plus any positional and keyword arguments to that handler and awaits it.
+        Delegate an error event to ConnectionHandler via EventBridge when available.
         """
-        had_handler = hasattr(self, "event_handler") and self.event_handler and hasattr(self.event_handler, "handle_error")
-        await self._delegate_event_async("event_handler", "handle_error", event, *args, **kwargs)
-        if not had_handler:
-            print(f"[on_error] Unhandled error event: {event}", flush=True)
+        # Prefer EventBridge -> ConnectionHandler
+        try:
+            bridge = self.get_cog("EventBridge")
+            conn = getattr(bridge, "connection_handler", None) if bridge else None
+            if conn and hasattr(conn, "handle_error"):
+                await conn.handle_error(event, *args, **kwargs)
+                return
+        except Exception:
+            pass
+        from loguru import logger
+
+        logger.warning(f"[on_error] Unhandled error event: {event}")
 
 
 async def run_bot(config: Config | None = None) -> None:
