@@ -1,8 +1,8 @@
 # Repository Guidelines
 
-## MCP tool
-use serena activate_project, "project": "/home/ubuntu/workbench/projects/discord-voice-bot"
-use context7 get-library-docs, "context7CompatibleLibraryID": "/rapptz/discord.py"
+## First, initialize it using the MCP tool
+For tasks involving searching and replacing existing code: Use serena activate_project, "project": "/home/ubuntu/workbench/projects/discord-voice-bot"
+When coding: Use context7 get-library-docs, "context7CompatibleLibraryID": "/rapptz/discord.py"
 
 ## Project Structure & Module Organization
 - `src/discord_voice_bot/`: core package and entrypoint (`__main__.py`).
@@ -101,3 +101,12 @@ uv run poe check
     - If this branch is shared or already published, avoid history rewrites; prefer a new commit or merge.
     - Or use "Squash and merge" on GitHub to keep the main history clean.
     - If you rebased local history, run `uv run poe check` again, then push safely: `git push --force-with-lease`
+
+## Long‑Lived Memory (2025‑09)
+- Events: EventBridge Cog owns all event listeners and delegates to Startup/Message/Connection managers. The legacy EventHandler facade and any compatibility paths are removed. `DiscordVoiceTTSBot.on_*` methods are effectively no‑ops; do not reintroduce legacy handlers.
+- Commands: Use discord.py Hybrid/Group Cogs only. Do not use or add a custom slash registry/handlers. Slash commands are synced via `bot.tree.sync()` during startup.
+- Rate limiting: Delegate Discord API rate limiting to discord.py. `RateLimiterManager` is for external TTS/backends only; Discord‑specific Retry‑After handling was removed.
+- Cooldowns: Add `@app_commands.checks.cooldown` to slash/hybrid commands to mirror prefix cooldowns where appropriate.
+- DRY speaker resolution: Use `src/discord_voice_bot/utils/speakers.py:match_speaker` from both `/voice` and `/tts set` flows.
+- Docs hygiene: Removed outdated files `architecture_analysis.md` and `prompt.md` to avoid drift; keep docs minimal and current rather than speculative.
+- PR/Branch: Work consolidated on `feat/final-tasks` (PR #9 open). Prefer small commits locally; run `uv run poe check` before push. Pre‑push hooks include `ruff-format`—allow it to modify, then commit and push.
