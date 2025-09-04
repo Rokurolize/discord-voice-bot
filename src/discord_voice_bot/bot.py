@@ -108,9 +108,14 @@ class DiscordVoiceTTSBot(BaseEventBot):
         """
         Called when the bot is fully connected to Discord.
 
-        Prints a connection message and, if an `event_handler` attribute is present and truthy, awaits its `handle_ready()` coroutine to perform additional readiness handling.
+        Prints a connection message and, if no EventBridge cog is present,
+        delegates to the legacy `event_handler.handle_ready()` for backward
+        compatibility. When EventBridge is registered, its listener handles
+        readiness and this method becomes a no-op (aside from logging).
         """
         print(f"🤖 {self.user} has connected to Discord!")
+        if any(c.__class__.__name__ == "EventBridge" for c in self.cogs.values()):
+            return
         if hasattr(self, "event_handler") and self.event_handler:
             await self.event_handler.handle_ready()
 
