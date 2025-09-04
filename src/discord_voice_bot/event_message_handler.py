@@ -1,4 +1,4 @@
-"""Message handling for event handler."""
+"""Message handling."""
 
 from typing import TYPE_CHECKING, Any
 

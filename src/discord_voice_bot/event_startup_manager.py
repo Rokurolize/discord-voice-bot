@@ -1,4 +1,4 @@
-"""Startup management for event handler."""
+"""Startup management."""
 
 import asyncio
 from typing import TYPE_CHECKING

@@ -32,7 +32,7 @@ graph TD
     B --> C[ConfigManager]
     B --> D[BotFactory]
     D --> E[DiscordBot]
-    E --> F[EventHandler]
+    
     E --> G[CommandHandler]
     E --> H[VoiceHandler]
 ```

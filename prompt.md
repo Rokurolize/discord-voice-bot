@@ -41,29 +41,26 @@ The Discord Voice TTS bot is failing to read messages despite appearing to be co
 
 #### Discord.py Message Flow:
 ```
-Discord Gateway → on_message() → message.content → Event Handler → TTS Processing
+Discord Gateway → on_message() → message.content → TTS Processing
 ```
 
 #### Where the Failure Occurs:
 ```
-Discord Gateway → on_message() → message.content = "" → Event Handler Skips Processing
+Discord Gateway → on_message() → message.content = "" → Skips Processing
 ```
 
 #### The Issue:
-- Message object reaches `on_message` event handler
 - `message.content` attribute exists but contains empty string
-- Complex event handler architecture prevents proper content retrieval
 - Filtering logic treats empty content as invalid and skips processing
 
 ## Solution Requirements
 
 ### 1. Immediate Fix Required:
-- **Direct Message Content Access**: Bypass complex event handler chain
 - **Content Validation**: Immediate checking before any processing
 - **Simplified Architecture**: Reduce abstraction layers between Discord.py and TTS processing
 
 ### 2. Long-term Architectural Changes:
-- **Event Handler Simplification**: Reduce complexity in message processing pipeline
+ 
 - **Error Handling**: Better handling of Discord API edge cases
 - **Content Retrieval**: Ensure message content is captured before any filtering
 - **Debugging Infrastructure**: Enhanced logging for troubleshooting
@@ -73,7 +70,7 @@ Discord Gateway → on_message() → message.content = "" → Event Handler Skip
 ### Phase 1: Critical Fix (Immediate)
 
 ```python
-# In bot.py on_message event handler
+# In bot.py on_message
 @self.event
 async def on_message(message: discord.Message) -> None:
     """Critical fix: Check message content immediately before any processing."""
@@ -89,7 +86,7 @@ async def on_message(message: discord.Message) -> None:
 
     logger.info(f"SUCCESS: Valid message content: '{message.content}'")
 
-    # Skip complex event handler - process directly
+    # Process directly
     if self.voice_handler and message.channel.id == self.target_channel_id:
         await self.process_tts_message(message)
 ```
@@ -146,7 +143,7 @@ class SimplifiedMessageHandler:
 - ✅ Discord API permissions are correctly configured
 - ✅ Network connectivity is functional
 - ✅ Bot authentication and connection successful
-- ❌ Complex event handler architecture prevents content access
+
 - ❌ Message filtering logic triggers on empty content
 
 ### Next Steps:
