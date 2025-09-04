@@ -196,14 +196,23 @@ class DiscordVoiceTTSBot(BaseEventBot):
     @override
     async def on_error(self, event: str, *args: Any, **kwargs: Any) -> None:
         """
-        Delegate an error event to the configured event handler.
-
-        If an `event_handler` with a `handle_error` coroutine is present on the bot, this forwards
-        the `event` name plus any positional and keyword arguments to that handler and awaits it.
+        Delegate an error event to ConnectionHandler via EventBridge when available.
+        Falls back to legacy event_handler if present; otherwise prints a simple log line.
         """
-        had_handler = hasattr(self, "event_handler") and self.event_handler and hasattr(self.event_handler, "handle_error")
-        await self._delegate_event_async("event_handler", "handle_error", event, *args, **kwargs)
-        if not had_handler:
+        # Prefer EventBridge -> ConnectionHandler
+        try:
+            bridge = next((c for c in self.cogs.values() if c.__class__.__name__ == "EventBridge"), None)
+            conn = getattr(bridge, "connection_handler", None) if bridge else None
+            if conn and hasattr(conn, "handle_error"):
+                await conn.handle_error(event, *args, **kwargs)
+                return
+        except Exception:
+            pass
+
+        # Legacy facade fallback
+        if hasattr(self, "event_handler") and self.event_handler and hasattr(self.event_handler, "handle_error"):
+            await self.event_handler.handle_error(event, *args, **kwargs)
+        else:
             print(f"[on_error] Unhandled error event: {event}", flush=True)
 
 

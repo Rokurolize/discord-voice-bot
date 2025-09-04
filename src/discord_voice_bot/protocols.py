@@ -131,8 +131,9 @@ class HasStatusManager(Protocol):
 
 
 class HasEventHandler(Protocol):
-    """Protocol for objects that have event handler."""
-
+    """Deprecated: Event handlers are managed by EventBridge Cog."""
+    
+    # Kept for backward compatibility with external references
     event_handler: Any
 
 

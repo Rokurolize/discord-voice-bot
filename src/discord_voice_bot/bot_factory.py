@@ -9,7 +9,6 @@ from loguru import logger
 from .config import Config
 
 if TYPE_CHECKING:
-    from .event_handler import EventHandler
     from .message_validator import MessageValidator
     from .status_manager import StatusManager
 
@@ -130,7 +129,6 @@ class BotFactory:
 
         # Create and register components
         components_to_setup = [
-            ("event_handler", self._create_event_handler),
             # Slash registry is deprecated; hybrid Cogs register themselves
             ("message_validator", self._create_message_validator),
             ("status_manager", self._create_status_manager),
@@ -141,7 +139,7 @@ class BotFactory:
         for component_name, creator_func in components_to_setup:
             try:
                 # Pass config to components that need it
-                if component_name in ["event_handler", "voice_handler", "health_monitor", "message_validator"]:
+                if component_name in ["voice_handler", "health_monitor", "message_validator"]:
                     component = await creator_func(bot, config)  # type: ignore[call-arg]
                 else:
                     component = await creator_func(bot)  # type: ignore[call-arg]
@@ -207,13 +205,9 @@ class BotFactory:
             logger.error(f"Operation failed: {e}")
             raise
 
-    async def _create_event_handler(self, bot: Any, config: Config) -> "EventHandler":
-        """Create and return an EventHandler wired with a ConfigManager wrapper."""
-        # Lazy import to avoid cycles
-        from .config_manager import ConfigManagerImpl
-
-        config_manager = ConfigManagerImpl(config)
-        return self._create_component("discord_voice_bot.event_handler", "EventHandler", bot, config_manager)
+    # EventHandler deprecated: EventBridge Cog handles events directly
+    async def _create_event_handler(self, bot: Any, config: Config) -> Any:  # pragma: no cover
+        return None
 
     # NOTE: Legacy prefix CommandHandler is deprecated in favor of discord.py's
     # built-in commands extension (process_commands / hybrid commands). We keep
@@ -305,8 +299,8 @@ class BotFactory:
         logger.debug("Configuration validation passed")
 
         # Validate required components
-        required_components = ["event_handler", "message_validator", "status_manager"]
-        component_requirements = {"event_handler": ["handle_ready"], "message_validator": ["validate_message"], "status_manager": ["record_command_usage"]}
+        required_components = ["message_validator", "status_manager"]
+        component_requirements = {"message_validator": ["validate_message"], "status_manager": ["record_command_usage"]}
 
         for component_name in required_components:
             component = self.registry.get(component_name)
@@ -438,7 +432,6 @@ class BotFactory:
             "message_validator",
             "slash_handler",
             "command_handler",
-            "event_handler",
         ]
 
         for component_name in shutdown_order:
