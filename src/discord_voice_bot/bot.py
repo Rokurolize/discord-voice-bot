@@ -42,7 +42,7 @@ class DiscordVoiceTTSBot(BaseEventBot):
         Behavioral notes:
         - Retrieves intents and command prefix from the resulting config manager and passes them to the base commands.Bot initializer.
         - Stores the normalized config manager on self.config_manager.
-        - Initializes component placeholders (voice_handler, event_handler, command_handler, slash_handler, message_validator, status_manager, health_monitor) to None; these are expected to be wired by the surrounding factory.
+        - Initializes component placeholders (voice_handler, command_handler, slash_handler, message_validator, status_manager, health_monitor) to None; these are expected to be wired by the surrounding factory. Event handlers are managed by the EventBridge Cog.
         - Initializes startup state (startup_complete, startup_connection_failures, monitor_task) and a stats dict with keys: "messages_processed", "voice_connections", "tts_requests", "errors".
         """
         # Normalize to a ConfigManager-compatible instance
@@ -70,6 +70,7 @@ class DiscordVoiceTTSBot(BaseEventBot):
 
         # Initialize component placeholders (will be set by factory)
         self.voice_handler: Any = None
+        # Reserved for backward compatibility; EventBridge manages handlers now
         self.event_handler: Any = None
         self.command_handler: Any = None
         self.slash_handler: Any = None
