@@ -2,8 +2,6 @@
 from collections.abc import Callable
 from typing import Any
 
-import discord
-
 from .ratelimit import CircuitBreaker, SimpleRateLimiter
 
 
@@ -47,16 +45,9 @@ class RateLimiterManager:
             await self.circuit_breaker.record_failure()
             raise
 
-    def _extract_retry_after(self, exception: discord.HTTPException) -> str:
-        """Extract retry-after value from HTTP exception."""
-        if hasattr(exception, "response") and exception.response:
-            try:
-                headers = getattr(exception.response, "headers", {})
-                if hasattr(headers, "get"):
-                    return headers.get("Retry-After", "1")
-            except (AttributeError, TypeError):
-                pass
-        return "1"
+    # Note: Retry-After extraction for Discord HTTPException removed; Discord API
+    # rate limiting is handled by discord.py. External APIs should return their
+    # own backoff information or be retried by the caller.
 
     def _looks_like_discord_callable(self, api_call: Callable[..., Any]) -> bool:
         """Best-effort check whether the callable belongs to discord.py.

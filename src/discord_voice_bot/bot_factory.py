@@ -213,12 +213,7 @@ class BotFactory:
     # built-in commands extension (process_commands / hybrid commands). We keep
     # this method name reserved for backward compatibility, but it is no longer
     # used in setup.
-    async def _create_command_handler(self, bot: Any) -> Any:  # pragma: no cover
-        return None
-
-    # Deprecated: registry is no longer created; hybrid Cogs handle registration
-    async def _create_slash_command_handler(self, bot: Any) -> Any:  # pragma: no cover
-        return None
+    # Legacy command/slash handlers removed; Hybrid/Group Cogs are used.
 
     async def _create_message_validator(self, bot: Any, config: Config) -> "MessageValidator":
         """Create a MessageValidator using the provided per-bot Config."""
@@ -411,8 +406,7 @@ class BotFactory:
 
         Performs an orderly, best-effort shutdown:
         - Invokes component-specific stop/cleanup/shutdown methods in a fixed reverse order:
-          health_monitor, voice_handler, status_manager, message_validator, slash_handler,
-          command_handler, event_handler.
+          health_monitor, voice_handler, status_manager, message_validator.
         - Swallows and logs exceptions from individual components so shutdown proceeds.
         - Clears the internal component registry.
         - If the bot has a `tts_engine` attribute with a `close` coroutine, awaits it to close the engine.
@@ -430,8 +424,6 @@ class BotFactory:
             "voice_handler",
             "status_manager",
             "message_validator",
-            "slash_handler",
-            "command_handler",
         ]
 
         for component_name in shutdown_order:

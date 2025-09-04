@@ -72,6 +72,7 @@ class DiscordVoiceTTSBot(BaseEventBot):
         self.voice_handler: Any = None
         # Reserved for backward compatibility; EventBridge manages handlers now
         self.event_handler: Any = None
+        # Deprecated: legacy handlers are no longer used; kept for compatibility
         self.command_handler: Any = None
         self.slash_handler: Any = None
         self.message_validator: Any = None

@@ -130,13 +130,7 @@ class StartupManager:
         else:
             logger.warning("Health monitor not available during startup")
 
-        # Register slash commands via registry if available
-        try:
-            slash_handler = getattr(self.bot, "slash_handler", None)
-            if slash_handler and hasattr(slash_handler, "register_slash_commands"):
-                await slash_handler.register_slash_commands()
-        except Exception as e:
-            logger.warning(f"Slash command registration failed during initialization: {e}")
+        # Legacy slash registry removed; Hybrid/Group Cogs are registered and synced via CommandTree
 
     async def _attempt_voice_connection(self) -> bool:
         """Attempt to connect to the target voice channel."""
