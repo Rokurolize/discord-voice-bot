@@ -45,7 +45,7 @@ class EventBridge(commands.Cog):
         self.message_handler = MessageHandler(bot, self.config_manager)
         self.connection_handler = ConnectionHandler(bot, self.config_manager)
         # Propagate target channel to connection handler
-        target_id = (self.config_manager.get_target_voice_channel_id() if self.config_manager else 0)
+        target_id = self.config_manager.get_target_voice_channel_id() if self.config_manager else 0
         self.connection_handler.set_target_channel_id(target_id)
 
     @commands.Cog.listener()

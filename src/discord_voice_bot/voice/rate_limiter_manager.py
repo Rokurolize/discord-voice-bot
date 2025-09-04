@@ -1,4 +1,5 @@
 """Rate limiting and circuit breaker management for voice handler."""
+
 from collections.abc import Callable
 from typing import Any
 
