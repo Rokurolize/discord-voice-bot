@@ -130,23 +130,7 @@ class HasStatusManager(Protocol):
     status_manager: Any
 
 
-class HasEventHandler(Protocol):
-    """Deprecated: Event handlers are managed by EventBridge Cog."""
-    
-    # Kept for backward compatibility with external references
-    event_handler: Any
-
-
-class HasCommandHandler(Protocol):
-    """Protocol for objects that have command handler."""
-
-    command_handler: Any
-
-
-class HasSlashHandler(Protocol):
-    """Protocol for objects that have slash command handler."""
-
-    slash_handler: Any
+# Legacy handler protocols removed; EventBridge manages events and Cogs manage commands.
 
 
 class HasMessageValidator(Protocol):

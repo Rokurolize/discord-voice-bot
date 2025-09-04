@@ -205,15 +205,7 @@ class BotFactory:
             logger.error(f"Operation failed: {e}")
             raise
 
-    # EventHandler deprecated: EventBridge Cog handles events directly
-    async def _create_event_handler(self, bot: Any, config: Config) -> Any:  # pragma: no cover
-        return None
-
-    # NOTE: Legacy prefix CommandHandler is deprecated in favor of discord.py's
-    # built-in commands extension (process_commands / hybrid commands). We keep
-    # this method name reserved for backward compatibility, but it is no longer
-    # used in setup.
-    # Legacy command/slash handlers removed; Hybrid/Group Cogs are used.
+    # Legacy handlers removed; EventBridge Cog handles events and Cogs manage commands.
 
     async def _create_message_validator(self, bot: Any, config: Config) -> "MessageValidator":
         """Create a MessageValidator using the provided per-bot Config."""
