@@ -9,6 +9,7 @@ from ..config import Config
 from ..slash.autocomplete.voice import voice_autocomplete
 from ..slash.embeds.voices import create_voices_embed
 from ..user_settings import load_user_settings
+from ..utils.speakers import match_speaker
 
 
 class VoiceCommands(commands.Cog):
@@ -27,6 +28,7 @@ class VoiceCommands(commands.Cog):
     @commands.hybrid_command(name="skip", description="Skip current TTS playback")
     @commands.has_permissions(send_messages=True)
     @commands.cooldown(1, 3.0, commands.BucketType.user)
+    @app_commands.checks.cooldown(1, 3.0)
     @app_commands.default_permissions()
     async def skip(self, ctx: commands.Context[Any]) -> None:
         if not hasattr(self.bot, "voice_handler") or not getattr(self.bot, "voice_handler"):
@@ -42,6 +44,7 @@ class VoiceCommands(commands.Cog):
     @commands.hybrid_command(name="clear", description="Clear TTS queue")
     @commands.has_permissions(send_messages=True)
     @commands.cooldown(1, 3.0, commands.BucketType.user)
+    @app_commands.checks.cooldown(1, 3.0)
     @app_commands.default_permissions()
     async def clear(self, ctx: commands.Context[Any]) -> None:
         if not hasattr(self.bot, "voice_handler") or not getattr(self.bot, "voice_handler"):
@@ -54,6 +57,7 @@ class VoiceCommands(commands.Cog):
     @commands.hybrid_command(name="voices", description="List all available voices")
     @commands.has_permissions(send_messages=True)
     @commands.cooldown(1, 3.0, commands.BucketType.user)
+    @app_commands.checks.cooldown(1, 3.0)
     @app_commands.default_permissions()
     async def voices(self, ctx: commands.Context[Any]) -> None:
         # Resolve config (dataclass) and engine
@@ -72,6 +76,7 @@ class VoiceCommands(commands.Cog):
     @commands.hybrid_command(name="voicecheck", description="Perform voice connection health check")
     @commands.has_permissions(send_messages=True)
     @commands.cooldown(1, 10.0, commands.BucketType.user)
+    @app_commands.checks.cooldown(1, 10.0)
     @app_commands.default_permissions()
     async def voicecheck(self, ctx: commands.Context[Any]) -> None:
         if not hasattr(self.bot, "voice_handler") or not getattr(self.bot, "voice_handler"):
@@ -117,6 +122,7 @@ class VoiceCommands(commands.Cog):
     @commands.hybrid_command(name="reconnect", description="Manually attempt to reconnect to voice channel")
     @commands.has_permissions(send_messages=True)
     @commands.cooldown(1, 10.0, commands.BucketType.user)
+    @app_commands.checks.cooldown(1, 10.0)
     @app_commands.default_permissions()
     async def reconnect(self, ctx: commands.Context[Any]) -> None:
         if not hasattr(self.bot, "voice_handler") or not getattr(self.bot, "voice_handler"):
@@ -140,6 +146,7 @@ class VoiceCommands(commands.Cog):
     @app_commands.describe(text="Text to convert to speech")
     @commands.has_permissions(send_messages=True)
     @commands.cooldown(1, 5.0, commands.BucketType.user)
+    @app_commands.checks.cooldown(1, 5.0)
     @app_commands.default_permissions()
     async def test_tts(self, ctx: commands.Context[Any], *, text: str = "テストメッセージです") -> None:
         if not hasattr(self.bot, "voice_handler") or not getattr(self.bot, "voice_handler"):
@@ -175,6 +182,7 @@ class VoiceCommands(commands.Cog):
     @app_commands.autocomplete(speaker=voice_autocomplete)
     @commands.has_permissions(send_messages=True)
     @commands.cooldown(1, 3.0, commands.BucketType.user)
+    @app_commands.checks.cooldown(1, 3.0)
     @app_commands.default_permissions()
     async def voice(self, ctx: commands.Context[Any], speaker: str | None = None) -> None:
         user_id = str(ctx.author.id)
@@ -220,13 +228,7 @@ class VoiceCommands(commands.Cog):
             await self._send(ctx, f"❌ No speakers configured for engine '{engine_key}'. Use `/voices`.", ephemeral=True)
             return
 
-        matched_name: str | None = None
-        matched_id: int | None = None
-        sp_lower = sp.lower()
-        for name, sid in speakers_map.items():
-            if name.lower() == sp_lower or str(sid) == sp:
-                matched_name, matched_id = name, sid
-                break
+        matched_name, matched_id = match_speaker(speakers_map, sp)
 
         if matched_name and matched_id is not None:
             if settings.set_user_speaker(user_id, matched_id, matched_name, cfg.tts_engine):

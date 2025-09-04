@@ -12,6 +12,7 @@ from ..slash.embeds.voices import create_voices_embed
 from ..user_settings import load_user_settings
 from ..utils.embeds import make_embed
 from ..utils.respond import send_interaction
+from ..utils.speakers import match_speaker
 
 
 class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech controls"):
@@ -30,6 +31,7 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
     @app_commands.command(name="set", description="Set or show personal voice preference")
     @app_commands.describe(speaker="Voice name or numeric ID; use 'reset' to clear")
     @app_commands.autocomplete(speaker=voice_autocomplete)
+    @app_commands.checks.cooldown(1, 3.0)
     async def tts_set(self, interaction: discord.Interaction, speaker: str | None = None) -> None:
         try:
             user_id = str(interaction.user.id)
@@ -77,13 +79,7 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
                 _ = await interaction.response.send_message(f"❌ No speakers configured for engine '{engine_key}'. Use `/tts list`.", ephemeral=True)
                 return
 
-            matched_name: str | None = None
-            matched_id: int | None = None
-            sp_lower = sp.lower()
-            for name, sid in speakers_map.items():
-                if name.lower() == sp_lower or str(sid) == sp:
-                    matched_name, matched_id = name, sid
-                    break
+            matched_name, matched_id = match_speaker(speakers_map, sp)
 
             if matched_name and matched_id is not None:
                 if settings.set_user_speaker(user_id, matched_id, matched_name, cfg.tts_engine):
@@ -110,6 +106,7 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
 
     # /tts list
     @app_commands.command(name="list", description="List all available voices")
+    @app_commands.checks.cooldown(1, 3.0)
     async def tts_list(self, interaction: discord.Interaction) -> None:
         try:
             config_val = getattr(self.bot, "config", None)
@@ -127,6 +124,7 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
 
     # /tts check
     @app_commands.command(name="check", description="Perform voice connection health check")
+    @app_commands.checks.cooldown(1, 10.0)
     async def tts_check(self, interaction: discord.Interaction) -> None:
         try:
             if not hasattr(self.bot, "voice_handler") or not getattr(self.bot, "voice_handler"):
@@ -173,6 +171,7 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
 
     # /tts reconnect
     @app_commands.command(name="reconnect", description="Manually attempt to reconnect to voice channel")
+    @app_commands.checks.cooldown(1, 10.0)
     async def tts_reconnect(self, interaction: discord.Interaction) -> None:
         try:
             if not hasattr(self.bot, "voice_handler") or not getattr(self.bot, "voice_handler"):
@@ -193,6 +192,7 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
     # /tts test
     @app_commands.command(name="test", description="Test TTS with custom text")
     @app_commands.describe(text="Text to convert to speech")
+    @app_commands.checks.cooldown(1, 5.0)
     async def tts_test(self, interaction: discord.Interaction, text: str = "テストメッセージです") -> None:
         try:
             if not hasattr(self.bot, "voice_handler") or not getattr(self.bot, "voice_handler"):
@@ -223,6 +223,7 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
 
     # /tts skip
     @app_commands.command(name="skip", description="Skip current TTS playback")
+    @app_commands.checks.cooldown(1, 3.0)
     async def tts_skip(self, interaction: discord.Interaction) -> None:
         try:
             if not hasattr(self.bot, "voice_handler") or not getattr(self.bot, "voice_handler"):
@@ -238,6 +239,7 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
 
     # /tts clear
     @app_commands.command(name="clear", description="Clear TTS queue")
+    @app_commands.checks.cooldown(1, 3.0)
     async def tts_clear(self, interaction: discord.Interaction) -> None:
         try:
             if not hasattr(self.bot, "voice_handler") or not getattr(self.bot, "voice_handler"):

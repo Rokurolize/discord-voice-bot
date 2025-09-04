@@ -22,6 +22,7 @@ class StatusCommands(commands.Cog):
     @commands.hybrid_command(name="status", description="Show bot status and statistics")
     @commands.has_permissions(send_messages=True)
     @commands.cooldown(1, 3.0, commands.BucketType.user)
+    @app_commands.checks.cooldown(1, 3.0)
     @app_commands.default_permissions()  # default: no extra permission restrictions
     async def status(self, ctx: commands.Context[Any]) -> None:
         """Display current bot status as an embed.
