@@ -19,4 +19,8 @@ class WarningDebouncer:
 
 
 def format_issue(prefix: str, detail: str) -> str:
-    return f"{prefix}: {detail}".strip()
+    if prefix and detail:
+        return f"{prefix}: {detail}"
+    if prefix:
+        return prefix
+    return detail

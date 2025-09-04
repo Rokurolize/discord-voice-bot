@@ -39,6 +39,7 @@ dev = [
   "pytest>=8.3",
   "pytest-asyncio>=0.23",
   "pre-commit>=4.3.0",
+  "pytest-cov>=5.0.0",
 ]
 
 [project.scripts]
@@ -54,6 +55,7 @@ package = true
 
 # ---- tests ----------------------------------------------------
 test = "uv run pytest -q"
+coverage = "uv run pytest --cov=src --cov-report=term-missing -q"
 
 # ---- primitives ----------------------------------------------
 _ruff_check = "uv run ruff check ."
