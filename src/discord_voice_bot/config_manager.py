@@ -481,6 +481,7 @@ class ConfigManagerImpl:
     # Optional hook: custom VoiceProtocol for voice connections
     # Matches ConfigManager protocol; default is None (use discord.py default)
     from typing import TYPE_CHECKING
+
     if TYPE_CHECKING:  # pragma: no cover
         from discord import VoiceProtocol
 
