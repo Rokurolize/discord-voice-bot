@@ -154,28 +154,38 @@ class DiscordVoiceTTSBot(BaseEventBot):
     @override
     async def on_message(self, message: Any) -> None:  # discord.Message at runtime
         """
-        Delegate an incoming Discord message to the configured event handler.
+        Delegate an incoming Discord message to the configured event handler (legacy path).
 
-        If an event handler with a `handle_message` coroutine is attached to the bot, this forwards
-        the provided message to that handler.
+        Note:
+            Event handling is moving to Cog listeners (EventBridge). To avoid
+            double processing, this method becomes a no-op when an EventBridge
+            cog is registered on the bot.
 
         Args:
             message: The message object received from Discord (typed as Any at runtime).
 
 
         """
+        if any(c.__class__.__name__ == "EventBridge" for c in self.cogs.values()):
+            return
         await self._delegate_event_async("event_handler", "handle_message", message)
 
     async def on_voice_state_update(self, member: Any, before: Any, after: Any) -> None:
-        """Delegate voice state updates to the event handler."""
+        """Delegate voice state updates to the event handler (legacy path)."""
+        if any(c.__class__.__name__ == "EventBridge" for c in self.cogs.values()):
+            return
         await self._delegate_event_async("event_handler", "handle_voice_state_update", member, before, after)
 
     async def on_disconnect(self) -> None:
-        """Delegate disconnect events to the event handler."""
+        """Delegate disconnect events to the event handler (legacy path)."""
+        if any(c.__class__.__name__ == "EventBridge" for c in self.cogs.values()):
+            return
         await self._delegate_event_async("event_handler", "handle_disconnect")
 
     async def on_resumed(self) -> None:
-        """Delegate resume events to the event handler."""
+        """Delegate resume events to the event handler (legacy path)."""
+        if any(c.__class__.__name__ == "EventBridge" for c in self.cogs.values()):
+            return
         await self._delegate_event_async("event_handler", "handle_resumed")
 
     @override

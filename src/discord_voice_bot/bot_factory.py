@@ -273,6 +273,7 @@ class BotFactory:
 
         # Register built-in Cogs (hybrid commands, etc.)
         try:
+            from .cogs.events import EventBridge
             from .cogs.status import StatusCommands
             from .cogs.voice import VoiceCommands
             from .cogs.voice_group import TTSGroup
@@ -288,6 +289,9 @@ class BotFactory:
             if not any(isinstance(cog, TTSGroup) for cog in bot.cogs.values()):
                 await bot.add_cog(TTSGroup(bot))
                 logger.debug("Registered TTSGroup group cog")
+            if not any(isinstance(cog, EventBridge) for cog in bot.cogs.values()):
+                await bot.add_cog(EventBridge(bot))
+                logger.debug("Registered EventBridge cog")
         except Exception as e:
             logger.debug(f"Skipping Cog registration (optional): {e}")
 
