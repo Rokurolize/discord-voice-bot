@@ -43,9 +43,11 @@ class StatusCommands(commands.Cog):
         except Exception:
             # Attempt best-effort user feedback without leaking internals
             try:
-                _ = await ctx.send("❌ Error retrieving status", ephemeral=True)  # slash supports ephemeral
+                if getattr(ctx, "interaction", None):
+                    _ = await ctx.send("❌ Error retrieving status", ephemeral=True)
+                else:
+                    _ = await ctx.send("❌ Error retrieving status")
             except Exception:
-                # Fallback if context doesn't support ephemeral or send failed
                 pass
 
 

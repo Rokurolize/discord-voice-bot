@@ -13,10 +13,15 @@ def match_speaker(speakers_map: dict[str, int], user_input: str) -> tuple[str | 
     if not sp:
         return None, None
 
-    sp_lower = sp.lower()
+    sp_lower = sp.casefold()
     # Try exact name (case-insensitive) or exact numeric ID string
     for name, sid in speakers_map.items():
-        if name.lower() == sp_lower or str(sid) == sp:
+        if name.casefold() == sp_lower or str(sid) == sp:
+            return name, sid
+
+    # Fallback: prefix match (case-insensitive)
+    for name, sid in speakers_map.items():
+        if name.casefold().startswith(sp_lower):
             return name, sid
 
     return None, None

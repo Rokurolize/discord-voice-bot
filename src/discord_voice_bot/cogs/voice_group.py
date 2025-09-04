@@ -59,9 +59,9 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
             sp = speaker.strip()
             if sp.lower() == "reset":
                 if settings.remove_user_speaker(user_id):
-                    _ = await interaction.response.send_message("✅ Voice preference reset to default", ephemeral=True)
+                    _ = await send_interaction(interaction, content="✅ Voice preference reset to default", ephemeral=True)
                 else:
-                    _ = await interaction.response.send_message("ℹ️ You don't have a custom voice set", ephemeral=True)
+                    _ = await send_interaction(interaction, content="ℹ️ You don't have a custom voice set", ephemeral=True)
                 return
 
             # Resolve available speakers from config (no engine startup)
@@ -69,14 +69,18 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
             config_val = config_val() if callable(config_val) else config_val
             cfg = cast(Config, config_val)
             if not cfg or not hasattr(cfg, "engines") or not hasattr(cfg, "tts_engine"):
-                _ = await interaction.response.send_message("❌ Configuration unavailable; try again later.", ephemeral=True)
+                _ = await send_interaction(interaction, content="❌ Configuration unavailable; try again later.", ephemeral=True)
                 return
 
             engine_key = (cfg.tts_engine or "voicevox").lower()
             engine_cfg = cast(dict[str, Any], cfg.engines.get(engine_key, {}))
             speakers_map = cast(dict[str, int], engine_cfg.get("speakers", {}))
             if not speakers_map:
-                _ = await interaction.response.send_message(f"❌ No speakers configured for engine '{engine_key}'. Use `/tts list`.", ephemeral=True)
+                _ = await send_interaction(
+                    interaction,
+                    content=f"❌ No speakers configured for engine '{engine_key}'. Use `/tts list`.",
+                    ephemeral=True,
+                )
                 return
 
             matched_name, matched_id = match_speaker(speakers_map, sp)
@@ -118,7 +122,7 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
                 return
             user_settings = load_user_settings()
             embed = await create_voices_embed(interaction.user.id, cfg, tts_engine, user_settings)
-            _ = await send_interaction(interaction, embed=embed, ephemeral=False)
+            _ = await send_interaction(interaction, embed=embed, ephemeral=True)
         except Exception:
             _ = await send_interaction(interaction, content="❌ Error retrieving voice information", ephemeral=True)
 
@@ -227,15 +231,16 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
     async def tts_skip(self, interaction: discord.Interaction) -> None:
         try:
             if not hasattr(self.bot, "voice_handler") or not getattr(self.bot, "voice_handler"):
-                _ = await interaction.response.send_message("❌ Voice handler not available", ephemeral=True)
+                _ = await send_interaction(interaction, content="❌ Voice handler not available", ephemeral=True)
                 return
             skipped = await self.bot.voice_handler.skip_current()  # type: ignore[attr-defined]
-            _ = await interaction.response.send_message(
-                "⏭️ Skipped current TTS message" if skipped else "❌ No TTS message to skip",
+            _ = await send_interaction(
+                interaction,
+                content=("⏭️ Skipped current TTS message" if skipped else "❌ No TTS message to skip"),
                 ephemeral=True,
             )
         except Exception:
-            await self._safe_error(interaction, "❌ Error skipping message")
+            _ = await send_interaction(interaction, content="❌ Error skipping message", ephemeral=True)
 
     # /tts clear
     @app_commands.command(name="clear", description="Clear TTS queue")
@@ -250,14 +255,7 @@ class TTSGroup(commands.GroupCog, name="tts", description="Text-to-Speech contro
         except Exception:
             _ = await send_interaction(interaction, content="❌ Error clearing queue", ephemeral=True)
 
-    async def _safe_error(self, interaction: discord.Interaction, message: str) -> None:
-        try:
-            if interaction.response.is_done():
-                await interaction.followup.send(message, ephemeral=True)
-            else:
-                _ = await interaction.response.send_message(message, ephemeral=True)
-        except Exception:
-            pass
+    # _safe_error removed; send_interaction utility should be used for responses
 
 
 async def setup(bot: commands.Bot) -> None:

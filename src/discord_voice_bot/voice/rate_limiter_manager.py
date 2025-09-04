@@ -29,7 +29,10 @@ class RateLimiterManager:
         """
         # If this looks like a discord.py API call, bypass local limiter/CB
         if self._looks_like_discord_callable(api_call):
-            return await api_call(*args, **kwargs)
+            res = api_call(*args, **kwargs)
+            if hasattr(res, "__await__"):
+                return await res
+            return res
 
         # External API: apply simple spacing + circuit breaker
         if not await self.circuit_breaker.can_make_request():
@@ -38,7 +41,13 @@ class RateLimiterManager:
         await self.rate_limiter.wait_if_needed()
 
         try:
-            result = await api_call(*args, **kwargs)
+            res = api_call(*args, **kwargs)
+            if hasattr(res, "__await__"):
+                result = await res
+            else:
+                import asyncio
+
+                result = await asyncio.to_thread(api_call, *args, **kwargs)
             await self.circuit_breaker.record_success()
             return result
         except Exception:

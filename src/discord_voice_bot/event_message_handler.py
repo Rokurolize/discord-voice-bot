@@ -32,6 +32,11 @@ class MessageHandler:
             # Process commands first (with optional rate limiting) - BEFORE TTS filtering
             logger.debug("🟡 STEP 1: Processing commands for message (no custom rate-limit; delegate to discord.py)")
             await self.bot.process_commands(message)
+            # Exclude discord.py commands from TTS pipeline
+            ctx = await self.bot.get_context(message)
+            if getattr(ctx, "command", None) is not None:
+                logger.debug("🟡 Message was a command → skip TTS pipeline")
+                return
             logger.debug("✅ STEP 1 COMPLETED: Command processing done")
 
             # Apply comprehensive message filtering

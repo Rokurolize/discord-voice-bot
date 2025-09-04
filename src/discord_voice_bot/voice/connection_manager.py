@@ -98,6 +98,9 @@ class VoiceConnectionManager:
 
             # Fresh connection attempt
             logger.info(f"🔗 ESTABLISHING NEW CONNECTION - Connecting to {channel.name}")
+            # Update target and state before attempting connection
+            self.target_channel = channel
+            self.connection_state = "CONNECTING"
             # Optional custom VoiceProtocol class provided via config manager
             cls = self._get_voice_client_class()
             if cls is not None:
@@ -107,6 +110,7 @@ class VoiceConnectionManager:
             else:
                 self.voice_client = await channel.connect()
             logger.info(f"✅ CONNECTION SUCCESSFUL - Connected to voice channel: {channel.name}")
+            self.connection_state = "CONNECTED"
 
             # Initialize voice gateway manager
             if self.voice_client:
@@ -167,11 +171,17 @@ class VoiceConnectionManager:
                 vc = cast(discord.VoiceClient | None, self.target_channel.guild.voice_client)
                 return bool(vc and getattr(vc, "is_connected", lambda: False)())
 
-            # Last resort: inspect any active voice_clients on the bot
+            # Last resort: inspect active voice_clients but scope to same guild when possible
             if hasattr(self.bot, "voice_clients"):
-                for vc in getattr(self.bot, "voice_clients"):
-                    if vc and getattr(vc, "is_connected", lambda: False)():
-                        return True
+                vcs = getattr(self.bot, "voice_clients")
+                if self.target_channel is not None:
+                    tgt_guild = self.target_channel.guild
+                    for vc in vcs:
+                        if vc and getattr(vc, "is_connected", lambda: False)() and getattr(getattr(vc, "channel", None), "guild", None) == tgt_guild:
+                            return True
+                else:
+                    # Unknown target guild → be conservative to avoid false positives
+                    return False
             return False
         except Exception:
             return False

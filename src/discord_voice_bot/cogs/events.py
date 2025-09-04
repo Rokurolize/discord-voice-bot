@@ -31,9 +31,9 @@ class EventBridge(commands.Cog):
             cfg: Any = raw_cfg() if callable(raw_cfg) else raw_cfg
             if not isinstance(cfg, Config):
                 cfg = Config.from_env()
-            self.config_manager = cast(ConfigManager, ConfigManagerImpl(cfg))
+            self.config_manager: ConfigManager = cast(ConfigManager, ConfigManagerImpl(cfg))
         else:
-            self.config_manager = cast(ConfigManager, cm_any)
+            self.config_manager: ConfigManager = cast(ConfigManager, cm_any)
 
         # Lazy imports to avoid cycles at module import time
         from ..event_connection_handler import ConnectionHandler
@@ -57,7 +57,7 @@ class EventBridge(commands.Cog):
         await self.message_handler.handle_message(message)
 
     @commands.Cog.listener()
-    async def on_voice_state_update(self, member: Any, before: Any, after: Any) -> None:
+    async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState) -> None:
         await self.connection_handler.handle_voice_state_update(member, before, after)
 
     @commands.Cog.listener()

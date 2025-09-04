@@ -77,7 +77,7 @@ class DiscordVoiceTTSBot(BaseEventBot):
             "messages_processed": 0,
             "voice_connections": 0,
             "tts_requests": 0,
-            "errors": 0,
+            "connection_errors": 0,
         }
 
     async def start_with_config(self) -> None:
@@ -101,7 +101,9 @@ class DiscordVoiceTTSBot(BaseEventBot):
         Prints a connection message. Readiness handling is performed by the
         EventBridge Cog listener; this method is otherwise a no-op.
         """
-        print(f"🤖 {self.user} has connected to Discord!")
+        from loguru import logger
+
+        logger.info(f"🤖 {self.user} has connected to Discord!")
         return
 
     @override
@@ -165,15 +167,16 @@ class DiscordVoiceTTSBot(BaseEventBot):
         """
         # Prefer EventBridge -> ConnectionHandler
         try:
-            bridge = next((c for c in self.cogs.values() if c.__class__.__name__ == "EventBridge"), None)
+            bridge = self.get_cog("EventBridge")
             conn = getattr(bridge, "connection_handler", None) if bridge else None
             if conn and hasattr(conn, "handle_error"):
                 await conn.handle_error(event, *args, **kwargs)
                 return
         except Exception:
             pass
+        from loguru import logger
 
-        print(f"[on_error] Unhandled error event: {event}", flush=True)
+        logger.warning(f"[on_error] Unhandled error event: {event}")
 
 
 async def run_bot(config: Config | None = None) -> None:

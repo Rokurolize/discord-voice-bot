@@ -260,19 +260,21 @@ class BotFactory:
             from .cogs.voice_group import TTSGroup
 
             # Avoid double-registration during tests/restarts
-            if not any(isinstance(cog, StatusCommands) for cog in bot.cogs.values()):
+            if bot.get_cog("EventBridge") is None:
+                await bot.add_cog(EventBridge(bot))
+                logger.debug("Registered EventBridge cog")
+
+            if bot.get_cog("StatusCommands") is None:
                 await bot.add_cog(StatusCommands(bot))
                 logger.debug("Registered StatusCommands cog")
 
-            if not any(isinstance(cog, VoiceCommands) for cog in bot.cogs.values()):
+            if bot.get_cog("VoiceCommands") is None:
                 await bot.add_cog(VoiceCommands(bot))
                 logger.debug("Registered VoiceCommands cog")
-            if not any(isinstance(cog, TTSGroup) for cog in bot.cogs.values()):
+
+            if bot.get_cog("TTSGroup") is None:
                 await bot.add_cog(TTSGroup(bot))
                 logger.debug("Registered TTSGroup group cog")
-            if not any(isinstance(cog, EventBridge) for cog in bot.cogs.values()):
-                await bot.add_cog(EventBridge(bot))
-                logger.debug("Registered EventBridge cog")
         except Exception as e:
             logger.debug(f"Skipping Cog registration (optional): {e}")
 
